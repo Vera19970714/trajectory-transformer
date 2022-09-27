@@ -5,6 +5,7 @@ import numpy as np
 import cv2 as cv
 from collections import Counter
 import pickle
+from tqdm import tqdm
 img_dir = './dataset/img/Question/'
 data_dir = './dataset/gaze/whole_target_correct_time.xlsx'
 target_dir = './dataset/img/Target/'
@@ -27,7 +28,7 @@ class CUT_PIC(object):
 
         word_dict_sorted2 = Counter(words)
         
-        for key in word_dict_sorted2:
+        for key in tqdm(word_dict_sorted2):
             #id_num = word_dict_sorted[key]
             df1 = self.df[self.df["id"]==int(key)]
             df1.reset_index(drop=True, inplace=True)
@@ -59,7 +60,7 @@ class CUT_PIC(object):
                 IMAGE_COLUMN = 9
                 CROP_RANGE_1 = 239
                 CROP_RANGE_2 = 116
-                dim = (186, 300)
+                dim = (93, 150)
 
 
             elif question_name.startswith('Q3'):
@@ -69,18 +70,19 @@ class CUT_PIC(object):
                 IMAGE_COLUMN = 9
                 CROP_RANGE_1 = 245
                 CROP_RANGE_2 = 162
-                dim = (186, 300)
+                dim = (93, 150)
             
             question_img = cv.imread(img_dir + question_name + '.png')
             question_img = cv.cvtColor(question_img,cv.COLOR_BGR2RGB)
-            
+
+
             for y in range(1, IMAGE_ROW + 1):
                 for x in range(1, IMAGE_COLUMN + 1):
                     img_cropped_feature = question_img[((1050-IMAGE_SIZE_1*IMAGE_ROW)+(y-1)*IMAGE_SIZE_1):((1050-IMAGE_SIZE_1*IMAGE_ROW)+y*IMAGE_SIZE_1), ((x-1)*IMAGE_SIZE_2):x*IMAGE_SIZE_2]
                     
                     # img_cropped_feature = img_cropped_feature[int((IMAGE_SIZE_1 - CROP_RANGE_1) / 2) : int(IMAGE_SIZE_1 - (IMAGE_SIZE_1 - CROP_RANGE_1) / 2), int((IMAGE_SIZE_2 - CROP_RANGE_2) / 2) : int(IMAGE_SIZE_2 - (IMAGE_SIZE_2 - CROP_RANGE_2)/2)]
                     img_cropped_feature = cv.resize(img_cropped_feature, dim)
-                    #img_cropped_feature = loader(img_cropped_feature).unsqueeze(0)
+                    img_cropped_feature = cv.normalize(img_cropped_feature, None, alpha=0, beta=1, norm_type=cv.NORM_MINMAX, dtype=cv.CV_32F)
                     Question_img_feature.append(img_cropped_feature)
                     
             dataset_dict['package_target'] = package_target

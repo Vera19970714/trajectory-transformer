@@ -14,13 +14,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path
-    parser.add_argument('-train_datapath', default='', type=str)
-    parser.add_argument('-valid_datapath', default='', type=str)
-    parser.add_argument('-test_datapath', default='', type=str)
+    parser.add_argument('-train_datapath', default='dataset/processdata/dataset_Q23_time_train', type=str)
+    parser.add_argument('-valid_datapath', default='dataset/processdata/dataset_Q23_time_val', type=str)
+    parser.add_argument('-test_datapath', default='dataset/processdata/dataset_Q23_time_val', type=str)
     parser.add_argument('-checkpoint', default='None', type=str)
     parser.add_argument('-log_name', default='test_log', type=str)
     # model setting
-    parser.add_argument('-model', default='origin', type=str)
+    parser.add_argument('-model', default='Conv_Autoencoder', type=str)
     # training hyperparameters
     parser.add_argument('-gpus', default='0', type=str)
     parser.add_argument('-batch_size', type=int, default=4)
@@ -64,7 +64,6 @@ if __name__ == '__main__':
     search_data = SearchDataModule(args)
     if args.model == 'Conv_Autoencoder':
         model = Conv_AutoencoderModel(args)
-   
     else:
         print('Invalid model')
     
@@ -75,8 +74,8 @@ if __name__ == '__main__':
                       resume_from_checkpoint=args.checkpoint,
                       logger=logger,
                       gpus=args.gpus,
-                      distributed_backend='ddp',
-                      plugins=DDPPlugin(find_unused_parameters=True),
+                      #distributed_backend='ddp',
+                      #plugins=DDPPlugin(find_unused_parameters=True),
                       gradient_clip_val=1.0,
                       max_epochs=args.num_epochs,
                       limit_val_batches=args.limit_val_batches,
