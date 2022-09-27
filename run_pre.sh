@@ -11,4 +11,5 @@
 source activate aging
 
 # Your script
+# srun python ./src/preprocess/img_feature.py \
 srun python ./src/preprocess/randsplit.py \
