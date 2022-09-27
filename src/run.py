@@ -14,9 +14,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path
-    parser.add_argument('-train_datapath', default='dataset/processdata/dataset_Q23_time_train', type=str)
-    parser.add_argument('-valid_datapath', default='dataset/processdata/dataset_Q23_time_val', type=str)
-    parser.add_argument('-test_datapath', default='dataset/processdata/dataset_Q23_time_val', type=str)
+    parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_time_train', type=str)
+    parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
+    parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
     parser.add_argument('-checkpoint', default='None', type=str)
     parser.add_argument('-log_name', default='test_log', type=str)
     # model setting
