@@ -1,3 +1,5 @@
 dataset/
 results/
 .DS_store
+ckpt/
+src/lightning_logs/
