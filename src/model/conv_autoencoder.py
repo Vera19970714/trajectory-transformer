@@ -1,5 +1,6 @@
 import pytorch_lightning as pl
 from models import *
+import torch
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
