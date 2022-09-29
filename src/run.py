@@ -82,7 +82,7 @@ if __name__ == '__main__':
                       val_check_interval=args.val_check_interval,
                       accumulate_grad_batches=args.grad_accumulate,
                       fast_dev_run=False,
-                      callbacks=[lr_monitor, checkpoint_callback])
+                      callbacks=[lr_monitor, checkpoint_callback, early_stop_callback])
 
     # Fit the instantiated model to the data
     if args.do_train == 'True':

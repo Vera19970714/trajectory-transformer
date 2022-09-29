@@ -56,12 +56,12 @@ class SearchDataModule(pl.LightningDataModule):
                                     collate_fn=collate_fn,
                                     shuffle=True)
     self.val_loader = DataLoader(dataset=val_set,
-                                    batch_size=args.batch_size,
+                                    batch_size=1,
                                     num_workers=2,
                                     collate_fn=collate_fn,
                                     shuffle=False)
     self.test_loader = DataLoader(dataset=test_set,
-                                    batch_size=args.batch_size,
+                                    batch_size=1,
                                     num_workers=2,
                                     collate_fn=collate_fn,
                                     shuffle=False)
