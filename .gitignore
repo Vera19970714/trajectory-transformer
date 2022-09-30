@@ -1,3 +1,4 @@
 dataset/
 results/
 .DS_store
+lightning_logs/
