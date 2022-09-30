@@ -17,13 +17,13 @@ if __name__ == '__main__':
     parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_time_train', type=str)
     parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
     parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
-    parser.add_argument('-checkpoint', default='None', type=str)
+    parser.add_argument('-checkpoint', default='../ckpt/epoch=17-step=395.ckpt', type=str)
     parser.add_argument('-log_name', default='test_log', type=str)
     # model setting
     parser.add_argument('-model', default='Conv_Autoencoder', type=str)
     # training hyperparameters
     parser.add_argument('-gpus', default='0', type=str)
-    parser.add_argument('-batch_size', type=int, default=4)
+    parser.add_argument('-batch_size', type=int, default=1)
     parser.add_argument('-learning_rate', default=3e-5, type=float)
     parser.add_argument('-scheduler_lambda1', default=20, type=int)
     parser.add_argument('-scheduler_lambda2', default=0.95, type=float)
@@ -82,13 +82,13 @@ if __name__ == '__main__':
                       val_check_interval=args.val_check_interval,
                       accumulate_grad_batches=args.grad_accumulate,
                       fast_dev_run=False,
-                      callbacks=[lr_monitor, checkpoint_callback])
+                      callbacks=[lr_monitor, checkpoint_callback, early_stop_callback])
 
     # Fit the instantiated model to the data
     if args.do_train == 'True':
-        trainer.fit(model, search_data)
+        trainer.fit(model, search_data.train_loader, search_data.val_loader)
     if args.do_test == 'True':
         model = model.load_from_checkpoint(args.checkpoint, args=args)
-        trainer.test(model=model, test_dataloaders=search_data.test_loader)
+        trainer.test(model=model, dataloaders=search_data.test_loader)
 
 
