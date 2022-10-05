@@ -17,7 +17,7 @@ if __name__ == '__main__':
     parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_time_train', type=str)
     parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
     parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
-    parser.add_argument('-checkpoint', default='../ckpt/epoch=17-step=395.ckpt', type=str)
+    parser.add_argument('-checkpoint', default='../ckpt/epoch=17-step=395(1).ckpt', type=str)
     parser.add_argument('-log_name', default='test_log', type=str)
     # model setting
     parser.add_argument('-model', default='Conv_Autoencoder', type=str)
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     parser.add_argument('-clip_val', default=1.0, type=float)
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=5)
-    parser.add_argument('-do_train', type=str, default='True')
+    parser.add_argument('-do_train', type=str, default='False')
     parser.add_argument('-do_test', type=str, default='True')
     parser.add_argument('-limit_val_batches', default=1.0, type=float)
     parser.add_argument('-val_check_interval', default=1.0, type=float)
