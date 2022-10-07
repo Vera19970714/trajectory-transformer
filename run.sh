@@ -12,24 +12,24 @@ source activate aging
 
 # Your script
 srun python ./src/run.py \
-        -train_datapath=./dataset/processdata/dataset_Q23_time_train \
-        -valid_datapath=./dataset/processdata/dataset_Q23_time_val \
-        -test_datapath=./dataset/processdata/dataset_Q23_time_val \
+        -train_datapath=./dataset/processdata/dataset_Q23_baseline_time_train \
+        -valid_datapath=./dataset/processdata/dataset_Q23_baseline_time_val \
+        -test_datapath=./dataset/processdata/dataset_Q23_baseline_time_val \
         -checkpoint=None \
-        -log_name=test \
-        -model=Conv_Autoencoder \
+        -log_name=debug \
+        -model=BaseModel \
         -gpus='-1' \
-        -batch_size=32 \
+        -batch_size=4 \
         -learning_rate=1e-2 \
         -scheduler_lambda1=1 \
         -scheduler_lambda2=0.95 \
         -num_epochs=100 \
         -grad_accumulate=1 \
         -clip_val=1.0 \
-        -random_seed=0 \
+        -random_seed=3047 \
         -early_stop_patience=20 \
         -do_train=True \
-        -do_test=True \
+        -do_test=False \
         -limit_val_batches=1.0 \
         -val_check_interval=1.0 \
 
