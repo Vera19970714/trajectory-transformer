@@ -147,7 +147,7 @@ class BaseModel(pl.LightningModule):
                             question_img, tgt_img)
         tgt_out = tgt_pos[:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-
+        
         self.log('training_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, }
 
@@ -172,7 +172,7 @@ class BaseModel(pl.LightningModule):
                             question_img, tgt_img)
         tgt_out = tgt_pos[:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-
+        
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, }
 

@@ -29,8 +29,8 @@ class CNNShelf(nn.Module):
         # b，837, 450, 3
         b, w, h = tokens.size()[0], tokens.size()[1], tokens.size()[2]
         input = tokens.contiguous().view(-1, w, h, 3).permute(0, 3, 1, 2)
-        print('=====input===')
-        print(input.shape)
+        # print('=====input===')
+        # print(input.shape)
         output = self.cnn1(input) # b, 8, 166，89
         output = self.cnn2(output) # b, 16, 54, 29
         output = self.cnn3(output) # b, 32, 17, 9
@@ -115,19 +115,4 @@ class DecoderRNN(nn.Module):
         # exit()
         return outputs
         
-
-    
-    # def sample(self, features, states=None):
-    #     """Generate captions for given image features using greedy search."""
-    #     sampled_ids = []
-    #     inputs = features.unsqueeze(1)
-    #     for i in range(self.max_seg_length):
-    #         hiddens, states = self.lstm(inputs, states)          # hiddens: (batch_size, 1, hidden_size)
-    #         outputs = self.linear(hiddens.squeeze(1))            # outputs:  (batch_size, vocab_size)
-    #         _, predicted = outputs.max(1)                        # predicted: (batch_size)
-    #         sampled_ids.append(predicted)
-    #         inputs = self.embed(predicted)                       # inputs: (batch_size, embed_size)
-    #         inputs = inputs.unsqueeze(1)                         # inputs: (batch_size, 1, embed_size)
-    #     sampled_ids = torch.stack(sampled_ids, 1)                # sampled_ids: (batch_size, max_seq_length)
-    #     return sampled_ids
 
