@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+TGT_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
 class Conv_AutoencoderModel(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
@@ -14,10 +14,10 @@ class Conv_AutoencoderModel(pl.LightningModule):
         SRC_VOCAB_SIZE = 27+4
         TGT_VOCAB_SIZE = 27+4
         EMB_SIZE = 512
-        NHEAD = 8
+        NHEAD = 4
         FFN_HID_DIM = 512
-        NUM_ENCODER_LAYERS = 3
-        NUM_DECODER_LAYERS = 3
+        NUM_ENCODER_LAYERS = 2
+        NUM_DECODER_LAYERS = 2
         self.model = Seq2SeqTransformer(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
                                          NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, FFN_HID_DIM).to(DEVICE)
         for p in self.model.parameters():
