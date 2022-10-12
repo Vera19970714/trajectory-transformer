@@ -16,10 +16,10 @@ srun python ./src/run.py \
         -valid_datapath=./dataset/processdata/dataset_Q23_baseline_time_val \
         -test_datapath=./dataset/processdata/dataset_Q23_baseline_time_val \
         -checkpoint=None \
-        -log_name=debug \
+        -log_name=baseline \
         -model=BaseModel \
         -gpus='-1' \
-        -batch_size=4 \
+        -batch_size=32 \
         -learning_rate=1e-2 \
         -scheduler_lambda1=1 \
         -scheduler_lambda2=0.95 \
