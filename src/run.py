@@ -28,7 +28,7 @@ if __name__ == '__main__':
     parser.add_argument('-learning_rate', default=3e-5, type=float)
     parser.add_argument('-scheduler_lambda1', default=20, type=int)
     parser.add_argument('-scheduler_lambda2', default=0.95, type=float)
-    parser.add_argument('-num_epochs', type=int, default=100)
+    parser.add_argument('-num_epochs', type=int, default=500)
     parser.add_argument('-grad_accumulate', type=int, default=1)
     parser.add_argument('-clip_val', default=1.0, type=float)
     parser.add_argument('-random_seed', type=int, default=3407)

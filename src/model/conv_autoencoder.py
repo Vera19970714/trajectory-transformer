@@ -21,7 +21,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
         NUM_ENCODER_LAYERS = 1
         NUM_DECODER_LAYERS = 1
         self.model = Seq2SeqTransformer(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
-                                         NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, FFN_HID_DIM).to(DEVICE)
+                                         NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, FFN_HID_DIM).to(DEVICE).float()
         for p in self.model.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
@@ -51,7 +51,22 @@ class Conv_AutoencoderModel(pl.LightningModule):
         # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input)
 
-        logits = self.model(src_pos, tgt_input,
+        # CHANGED position from one dimension to two dimensions
+        # tgt_input: 11,1 to 11,2
+        # src_pos: 28, 1 to 28, 2
+        tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 2)).to(DEVICE).float()
+        tgt_input_2d[:, :, 0] = tgt_input // 9
+        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, 9)
+        tgt_input_2d[0, :, 0] = 1.5
+        tgt_input_2d[0, :, 1] = 4.5
+
+        src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 2)).to(DEVICE).float()
+        src_pos_2d[:, :, 0] = src_pos // 9
+        src_pos_2d[:, :, 1] = torch.remainder(src_pos, 9)
+        src_pos_2d[0, :, 0] = -1
+        src_pos_2d[0, :, 1] = -1
+
+        logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img,
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
         tgt_out = tgt_pos[1:, :]
@@ -79,7 +94,22 @@ class Conv_AutoencoderModel(pl.LightningModule):
         # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input)
 
-        logits = self.model(src_pos, tgt_input,
+        #CHANGED position from one dimension to two dimensions
+        # tgt_input: 11,1 to 11,2
+        # src_pos: 28, 1 to 28, 2
+        tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 2)).to(DEVICE).float()
+        tgt_input_2d[:, :, 0] = tgt_input // 9
+        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, 9)
+        tgt_input_2d[0, :, 0] = 1.5
+        tgt_input_2d[0, :, 1] = 4.5
+
+        src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 2)).to(DEVICE).float()
+        src_pos_2d[:, :, 0] = src_pos // 9
+        src_pos_2d[:, :, 1] = torch.remainder(src_pos, 9)
+        src_pos_2d[0, :, 0] = -1
+        src_pos_2d[0, :, 1] = -1
+
+        logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),   #src_pos, tgt_input,
                             src_img, tgt_img,
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
         tgt_out = tgt_pos[1:, :]
@@ -111,7 +141,22 @@ class Conv_AutoencoderModel(pl.LightningModule):
         # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input)
 
-        logits = self.model(src_pos, tgt_input,
+        # CHANGED position from one dimension to two dimensions
+        # tgt_input: 11,1 to 11,2
+        # src_pos: 28, 1 to 28, 2
+        tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 2)).to(DEVICE).float()
+        tgt_input_2d[:, :, 0] = tgt_input // 9
+        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, 9)
+        tgt_input_2d[0, :, 0] = 1.5
+        tgt_input_2d[0, :, 1] = 4.5
+
+        src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 2)).to(DEVICE).float()
+        src_pos_2d[:, :, 0] = src_pos // 9
+        src_pos_2d[:, :, 1] = torch.remainder(src_pos, 9)
+        src_pos_2d[0, :, 0] = -1
+        src_pos_2d[0, :, 1] = -1
+
+        logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img,
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
         tgt_out = tgt_pos[1:, :]

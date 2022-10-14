@@ -20,10 +20,15 @@ class FixDataset(Dataset):
         self.package_sequence = []
         self.args = args
 
+        #todo: test overfitting
+        #i=0
         for item in raw_data:
             self.package_target.append(item['package_target'])
             self.question_img_feature.append(item['question_img_feature'])
             self.package_sequence.append(item['package_seq'])
+            '''i+=1
+            if i > 10:
+                break'''
 
         self.data_total_length = len(self.question_img_feature)
         
@@ -122,7 +127,8 @@ def collate_fn(data):
         package_target.append(target)
         question_img_feature = np.stack(question_img_feature)
         question_img_feature = torch.from_numpy(question_img_feature)
-        blank = torch.zeros((4, question_img_feature.size()[1], question_img_feature.size()[2], 3))
+        #CHANGED to ones
+        blank = torch.ones((4, question_img_feature.size()[1], question_img_feature.size()[2], 3))
         question_img.append(torch.cat((question_img_feature, blank), dim=0)) #5,300,186,3
 
     package_seq = pad_sequence(package_seq, padding_value=PAD_IDX, batch_first=False)

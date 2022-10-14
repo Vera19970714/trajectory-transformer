@@ -87,15 +87,15 @@ class Seq2SeqTransformer(nn.Module):
                                        num_decoder_layers=num_decoder_layers,
                                        dim_feedforward=dim_feedforward,
                                        dropout=dropout)
-        self.generator = nn.Linear(emb_size, tgt_vocab_size)
-        self.src_tok_emb = TokenEmbedding(src_vocab_size, int(emb_size/2))
-        self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, int(emb_size/2))
+        self.generator = nn.Linear(emb_size, tgt_vocab_size).float()
+        #self.src_tok_emb = TokenEmbedding(src_vocab_size, int(emb_size/2))
+        #self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, int(emb_size/2))
         self.positional_encoding = PositionalEncoding(
             emb_size, dropout=dropout)
-        #self.visual_positional_encoding = VisualPositionalEncoding(
-        #    emb_size, dropout=dropout)
+        self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
 
         self.cnn_embedding = CNNEmbedding()
+        self.LinearEmbedding = nn.Linear(2, int(emb_size/2)).float()
 
     def forward(self,
                 src: Tensor,
@@ -108,13 +108,15 @@ class Seq2SeqTransformer(nn.Module):
                 tgt_padding_mask: Tensor,
                 memory_key_padding_mask: Tensor):
         src_cnn_emb = self.cnn_embedding(src_img).transpose(0, 1) #28, 4, 256
-        src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
+        #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
+        src_pos_emb = self.LinearEmbedding(src)
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2)
-        #src_emb = self.visual_positional_encoding(src_emb) #28,4,512
-        src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well
+        src_emb = self.visual_positional_encoding(src_emb) #28,4,512
+        #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well
 
         tgt_cnn_emb = self.cnn_embedding(tgt_img).transpose(0, 1)  # 28, 4, 256
-        tgt_pos_emb = self.tgt_tok_emb(trg)  # 28, 4, 256
+        #tgt_pos_emb = self.tgt_tok_emb(trg)  # 28, 4, 256
+        tgt_pos_emb = self.LinearEmbedding(trg)
         tgt_emb = torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
         tgt_emb = self.positional_encoding(tgt_emb)
 
