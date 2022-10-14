@@ -6,6 +6,7 @@ from torchvision import datasets, transforms
 import pytorch_lightning as pl
 import pickle
 from torch.nn.utils.rnn import pad_sequence
+import matplotlib.pyplot as plt
 
 class FixDataset(Dataset):
     def __init__(self, args, new_datapath):
@@ -23,12 +24,11 @@ class FixDataset(Dataset):
             self.package_target.append(item['package_target'])
             self.question_img_feature.append(item['question_img_feature'])
             self.package_sequence.append(item['package_seq'])
-            
+
         self.data_total_length = len(self.question_img_feature)
         
         print(F'total_len = {self.data_total_length}')
-        
-       
+        #self.drawTrajectoryDis()
 
     # support indexing such that dataset[i] can be used to get i-th sample
     def __getitem__(self, index):
@@ -40,6 +40,18 @@ class FixDataset(Dataset):
 
     def get_lens(self, sents):
         return [len(sent) for sent in sents]
+
+    def drawTrajectoryDis(self):
+        output = []
+        for entry in self.package_sequence:
+            entry = np.stack(entry) - 1
+            #print(entry)
+            #entry = np.concatenate((np.array(BOS_IDX).reshape(1,), entry, np.array(EOS_IDX).reshape(1,)))
+            output.extend(entry.tolist())
+            output.append(BOS_IDX)
+            output.append(EOS_IDX)
+        plt.hist(output, bins=31)
+        plt.show()
 
 
 # Create a dataloading module as per the PyTorch Lightning Docs

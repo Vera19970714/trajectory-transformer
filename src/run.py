@@ -14,14 +14,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path
-    parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_time_train', type=str)
+    parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
     parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
     parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
-    parser.add_argument('-checkpoint', default='../ckpt/epoch=17-step=395(1).ckpt', type=str)
+    parser.add_argument('-checkpoint', default=None, type=str)
 
     parser.add_argument('-log_name', default='test_log', type=str)
     # model setting
-    parser.add_argument('-model', default='BaseModel', type=str)
+    parser.add_argument('-model', default='Conv_Autoencoder', type=str) #BaseModel, Conv_Autoencoder
     # training hyperparameters
     parser.add_argument('-gpus', default='0', type=str)
     parser.add_argument('-batch_size', type=int, default=2)
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('-clip_val', default=1.0, type=float)
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=5)
-    parser.add_argument('-do_train', type=str, default='False')
+    parser.add_argument('-do_train', type=str, default='True')
     parser.add_argument('-do_test', type=str, default='True')
     parser.add_argument('-limit_val_batches', default=1.0, type=float)
     parser.add_argument('-val_check_interval', default=1.0, type=float)
@@ -62,12 +62,13 @@ if __name__ == '__main__':
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
     # make dataloader & model
-    # search_data = SearchDataModule(args)
-    search_data = BaseSearchDataModule(args)
+
     if args.model == 'Conv_Autoencoder':
         model = Conv_AutoencoderModel(args)
+        search_data = SearchDataModule(args)
     if args.model == 'BaseModel':
         model = BaseModel(args)
+        search_data = BaseSearchDataModule(args)
     else:
         print('Invalid model')
     
@@ -92,7 +93,7 @@ if __name__ == '__main__':
     if args.do_train == 'True':
         trainer.fit(model, search_data.train_loader, search_data.val_loader)
         trainer.test(model=model, dataloaders=search_data.test_loader)
-    if args.do_test == 'True':
+    elif args.do_test == 'True':
         model = model.load_from_checkpoint(args.checkpoint, args=args)
         trainer.test(model=model, dataloaders=search_data.test_loader)
 

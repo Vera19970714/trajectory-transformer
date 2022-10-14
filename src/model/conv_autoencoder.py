@@ -3,6 +3,8 @@ from models import *
 from basemodels import *
 import torch
 import torch.nn as nn
+from tensorboardX import SummaryWriter
+
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 TGT_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
@@ -14,10 +16,10 @@ class Conv_AutoencoderModel(pl.LightningModule):
         SRC_VOCAB_SIZE = 27+4
         TGT_VOCAB_SIZE = 27+4
         EMB_SIZE = 512
-        NHEAD = 4
+        NHEAD = 2 #todo: changed settings
         FFN_HID_DIM = 512
-        NUM_ENCODER_LAYERS = 2
-        NUM_DECODER_LAYERS = 2
+        NUM_ENCODER_LAYERS = 1
+        NUM_DECODER_LAYERS = 1
         self.model = Seq2SeqTransformer(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
                                          NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, FFN_HID_DIM).to(DEVICE)
         for p in self.model.parameters():
@@ -25,6 +27,16 @@ class Conv_AutoencoderModel(pl.LightningModule):
                 nn.init.xavier_uniform_(p)
         self.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
+        self.loggerS= SummaryWriter(f'./lightning_logs/{args.log_name}')
+        self.total_step = 0
+
+    def log_gradients_in_model(self, step):
+        for tag, value in self.model.named_parameters():
+            #print('-'*10)
+            if value.grad is not None:
+                #print(tag, value.grad.cpu())
+                self.loggerS.add_histogram(tag + "/grad", value.grad.cpu(), step)
+            #print('-' * 10)
 
     def training_step(self, batch, batch_idx):
         src_pos, src_img, tgt_pos, tgt_img = batch
@@ -44,7 +56,8 @@ class Conv_AutoencoderModel(pl.LightningModule):
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-
+        #self.log_gradients_in_model(self.total_step)
+        self.total_step += 1
         self.log('training_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, }
 
@@ -71,6 +84,11 @@ class Conv_AutoencoderModel(pl.LightningModule):
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
+
+        _, predicted = torch.max(logits, 2)
+        print(predicted.view(1, -1))
+
+        #print('gt', tgt_out.view(1, -1))
 
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss,}
@@ -99,6 +117,8 @@ class Conv_AutoencoderModel(pl.LightningModule):
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
 
+        _, predicted = torch.max(logits, 2)
+        print(predicted.view(1, -1))
         self.log('testing_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, }
 
@@ -172,7 +192,9 @@ class BaseModel(pl.LightningModule):
                             question_img, tgt_img)
         tgt_out = tgt_pos[:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-        
+        _, predicted = torch.max(logits, 2)
+        print(predicted)
+
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, }
 
@@ -197,7 +219,9 @@ class BaseModel(pl.LightningModule):
                             question_img, tgt_img)
         tgt_out = tgt_pos[:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-        
+        _, predicted = torch.max(logits, 2)
+        print(predicted)
+
         self.log('testing_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, }
 
