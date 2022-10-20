@@ -112,6 +112,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
         logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),   #src_pos, tgt_input,
                             src_img, tgt_img,
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+        # logits: 11, 1, 31, tgt_out: 11, 1
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
 
