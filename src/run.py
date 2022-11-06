@@ -24,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('-model', default='Conv_Autoencoder', type=str) #BaseModel, Conv_Autoencoder
     # training hyperparameters
     parser.add_argument('-gpus', default='0', type=str)
-    parser.add_argument('-batch_size', type=int, default=2)
+    parser.add_argument('-batch_size', type=int, default=20)
     parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=20, type=int)
     parser.add_argument('-scheduler_lambda2', default=0.95, type=float)
