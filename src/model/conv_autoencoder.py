@@ -4,6 +4,7 @@ from basemodels import *
 import torch
 import torch.nn as nn
 from tensorboardX import SummaryWriter
+import torch.nn.functional as F
 
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -140,51 +141,58 @@ class Conv_AutoencoderModel(pl.LightningModule):
         # CHANGED: the first one is discarded
         src_pos = src_pos[1:]
         src_img = src_img[:, 1:]
-
         max_length = 18
         length = tgt_pos.size(0)
         loss = 0
+        blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).cuda()
+        new_src_img = torch.cat((src_img, blank), dim=1) #31,300,186,3
         end_token = 30*torch.ones((max_length-length,1)).cuda()
         new_tgt_pos = torch.cat((tgt_pos, end_token), dim=0)
-        for i in range(1,max_length):
-            if i==1:
-                tgt_input = tgt_pos[:i, :]
-                tgt_img_input = tgt_img[:, :i, :, :, :]
-                src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
-                src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData(src_pos, src_img, tgt_input,tgt_img_input)
+        iter =100
+        for n in range(iter):
+            loss_per = 0
+            for i in range(1,max_length):
+                if i==1:
+                    tgt_input = tgt_pos[:i, :]
+                    tgt_img_input = tgt_img[:, :i, :, :, :]
+                    src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
+                    src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData(src_pos, src_img, tgt_input,tgt_img_input)
 
-                logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
-                                    src_img, tgt_img,
-                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-                _, predicted = torch.max(logits[-1,:,:], 1)
-                tgt_out = new_tgt_pos[i, :]
-                loss += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
-
-                if predicted==30:
-                    break
+                    logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+                                        src_img, tgt_img,
+                                        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                    logits_new = F.softmax(logits[-1,:,:].view(-1), dim=0)
+                    predicted = torch.multinomial(logits_new,1,replacement=True)
+                    tgt_out = new_tgt_pos[i, :]
+                    loss_per += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
+                    if predicted==30:
+                        break
+                    else:
+                        next_tgt_img_input = src_img[:, predicted, :, :, :]
+                        next_tgt_input = predicted.view(-1,1)
                 else:
-                    next_tgt_img_input = src_img[:, predicted+1, :, :, :]
-                    next_tgt_input = predicted.view(-1,1)
-            else:
-                tgt_input = next_tgt_input
-                tgt_img_input = next_tgt_img_input
-                src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
-                src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData(src_pos, src_img, tgt_input,tgt_img_input)
+                    tgt_input = next_tgt_input
+                    tgt_img_input = next_tgt_img_input
+                    src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
+                    src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData(src_pos, src_img, tgt_input,tgt_img_input)
 
-                logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
-                                    src_img, tgt_img,
-                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-                _, predicted = torch.max(logits[-1,:,:], 1)
-                tgt_out = new_tgt_pos[i, :]
-                loss += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
-                if predicted==30:
-                    break
-                else:
-                    next_tgt_img_input = torch.cat((next_tgt_img_input, src_img[:, predicted+1, :, :, :]), dim=1)
-                    next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1,1)), dim=0)
-        print(next_tgt_input)
-        print(i)
-        loss = loss / i
+                    logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+                                        src_img, tgt_img,
+                                        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                    logits_new = F.softmax(logits[-1,:,:].view(-1), dim=0)
+                    
+                    predicted = torch.multinomial(logits_new,1,replacement=True)
+                    tgt_out = new_tgt_pos[i, :]
+                    loss_per += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
+                    if predicted==30:
+                        break
+                    else:
+                        # print(predicted)
+                        next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
+                        next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1,1)), dim=0)
+            loss += loss_per / i
+        loss= loss / iter
+        print(loss)
         self.log('testing_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, }
 
