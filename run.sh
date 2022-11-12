@@ -15,7 +15,7 @@ srun python ./src/run.py \
         -train_datapath=./dataset/processdata/dataset_Q23_time_train \
         -valid_datapath=./dataset/processdata/dataset_Q23_time_val \
         -test_datapath=./dataset/processdata/dataset_Q23_time_val \
-        -checkpoint=./lightning_logs/main_threedim/default/version_0/checkpoints/epoch=48-step=1077.ckpt \
+        -checkpoint=./lightning_logs/main_threedim/default/version_5/checkpoints/epoch=44-step=989.ckpt \
         -log_name=main_threedim_test \
         -model=Conv_Autoencoder \
         -gpus='-1' \
@@ -26,7 +26,7 @@ srun python ./src/run.py \
         -num_epochs=100 \
         -grad_accumulate=1 \
         -clip_val=1.0 \
-        -random_seed=3047 \
+        -random_seed=25 \
         -early_stop_patience=20 \
         -do_train=False \
         -do_test=True \

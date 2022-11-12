@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
+import pandas as pd
+import numpy as np
 
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -74,8 +76,9 @@ class Conv_AutoencoderModel(pl.LightningModule):
         # CHANGED position from one dimension to two dimensions
         # tgt_input: 11,1 to 11,2
         # src_pos: 28, 1 to 28, 2
-
+        
         tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 3)).to(DEVICE).float()
+        
         tgt_input_2d[:, :, 0] = tgt_input // 9
         tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, 9)
         tgt_input_2d[0, :, 0] = 1.5
@@ -137,6 +140,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
         src_pos = src_pos.to(DEVICE)
         src_img = src_img.to(DEVICE)
         tgt_pos = tgt_pos.to(DEVICE)
+        print(tgt_pos)
         tgt_img = tgt_img.to(DEVICE)
         # CHANGED: the first one is discarded
         src_pos = src_pos[1:]
@@ -148,7 +152,9 @@ class Conv_AutoencoderModel(pl.LightningModule):
         new_src_img = torch.cat((src_img, blank), dim=1) #31,300,186,3
         end_token = 30*torch.ones((max_length-length,1)).cuda()
         new_tgt_pos = torch.cat((tgt_pos, end_token), dim=0)
-        iter =100
+        iter =90
+        LOSS = torch.zeros((max_length, iter))-1
+        GAZE= torch.zeros((max_length, iter))-1
         for n in range(iter):
             loss_per = 0
             for i in range(1,max_length):
@@ -164,6 +170,8 @@ class Conv_AutoencoderModel(pl.LightningModule):
                     logits_new = F.softmax(logits[-1,:,:].view(-1), dim=0)
                     predicted = torch.multinomial(logits_new,1,replacement=True)
                     tgt_out = new_tgt_pos[i, :]
+                    LOSS[i][n] = self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
+                    GAZE[i][n] = predicted
                     loss_per += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
                     if predicted==30:
                         break
@@ -175,7 +183,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
                     tgt_img_input = next_tgt_img_input
                     src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
                     src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData(src_pos, src_img, tgt_input,tgt_img_input)
-
+                    
                     logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                         src_img, tgt_img,
                                         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
@@ -183,6 +191,8 @@ class Conv_AutoencoderModel(pl.LightningModule):
                     
                     predicted = torch.multinomial(logits_new,1,replacement=True)
                     tgt_out = new_tgt_pos[i, :]
+                    LOSS[i][n] = self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
+                    GAZE[i][n] = predicted
                     loss_per += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
                     if predicted==30:
                         break
@@ -194,11 +204,24 @@ class Conv_AutoencoderModel(pl.LightningModule):
         loss= loss / iter
         print(loss)
         self.log('testing_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'loss': loss, }
+        return {'loss': loss,'gaze':GAZE,'LOSS':LOSS}
 
     def test_epoch_end(self, test_step_outputs):
         avg_loss = torch.stack([x['loss'].cpu().detach() for x in test_step_outputs]).mean()
         #todo: output sequence
+        all_gazes, all_loss = pd.DataFrame(), pd.DataFrame()
+        for output in test_step_outputs:
+            gazes = list(output['gaze'].cpu().detach().numpy()) # predicted values
+            losses = list(output['LOSS'].cpu().detach().numpy())
+            all_loss = pd.concat([all_loss, pd.DataFrame(losses)],axis=0)
+            all_gazes = pd.concat([all_gazes, pd.DataFrame(gazes)],axis=0)
+        all_loss.reset_index().drop(['index'],axis=1)
+        all_loss.replace(-1, np.nan, inplace=True)
+        all_loss.to_excel('./dataset/outputdata/loss_twodim.xlsx', index=False)
+
+        all_gazes.reset_index().drop(['index'],axis=1)
+        all_gazes.replace(-1, np.nan, inplace=True)
+        all_gazes.to_excel('./dataset/outputdata/gaze_twodim.xlsx', index=False)
         self.log('test_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def configure_optimizers(self): #TODO, this function is not used atm
