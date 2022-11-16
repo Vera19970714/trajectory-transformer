@@ -102,10 +102,10 @@ class Conv_AutoencoderModel(pl.LightningModule):
             Index = tgt_input[-1, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
-            #tgt_input_2d[tgt1, i, 2] = 1
-            #src_pos_2d[tgt2, i, 2] = 1
-            tgt_input_2d[tgt1, i] = tgtValue
-            src_pos_2d[tgt2, i] = tgtValue
+            tgt_input_2d[tgt1, i, 2] = 1
+            src_pos_2d[tgt2, i, 2] = 1
+            # tgt_input_2d[tgt1, i] = tgtValue
+            # src_pos_2d[tgt2, i] = tgtValue
         
         return src_pos_2d, tgt_input_2d,  src_img, tgt_img, src_mask, tgt_mask, \
                src_padding_mask, tgt_padding_mask, src_padding_mask
@@ -171,7 +171,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
         avg_loss = torch.stack([x['loss'].cpu().detach() for x in test_step_outputs]).mean()
         self.log('test_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
-    def configure_optimizers(self): #TODO, this function is not used atm
+    def configure_optimizers(self): 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.args.scheduler_lambda1, gamma=self.args.scheduler_lambda2)
         return [optimizer], [scheduler]
