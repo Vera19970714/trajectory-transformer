@@ -92,12 +92,15 @@ class Conv_AutoencoderModel(pl.LightningModule):
 
         # changed to three dimension
         batch = tgt_input.size()[1]
+        tgtValue = torch.tensor((0, 0, 1)).to(DEVICE).float()
         for i in range(batch):
             Index = tgt_input[-1, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
-            tgt_input_2d[tgt1, i, 2] = 1
-            src_pos_2d[tgt2, i, 2] = 1
+            #tgt_input_2d[tgt1, i, 2] = 1
+            #src_pos_2d[tgt2, i, 2] = 1
+            tgt_input_2d[tgt1, i] = tgtValue
+            src_pos_2d[tgt2, i] = tgtValue
         
         return src_pos_2d, tgt_input_2d,  src_img, tgt_img_input, src_mask, tgt_mask, \
                src_padding_mask, tgt_padding_mask, src_padding_mask
