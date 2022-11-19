@@ -24,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('-model', default='Conv_Autoencoder', type=str) #BaseModel, Conv_Autoencoder
     # training hyperparameters
     parser.add_argument('-gpus', default='0', type=str)
-    parser.add_argument('-batch_size', type=int, default=2)
+    parser.add_argument('-batch_size', type=int, default=4)
     parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=20, type=int)
     parser.add_argument('-scheduler_lambda2', default=0.95, type=float)
@@ -95,6 +95,8 @@ if __name__ == '__main__':
     # Fit the instantiated model to the data
     if args.do_retrain == 'True':
         model = model.load_from_checkpoint(args.checkpoint, args=args)
+        # TODO: can comment the optimizer
+        model.optimizer = torch.optim.Adam(model.model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
         trainer.fit(model, search_data.train_loader, search_data.val_loader)
         trainer.test(model=model, dataloaders=search_data.test_loader)
     else:

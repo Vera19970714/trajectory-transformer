@@ -87,16 +87,25 @@ class Conv_AutoencoderModel(pl.LightningModule):
         src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
         src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData(src_pos, src_img, tgt_input, tgt_img)
 
-        '''if self.isRetrain:
+        if self.isRetrain:
             with torch.no_grad():
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
             # change tgt_input and tgt_img based on logits
-
-            new_tgt_input = tgt_input
-            new_tgt_img = tgt_img
-            tgt_input_2d, tgt_img, tgt_mask, tgt_padding_mask = self.processDataOnlyTgt(new_tgt_input, new_tgt_img)'''
+            _, new_tgt_input = torch.max(logits, 2)
+            # TODO: change the first index to BOS
+            #new_tgt_input[0, :] = BOS_IDX
+            blank = torch.ones((150, 93, 3)).to(DEVICE)
+            new_tgt_img = torch.zeros((new_tgt_input.size()[1], new_tgt_input.size()[0], 150, 93, 3))
+            for i in range(new_tgt_input.size()[1]):
+                for j in range(new_tgt_input.size()[0]):
+                    index = new_tgt_input[j][i]
+                    if index == EOS_IDX or BOS_IDX:
+                        new_tgt_img[i][j] = blank
+                    else:
+                        new_tgt_img[i][j] = src_img[i][index+1]
+            tgt_input_2d, tgt_img, tgt_mask, tgt_padding_mask = self.processDataOnlyTgt(new_tgt_input, new_tgt_img)
 
         logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img,
