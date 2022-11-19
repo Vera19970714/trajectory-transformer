@@ -17,7 +17,7 @@ if __name__ == '__main__':
     parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
     parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
     parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
-    parser.add_argument('-checkpoint', default=None, type=str)
+    parser.add_argument('-checkpoint', default='../ckpt/epoch=62-step=1385.ckpt', type=str)
 
     parser.add_argument('-log_name', default='test_log', type=str)
     # model setting
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     # training hyperparameters
     parser.add_argument('-gpus', default='0', type=str)
     parser.add_argument('-batch_size', type=int, default=2)
-    parser.add_argument('-learning_rate', default=3e-5, type=float)
+    parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=20, type=int)
     parser.add_argument('-scheduler_lambda2', default=0.95, type=float)
     parser.add_argument('-num_epochs', type=int, default=500)
@@ -33,13 +33,16 @@ if __name__ == '__main__':
     parser.add_argument('-clip_val', default=1.0, type=float)
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=5)
-    parser.add_argument('-do_train', type=str, default='True')
+    parser.add_argument('-do_train', type=str, default='False')
     parser.add_argument('-do_test', type=str, default='True')
+    parser.add_argument('-do_retrain', type=str, default='True')
     parser.add_argument('-limit_val_batches', default=1.0, type=float)
     parser.add_argument('-val_check_interval', default=1.0, type=float)
 
     args = parser.parse_args()
 
+    if args.do_retrain == 'True':
+        assert args.checkpoint != 'None'
     # random seed
     seed_everything(args.random_seed)
 
@@ -90,11 +93,16 @@ if __name__ == '__main__':
                       callbacks=[lr_monitor, checkpoint_callback, early_stop_callback])
 
     # Fit the instantiated model to the data
-    if args.do_train == 'True':
+    if args.do_retrain == 'True':
+        model = model.load_from_checkpoint(args.checkpoint, args=args)
         trainer.fit(model, search_data.train_loader, search_data.val_loader)
         trainer.test(model=model, dataloaders=search_data.test_loader)
-    elif args.do_test == 'True':
-        model = model.load_from_checkpoint(args.checkpoint, args=args)
-        trainer.test(model=model, dataloaders=search_data.test_loader)
+    else:
+        if args.do_train == 'True':
+            trainer.fit(model, search_data.train_loader, search_data.val_loader)
+            trainer.test(model=model, dataloaders=search_data.test_loader)
+        elif args.do_test == 'True':
+            model = model.load_from_checkpoint(args.checkpoint, args=args)
+            trainer.test(model=model, dataloaders=search_data.test_loader)
 
 

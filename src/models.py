@@ -150,4 +150,8 @@ def create_mask(src, tgt):
     tgt_padding_mask = (tgt == PAD_IDX).transpose(0, 1)
     return src_mask, tgt_mask, src_padding_mask, tgt_padding_mask
 
-
+def create_mask_only_tgt(tgt):
+    tgt_seq_len = tgt.shape[0]
+    tgt_mask = generate_square_subsequent_mask(tgt_seq_len)
+    tgt_padding_mask = (tgt == PAD_IDX).transpose(0, 1)
+    return tgt_mask, tgt_padding_mask
