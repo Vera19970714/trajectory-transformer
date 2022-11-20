@@ -33,9 +33,9 @@ if __name__ == '__main__':
     parser.add_argument('-clip_val', default=1.0, type=float)
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=5)
-    parser.add_argument('-do_train', type=str, default='False')
+    parser.add_argument('-do_train', type=str, default='True')
     parser.add_argument('-do_test', type=str, default='True')
-    parser.add_argument('-do_retrain', type=str, default='True')
+    parser.add_argument('-do_retrain', type=str, default='False')
     parser.add_argument('-limit_val_batches', default=1.0, type=float)
     parser.add_argument('-val_check_interval', default=1.0, type=float)
 

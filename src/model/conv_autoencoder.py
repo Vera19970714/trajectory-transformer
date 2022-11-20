@@ -73,6 +73,69 @@ class Conv_AutoencoderModel(pl.LightningModule):
         tgt_input_2d[0, :, 1] = 4.5
         return tgt_input_2d, tgt_img, tgt_mask, tgt_padding_mask
 
+    def generatePredictedSeq(self, src_pos, src_img, tgt_pos, tgt_img):
+        length = tgt_pos.size(0)
+        batch = src_img.size()[0]
+        blank = torch.zeros((src_img.size()[0], 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
+        new_src_img = torch.cat((src_img[:, 1:, :, :], blank), dim=1)  # 31,300,186,3
+
+        for i in range(1, length):
+            if i == 1:
+                tgt_input = tgt_pos[:i, :]
+                tgt_img_input = tgt_img[:, :i, :, :, :]
+                # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
+                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input)
+                # CHANGED position from one dimension to two dimensions
+                # tgt_input: 11,1 to 11,2
+                # src_pos: 28, 1 to 28, 2
+                tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 2)).to(DEVICE).float()
+                tgt_input_2d[:, :, 0] = tgt_input // 9
+                tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, 9)
+                tgt_input_2d[0, :, 0] = 1.5
+                tgt_input_2d[0, :, 1] = 4.5
+
+                src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 2)).to(DEVICE).float()
+                src_pos_2d[:, :, 0] = src_pos // 9
+                src_pos_2d[:, :, 1] = torch.remainder(src_pos, 9)
+                src_pos_2d[0, :, 0] = -1
+                src_pos_2d[0, :, 1] = -1
+
+                logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+                                    src_img, tgt_img_input,
+                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                _, predicted = torch.max(logits[-1, :, :], 1)
+                next_tgt_img_input = torch.cat((tgt_img_input, new_src_img[torch.arange(batch), predicted, :, :, :].view(tgt_img_input.size())), dim=1)
+                next_tgt_input = torch.cat((tgt_input.view(1, -1), predicted.view(1, -1)), dim=0)
+
+            else:
+                tgt_input = next_tgt_input
+                tgt_img_input = next_tgt_img_input
+                # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
+                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input)
+                # CHANGED position from one dimension to two dimensions
+                # tgt_input: 11,1 to 11,2
+                # src_pos: 28, 1 to 28, 2
+                tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 2)).to(DEVICE).float()
+                tgt_input_2d[:, :, 0] = tgt_input // 9
+                tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, 9)
+                tgt_input_2d[0, :, 0] = 1.5
+                tgt_input_2d[0, :, 1] = 4.5
+
+                src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 2)).to(DEVICE).float()
+                src_pos_2d[:, :, 0] = src_pos // 9
+                src_pos_2d[:, :, 1] = torch.remainder(src_pos, 9)
+                src_pos_2d[0, :, 0] = -1
+                src_pos_2d[0, :, 1] = -1
+                logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+                                    src_img, tgt_img_input,
+                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                _, predicted = torch.max(logits[-1, :, :], 1)
+                next_tgt_img_input = torch.cat(
+                    (tgt_img_input, new_src_img[torch.arange(batch), predicted, :, :, :].view(batch, 1, 150, 93, 3)),
+                    dim=1)
+                next_tgt_input = torch.cat((tgt_input.view(-1, batch), predicted.view(-1, batch)), dim=0)
+        return next_tgt_input, next_tgt_img_input
+
     def training_step(self, batch, batch_idx):
         src_pos, src_img, tgt_pos, tgt_img = batch
         # src_pos(28, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
@@ -89,22 +152,9 @@ class Conv_AutoencoderModel(pl.LightningModule):
 
         if self.isRetrain:
             with torch.no_grad():
-                logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
-                                    src_img, tgt_img,
-                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-            # change tgt_input and tgt_img based on logits
-            _, new_tgt_input = torch.max(logits, 2)
+                new_tgt_input, new_tgt_img = self.generatePredictedSeq(src_pos, src_img, tgt_input, tgt_img)
             # TODO: change the first index to BOS
             #new_tgt_input[0, :] = BOS_IDX
-            blank = torch.ones((150, 93, 3)).to(DEVICE)
-            new_tgt_img = torch.zeros((new_tgt_input.size()[1], new_tgt_input.size()[0], 150, 93, 3))
-            for i in range(new_tgt_input.size()[1]):
-                for j in range(new_tgt_input.size()[0]):
-                    index = new_tgt_input[j][i]
-                    if index == EOS_IDX or BOS_IDX:
-                        new_tgt_img[i][j] = blank
-                    else:
-                        new_tgt_img[i][j] = src_img[i][index+1]
             tgt_input_2d, tgt_img, tgt_mask, tgt_padding_mask = self.processDataOnlyTgt(new_tgt_input, new_tgt_img)
 
         logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
