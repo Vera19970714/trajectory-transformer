@@ -96,7 +96,7 @@ if __name__ == '__main__':
     if args.do_retrain == 'True':
         model = model.load_from_checkpoint(args.checkpoint, args=args)
         # TODO: can comment the optimizer
-        model.optimizer = torch.optim.Adam(model.model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
+        # model.optimizer = torch.optim.Adam(model.model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
         trainer.fit(model, search_data.train_loader, search_data.val_loader)
         trainer.test(model=model, dataloaders=search_data.test_loader)
     else:
