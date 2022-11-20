@@ -408,16 +408,7 @@ class BaseModel(pl.LightningModule):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
         self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
-
-    def test_step(self, batch, batch_idx):
-        src_pos, question_img, src_img, tgt_pos, tgt_img = batch
-        # src_pos(1, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
-        src_pos = src_pos.to(DEVICE)
-        question_img = question_img.to(DEVICE)
-        src_img = src_img.to(DEVICE)
-        tgt_pos = tgt_pos.to(DEVICE)
-        tgt_img = tgt_img.to(DEVICE)
-
+    def test_gt(self,src_pos, question_img, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
        
@@ -427,7 +418,20 @@ class BaseModel(pl.LightningModule):
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         _, predicted = torch.max(logits, 2)
         print(predicted)
+        return loss
 
+    def test_max(self,src_pos, question_img, src_img, tgt_pos, tgt_img):
+        
+
+    def test_step(self, batch, batch_idx):
+        src_pos, question_img, src_img, tgt_pos, tgt_img = batch
+        # src_pos(1, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
+        src_pos = src_pos.to(DEVICE)
+        question_img = question_img.to(DEVICE)
+        src_img = src_img.to(DEVICE)
+        tgt_pos = tgt_pos.to(DEVICE)
+        tgt_img = tgt_img.to(DEVICE)
+        loss = self.test_gt(src_pos, question_img, src_img, tgt_pos, tgt_img)
         self.log('testing_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, }
 
