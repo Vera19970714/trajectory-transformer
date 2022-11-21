@@ -373,7 +373,7 @@ class BaseModel(pl.LightningModule):
         src_img = src_img.to(DEVICE)
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
-
+        
         tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
        
@@ -416,16 +416,7 @@ class BaseModel(pl.LightningModule):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
         self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
-
-    def test_step(self, batch, batch_idx):
-        src_pos, question_img, src_img, tgt_pos, tgt_img = batch
-        # src_pos(1, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
-        src_pos = src_pos.to(DEVICE)
-        question_img = question_img.to(DEVICE)
-        src_img = src_img.to(DEVICE)
-        tgt_pos = tgt_pos.to(DEVICE)
-        tgt_img = tgt_img.to(DEVICE)
-
+    def test_gt(self,src_pos, question_img, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
        
@@ -435,7 +426,49 @@ class BaseModel(pl.LightningModule):
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         _, predicted = torch.max(logits, 2)
         print(predicted)
+        return loss
 
+    def test_max(self,src_pos, question_img, src_img, tgt_pos, tgt_img):
+        tgt_input = tgt_pos[:-1, :]
+        tgt_img = tgt_img[:, :-1, :, :, :]
+        length = tgt_pos.size(0)
+        loss = 0
+        for i in range(1,length):
+            if i==1:
+                tgt_input = tgt_pos[:i, :]
+                tgt_img_input = tgt_img[:, :i, :, :, :]
+                # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
+                logits = self.model(tgt_input, src_img,
+                            question_img, tgt_img_input)
+                tgt_out = tgt_pos[:2, :]
+                _, predicted = torch.max(logits[:,-1,:], 1)
+                print(predicted)
+                loss1 = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1).long())
+                next_tgt_input = torch.cat((tgt_input, predicted.view(-1, 1)), dim=0)
+            else:
+                # tgt_input = next_tgt_input
+                tgt_input = tgt_pos[:i, :]
+                tgt_img_input = tgt_img[:, :i, :, :, :]
+                logits = self.model(tgt_input, src_img,
+                            question_img, tgt_img_input)
+                tgt_out = tgt_pos[i, :]
+                _, predicted = torch.max(logits[:,-1,:], 1)
+                print(predicted)
+                loss += self.loss_fn(logits[:,-1,:].reshape(-1, logits[:,-1,:].shape[-1]), tgt_out.reshape(-1).long())
+                next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1,1)), dim=0)
+        loss = (2*loss1+loss) / (i+1)
+        return loss
+
+    def test_step(self, batch, batch_idx):
+        src_pos, question_img, src_img, tgt_pos, tgt_img = batch
+        # src_pos(1, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
+        src_pos = src_pos.to(DEVICE)
+        question_img = question_img.to(DEVICE)
+        src_img = src_img.to(DEVICE)
+        tgt_pos = tgt_pos.to(DEVICE)
+        tgt_img = tgt_img.to(DEVICE)
+        # loss = self.test_gt(src_pos, question_img, src_img, tgt_pos, tgt_img)
+        loss = self.test_max(src_pos, question_img, src_img, tgt_pos, tgt_img)
         self.log('testing_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, }
 

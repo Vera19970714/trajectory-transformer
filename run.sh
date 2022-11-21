@@ -15,12 +15,12 @@ srun python ./src/run.py \
         -train_datapath=./dataset/processdata/dataset_Q23_baseline_time_train \
         -valid_datapath=./dataset/processdata/dataset_Q23_baseline_time_val \
         -test_datapath=./dataset/processdata/dataset_Q23_baseline_time_val \
-        -checkpoint=None \
-        -log_name=baseline \
+        -checkpoint=./lightning_logs/baseline/default/version_0/checkpoints/epoch=28-step=637.ckpt \
+        -log_name=baseline_test \
         -model=BaseModel \
         -gpus='-1' \
-        -batch_size=32 \
-        -learning_rate=1e-2 \
+        -batch_size=1 \
+        -learning_rate=1e-4 \
         -scheduler_lambda1=1 \
         -scheduler_lambda2=0.95 \
         -num_epochs=100 \
@@ -28,8 +28,8 @@ srun python ./src/run.py \
         -clip_val=1.0 \
         -random_seed=3047 \
         -early_stop_patience=20 \
-        -do_train=True \
-        -do_test=False \
+        -do_train=False \
+        -do_test=True \
         -limit_val_batches=1.0 \
         -val_check_interval=1.0 \
 
