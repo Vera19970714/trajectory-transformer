@@ -31,11 +31,11 @@ for package_similarity, package_saliency, package_seq in test_loader:
     similarity_dis = (continue_pro/torch.sum(package_similarity))*package_similarity
     saliency_dis = (continue_pro/torch.sum(package_saliency))*package_saliency
     
-    similarity_dis = torch.cat((similarity_dis,torch.tensor([end_pro]).view(tgt_out.size()[1],-1)),1)
-    saliency_dis = torch.cat((saliency_dis,torch.tensor([end_pro]).view(tgt_out.size()[1],-1)),1)
+    similarity_dis = torch.cat((similarity_dis,torch.tensor([end_pro]).view(tgt_out.size()[1],-1).to(DEVICE)),1)
+    saliency_dis = torch.cat((saliency_dis,torch.tensor([end_pro]).view(tgt_out.size()[1],-1).to(DEVICE)),1)
     
-    output_similarity = torch.zeros((tgt_out.size()[0], tgt_out.size()[1], 31))
-    output_saliency = torch.zeros((tgt_out.size()[0], tgt_out.size()[1], 31))
+    output_similarity = torch.zeros((tgt_out.size()[0], tgt_out.size()[1], 31)).to(DEVICE)
+    output_saliency = torch.zeros((tgt_out.size()[0], tgt_out.size()[1], 31)).to(DEVICE)
     xk = torch.arange(27)
     xk = torch.cat((xk,torch.tensor([EOS_IDX])))
     mydist1 = rv_discrete(values=(xk.numpy(), similarity_dis.squeeze(0).detach().cpu().numpy()))
@@ -54,5 +54,5 @@ for package_similarity, package_saliency, package_seq in test_loader:
 
     losses1 += loss1.item()
     losses2 += loss2.item()
-print(losses1 / time)
-print(losses2 / time)
+print('similarity loss:',losses1 / time)
+print('saliency loss:',losses2 / time)
