@@ -12,12 +12,12 @@ source activate aging
 
 # Your script
 srun python ./src/run.py \
-        -train_datapath=./dataset/processdata/dataset_Q23_baseline_time_train \
-        -valid_datapath=./dataset/processdata/dataset_Q23_baseline_time_val \
-        -test_datapath=./dataset/processdata/dataset_Q23_baseline_time_val \
-        -checkpoint=./lightning_logs/baseline/default/version_0/checkpoints/epoch=28-step=637.ckpt \
-        -log_name=baseline_test \
-        -model=BaseModel \
+        -train_datapath=./dataset/processdata/dataset_Q23_time_train \
+        -valid_datapath=./dataset/processdata/dataset_Q23_time_val \
+        -test_datapath=./dataset/processdata/dataset_Q23_time_val \
+        -checkpoint=/home/jyubj/projects/trajectory-transformer/lightning_logs/main_new/default/version_7/checkpoints/epoch=62-step=1385.ckpt \
+        -log_name=main_new_test \
+        -model=Conv_Autoencoder \
         -gpus='-1' \
         -batch_size=1 \
         -learning_rate=1e-4 \
