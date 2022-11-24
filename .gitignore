@@ -4,3 +4,5 @@ results/
 lightning_logs/
 ckpt/
 src/lightning_logs/
+run.sh/
+run_pre.sh/

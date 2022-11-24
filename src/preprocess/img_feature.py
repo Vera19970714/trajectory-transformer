@@ -8,7 +8,7 @@ from collections import Counter
 import pickle
 from tqdm import tqdm
 img_dir = './dataset/img/Question/'
-data_dir = './dataset/gaze/whole_target_correct_time.xlsx'
+data_dir = './dataset/gaze/whole_target_correct_clean_time.xlsx'
 target_dir = './dataset/img/Target/'
 
 
@@ -100,7 +100,7 @@ class CUT_PIC(object):
         #torch.save(dataset1, "./dataset/processdata/dataset_Q1_time")
         #np.save(dataset2, "./dataset/processdata/dataset_Q23_time")
         # torch.save(dataset3, "./dataset/processdata/dataset_Q3")
-        with open("./dataset/processdata/dataset_Q23_time", "wb") as fp:  # Pickling
+        with open("./dataset/processdata/dataset_Q23_clean_time", "wb") as fp:  # Pickling
             pickle.dump(dataset2, fp)
 
         print("Finish...")
@@ -211,15 +211,15 @@ class SAVE_PIC(object):
 
     
 
-# if __name__ == '__main__':
-#     CUT_PIC = CUT_PIC()
-#     CUT_PIC.read_excel(data_dir) 
-#     CUT_PIC.cut_pic()
-
 if __name__ == '__main__':
-    SAVE_PIC= SAVE_PIC()
-    SAVE_PIC.read_excel(data_dir) 
-    SAVE_PIC.save_pic()
+    CUT_PIC = CUT_PIC()
+    CUT_PIC.read_excel(data_dir) 
+    CUT_PIC.cut_pic()
+
+# if __name__ == '__main__':
+#     SAVE_PIC= SAVE_PIC()
+#     SAVE_PIC.read_excel(data_dir) 
+#     SAVE_PIC.save_pic()
 
 
 

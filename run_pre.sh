@@ -12,5 +12,6 @@ source activate aging
 
 # Your script
 # srun python ./src/preprocess/img_feature.py \
-# srun python ./src/preprocess/randsplit.py \
-srun python ./src/benchmark_similaritysaliancy.py \
+srun python ./src/preprocess/randsplit.py \
+# srun python ./src/benchmark_similaritysaliancy.py \
+# srun python ./src/preprocess/clean.py \
