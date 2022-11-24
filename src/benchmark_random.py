@@ -25,7 +25,6 @@ for src_pos, src_img, tgt_pos, tgt_img in test_loader:
 
     tgt_input = tgt_pos[:-1, :]
     tgt_img = tgt_img[:, :-1, :, :, :]
-    # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
 
     tgt_out = tgt_pos[1:, :]
 

@@ -56,7 +56,17 @@ class CNNEmbedding(nn.Module):
         super(CNNEmbedding, self).__init__()
         self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
         self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
+        '''cnn1 = nn.Conv2d(3, 16, (5, 5))
+        cnn2 = nn.Conv2d(16, 32, (3, 3))
+        nn.init.kaiming_normal_(cnn1.weight, mode='fan_in',
+                                nonlinearity='leaky_relu')
+        nn.init.kaiming_normal_(cnn2.weight, mode='fan_in',
+                                nonlinearity='leaky_relu')
+        self.cnn1 = nn.Sequential(cnn1, nn.LeakyReLU(), nn.MaxPool2d(5))
+        self.cnn2 = nn.Sequential(cnn2, nn.LeakyReLU(), nn.MaxPool2d(3))'''
         self.fc = nn.Linear(1440, 256)
+        #nn.init.kaiming_normal_(self.fc.weight, mode='fan_in',
+        #                        nonlinearity='leaky_relu')
 
     def forward(self, tokens: Tensor):
         # 4, 28, 150, 93, 3
@@ -78,7 +88,8 @@ class Seq2SeqTransformer(nn.Module):
                  nhead: int,
                  src_vocab_size: int,
                  tgt_vocab_size: int,
-                 dim_feedforward: int = 512,
+                 input_dimension: int,
+                 dim_feedforward: int,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer, self).__init__()
         self.transformer = Transformer(d_model=emb_size,
@@ -88,6 +99,11 @@ class Seq2SeqTransformer(nn.Module):
                                        dim_feedforward=dim_feedforward,
                                        dropout=dropout)
         self.generator = nn.Linear(emb_size, tgt_vocab_size).float()
+        '''self.generator = nn.Linear(emb_size, 128)
+        nn.init.kaiming_normal_(self.generator.weight, mode='fan_in',
+                                nonlinearity='leaky_relu')
+        self.generator2 = nn.Linear(emb_size, tgt_vocab_size)
+        nn.init.xavier_normal_(self.generator2.weight)'''
         #self.src_tok_emb = TokenEmbedding(src_vocab_size, int(emb_size/2))
         #self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, int(emb_size/2))
         self.positional_encoding = PositionalEncoding(
@@ -95,7 +111,14 @@ class Seq2SeqTransformer(nn.Module):
         self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
 
         self.cnn_embedding = CNNEmbedding()
-        self.LinearEmbedding = nn.Linear(2, int(emb_size/2)).float()
+        self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))
+
+        '''nn.init.kaiming_normal_(self.LinearEmbedding.weight, mode='fan_in',
+                                nonlinearity='leaky_relu')
+        self.bn = nn.BatchNorm1d(512)
+        self.lrelu = nn.LeakyReLU()
+        self.dropout = nn.Dropout(0.5)
+        self.dropout2 = nn.Dropout(0.5)'''
 
     def forward(self,
                 src: Tensor,
@@ -123,6 +146,20 @@ class Seq2SeqTransformer(nn.Module):
         outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
                                 src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
         return self.generator(outs)
+        '''sLength, bs = outs.size()[0], outs.size()[1]
+        #c1 = outs[0, 0, :]
+        #outs = outs.view(sLength*bs, -1)
+        #outs = self.dropout(outs)
+        #outs = self.generator(outs)
+        outs = self.bn(outs)
+        outs = self.lrelu(outs)
+        outs = self.dropout(outs)
+        outs = self.generator2(outs)
+
+        outs = outs.view(sLength, bs, -1)
+        #c = outs[0,0,:]
+        #a, b = torch.max(outs, 2)
+        return outs'''
 
     def encode(self, src: Tensor, src_mask: Tensor):
         #TODO

@@ -7,8 +7,8 @@ from pytorch_lightning.utilities.seed import seed_everything
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.plugins import DDPPlugin
 from data_builder import SearchDataModule, BaseSearchDataModule
-from model.conv_autoencoder import Conv_AutoencoderModel, BaseModel
-
+from model.conv_autoencoder import Conv_AutoencoderModel
+from model.base_lightning import BaseModel
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -17,15 +17,15 @@ if __name__ == '__main__':
     parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
     parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
     parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
-    parser.add_argument('-checkpoint', default='../ckpt/epoch=62-step=1385.ckpt', type=str)
+    parser.add_argument('-checkpoint', default=None, type=str)
 
     parser.add_argument('-log_name', default='test_log', type=str)
     # model setting
     parser.add_argument('-model', default='Conv_Autoencoder', type=str) #BaseModel, Conv_Autoencoder
     # training hyperparameters
     parser.add_argument('-gpus', default='0', type=str)
-    parser.add_argument('-batch_size', type=int, default=2)
-    parser.add_argument('-learning_rate', default=3e-5, type=float)
+    parser.add_argument('-batch_size', type=int, default=20)
+    parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=20, type=int)
     parser.add_argument('-scheduler_lambda2', default=0.95, type=float)
     parser.add_argument('-num_epochs', type=int, default=500)
@@ -33,10 +33,12 @@ if __name__ == '__main__':
     parser.add_argument('-clip_val', default=1.0, type=float)
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=5)
-    parser.add_argument('-do_train', type=str, default='False')
+    parser.add_argument('-do_train', type=str, default='True')
     parser.add_argument('-do_test', type=str, default='True')
     parser.add_argument('-limit_val_batches', default=1.0, type=float)
     parser.add_argument('-val_check_interval', default=1.0, type=float)
+    parser.add_argument('-use_threedimension', type=str, default='False')
+    parser.add_argument('-write_output', type=str, default='False')
 
     args = parser.parse_args()
 

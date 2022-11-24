@@ -122,8 +122,8 @@ def collate_fn(data):
                    gaze_seq,
                    torch.tensor([EOS_IDX])))
         package_seq.append(gaze_seq)
-        #target = torch.cat((torch.tensor([target]), torch.arange(27)))
-        target = torch.cat((torch.tensor([TGT_IDX]), torch.arange(27))) #CHANGE: Add TGT INDX
+        target = torch.cat((torch.tensor([target]), torch.arange(27)))
+        #target = torch.cat((torch.tensor([TGT_IDX]), torch.arange(27))) #CHANGE: Add TGT INDX
         package_target.append(target)
         question_img_feature = np.stack(question_img_feature)
         question_img_feature = torch.from_numpy(question_img_feature)
