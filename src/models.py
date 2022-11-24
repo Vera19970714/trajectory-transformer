@@ -52,7 +52,7 @@ class TokenEmbedding(nn.Module):
         return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
 
 class CNNEmbedding(nn.Module):
-    def __init__(self):
+    def __init__(self, outputSize):
         super(CNNEmbedding, self).__init__()
         self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
         self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
@@ -64,7 +64,7 @@ class CNNEmbedding(nn.Module):
                                 nonlinearity='leaky_relu')
         self.cnn1 = nn.Sequential(cnn1, nn.LeakyReLU(), nn.MaxPool2d(5))
         self.cnn2 = nn.Sequential(cnn2, nn.LeakyReLU(), nn.MaxPool2d(3))'''
-        self.fc = nn.Linear(1440, 256)
+        self.fc = nn.Linear(1440, outputSize)
         #nn.init.kaiming_normal_(self.fc.weight, mode='fan_in',
         #                        nonlinearity='leaky_relu')
 
@@ -110,7 +110,7 @@ class Seq2SeqTransformer(nn.Module):
             emb_size, dropout=dropout)
         self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
 
-        self.cnn_embedding = CNNEmbedding()
+        self.cnn_embedding = CNNEmbedding(int(emb_size/2))
         self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))
 
         '''nn.init.kaiming_normal_(self.LinearEmbedding.weight, mode='fan_in',
@@ -133,7 +133,7 @@ class Seq2SeqTransformer(nn.Module):
         src_cnn_emb = self.cnn_embedding(src_img).transpose(0, 1) #28, 4, 256
         #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
         src_pos_emb = self.LinearEmbedding(src)
-        src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2)
+        src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
         src_emb = self.visual_positional_encoding(src_emb) #28,4,512
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well
 
