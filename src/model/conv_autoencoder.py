@@ -67,9 +67,6 @@ class Conv_AutoencoderModel(pl.LightningModule):
         self.log('training_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def processData(self, src_pos, src_img, tgt_pos, tgt_img):
-        # CHANGED: the first one is discarded
-        src_pos = src_pos[1:]
-        src_img = src_img[:, 1:]
         tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
         # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
@@ -92,20 +89,25 @@ class Conv_AutoencoderModel(pl.LightningModule):
         src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 3)).to(DEVICE).float()
         src_pos_2d[:, :, 0] = src_pos // 9
         src_pos_2d[:, :, 1] = torch.remainder(src_pos, 9)
-        # src_pos_2d[0, :, 0] = -1
-        # src_pos_2d[0, :, 1] = -1
 
         # changed to three dimension
         batch = tgt_input.size()[1]
         tgtValue = torch.tensor((0, 0, 1)).to(DEVICE).float()
+        # assign the first in src_pos
+        # use this for (0,0,1)
+        src_pos_2d[0, :] = tgtValue
+        # use this for (x,y,1)
+        src_pos_2d[0, :, 2] = 1
         for i in range(batch):
             Index = tgt_input[-1, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
-            tgt_input_2d[tgt1, i, 2] = 1
-            src_pos_2d[tgt2, i, 2] = 1
-            # tgt_input_2d[tgt1, i] = tgtValue
-            # src_pos_2d[tgt2, i] = tgtValue
+            # use this for (x,y,1)
+            #tgt_input_2d[tgt1, i, 2] = 1
+            #src_pos_2d[tgt2, i, 2] = 1
+            # use this for (0,0,1)
+            tgt_input_2d[tgt1, i] = tgtValue
+            src_pos_2d[tgt2, i] = tgtValue
         
         return src_pos_2d, tgt_input_2d,  src_img, tgt_img, src_mask, tgt_mask, \
                src_padding_mask, tgt_padding_mask, src_padding_mask
