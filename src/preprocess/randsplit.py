@@ -2,8 +2,8 @@
 import numpy as np
 import pickle
 
-file = './dataset/processdata/dataset_Q23_clean_time'
-indexFile = './dataset/processdata/splitlist_time.txt'
+file = './dataset/processdata/dataset_Q23_mousedel_time'
+indexFile = './dataset/processdata/splitlist_time_mousedel.txt'
 
 def randsplit(file):
     with open(file, "rb") as fp:  # Unpickling
@@ -17,7 +17,8 @@ def randsplit(file):
     linesInt = [int(x) for x in lines]
 
     '''list = np.arange(data_length)
-    np.random.shuffle(list)'''
+    np.random.shuffle(list)
+    print(list)'''
     train_index = np.array(linesInt[:int(data_length*0.9)])
     test_index = np.array(linesInt[-(data_length - int(data_length*0.9)):])
 
@@ -27,10 +28,13 @@ def randsplit(file):
     print(len(traindata))
     print(len(valdata))
     
-    with open("./dataset/processdata/dataset_Q23_clean_time_train", "wb") as fp:  # Pickling
+    with open("./dataset/processdata/dataset_Q23_mousedel_time_train", "wb") as fp:  # Pickling
         pickle.dump(traindata, fp)
-    with open("./dataset/processdata/dataset_Q23_clean_time_val", "wb") as fp:  # Pickling
+    with open("./dataset/processdata/dataset_Q23_mousedel_time_val", "wb") as fp:  # Pickling
         pickle.dump(valdata, fp)
+    '''with open('./dataset/processdata/splitlist_time_mousedel.txt', 'w') as F:
+        F.writelines([str(item).replace(' ', '\t')+'\n' for item in list])
+        F.close()'''
 
 if __name__ == '__main__':
     randsplit(file)

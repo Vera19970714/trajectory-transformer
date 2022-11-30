@@ -19,10 +19,10 @@ class Conv_AutoencoderModel(pl.LightningModule):
         SRC_VOCAB_SIZE = 27+4
         TGT_VOCAB_SIZE = 27+4
         EMB_SIZE = 512
-        NHEAD = 2 #todo: changed settings
+        NHEAD = 4 #todo: changed settings
         FFN_HID_DIM = 512
-        NUM_ENCODER_LAYERS = 1
-        NUM_DECODER_LAYERS = 1
+        NUM_ENCODER_LAYERS = 4
+        NUM_DECODER_LAYERS = 4
         if self.args.use_threedimension == 'True':
             inputDim = 3
         else:
@@ -173,16 +173,19 @@ class Conv_AutoencoderModel(pl.LightningModule):
         tgtValue = torch.tensor((0, 0, 1)).to(DEVICE).float()
         # assign the first in src_pos
         # use this for (0,0,1)
-        # src_pos_2d[0, :] = tgtValue
+        src_pos_2d[0, :] = tgtValue
         # use this for (x,y,1)
-        src_pos_2d[0, :, 2] = 1
+        # src_pos_2d[0, :, 2] = 1
         for i in range(batch):
             Index = tgt_input[-1, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
             # use this for (x,y,1)
-            tgt_input_2d[tgt1, i, 2] = 1
-            src_pos_2d[tgt2, i, 2] = 1
+            # tgt_input_2d[tgt1, i, 2] = 1
+            # src_pos_2d[tgt2, i, 2] = 1
+             # use this for (0,0,1)
+            tgt_input_2d[tgt1, i] = tgtValue
+            src_pos_2d[tgt2, i] = tgtValue
         return src_pos_2d, tgt_input_2d
 
     def validation_step(self, batch, batch_idx):
