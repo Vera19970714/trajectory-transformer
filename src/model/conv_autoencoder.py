@@ -357,6 +357,11 @@ class Conv_AutoencoderModel(pl.LightningModule):
         src_img = src_img.to(DEVICE)
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
+
+        cnnFeature = self.model.getCNNFeature(src_img)
+        assert cnnFeature.size()[1] == 1
+        cnnFeature = cnnFeature[:, 0, :].cpu().detach().numpy()
+
         loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         loss_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
         loss_gt = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
@@ -364,7 +369,8 @@ class Conv_AutoencoderModel(pl.LightningModule):
         if self.args.write_output == 'True':
             return {'loss_max': loss_max, 'LOSS':LOSS, 'GAZE':GAZE}
         else:
-            return {'loss_max': loss_max, 'loss_expect':loss_expect, 'loss_gt': loss_gt}
+            return {'loss_max': loss_max, 'loss_expect':loss_expect, 'loss_gt': loss_gt,
+                    'cnnFeature': cnnFeature}
 
     def test_epoch_end(self, test_step_outputs):
         if self.args.write_output == 'True':
@@ -391,6 +397,9 @@ class Conv_AutoencoderModel(pl.LightningModule):
 
             avg_loss = torch.stack([x['loss_gt'].cpu().detach() for x in test_step_outputs]).mean()
             self.log('test_loss_gt_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+
+            cnnFeatureTotal = np.stack([x['cnnFeature'] for x in test_step_outputs])
+            np.save('../dataset/cnnFeature.npy', cnnFeatureTotal)
 
     def configure_optimizers(self): 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
