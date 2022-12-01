@@ -109,7 +109,8 @@ class Conv_AutoencoderModel(pl.LightningModule):
         # use this for (x,y,1)
         src_pos_2d[0, :, 2] = 1
         for i in range(batch):
-            Index = tgt_input[-1, i]
+            #Index = tgt_input[-1, i]
+            Index = src_pos[0, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
             # use this for (x,y,1)
@@ -177,7 +178,8 @@ class Conv_AutoencoderModel(pl.LightningModule):
         # use this for (x,y,1)
         src_pos_2d[0, :, 2] = 1
         for i in range(batch):
-            Index = tgt_input[-1, i]
+            #Index = tgt_input[-1, i]
+            Index = src_pos[0, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
             # use this for (x,y,1)

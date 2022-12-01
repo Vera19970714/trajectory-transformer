@@ -120,6 +120,11 @@ class Seq2SeqTransformer(nn.Module):
         self.dropout = nn.Dropout(0.5)
         self.dropout2 = nn.Dropout(0.5)'''
 
+    def getCNNFeature(self, src_img: Tensor):
+        with torch.no_grad():
+            src_cnn_emb = self.cnn_embedding(src_img).transpose(0, 1)
+        return src_cnn_emb
+
     def forward(self,
                 src: Tensor,
                 trg: Tensor,
