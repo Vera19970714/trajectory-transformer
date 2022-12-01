@@ -9,21 +9,22 @@ import pickle
 from tqdm import tqdm
 
 img_dir = './dataset/img/Question/'
-data_dir1 = './dataset/gaze/time_Q2_mousedel.xlsx'
-data_dir2 = './dataset/gaze/time_Q3_mousedel.xlsx'
+data_dir1 = './dataset/gaze/time_Q2_mousedel_similarity.xlsx'
+data_dir2 = './dataset/gaze/time_Q3_mousedel_similarity.xlsx'
 target_dir = './dataset/img/Target/'
 
 
 class CUT_PIC(object):
     def __init__(self):
-            pass
+        pass
 
     def read_excel(self, file_name):
-            xls = pd.ExcelFile(file_name)
-            self.df = pd.read_excel(xls)
+        xls = pd.ExcelFile(file_name)
+        self.df = pd.read_excel(xls)
 
     def cut_pic(self):
         dataset = []
+        dataset_similarity = []
         df_data1 = pd.read_excel(data_dir1)
         df_data2 = pd.read_excel(data_dir2)
         words1 = [str(item) for item in list(df_data1["ID"])]
@@ -47,7 +48,7 @@ class CUT_PIC(object):
                 question_name = list(df1["Question"])[0]
                 package_seq = list(df1["Choice"])
                 package_target = list(df1["T_Package"])[0]
-                package_target  = [package_target]  # (np.repeat(package_target,27))   
+                package_target  = [package_target]  # (np.repeat(package_target,27))  
                 dataset_dict = {}
                 Question_img_feature = []
                 if question_name.startswith('Q1'):
