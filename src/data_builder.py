@@ -297,12 +297,15 @@ class SimilarityFixDataset(Dataset):
         self.package_seq = []
         self.package_similarity = []
         self.package_saliency = []
+        self.package_rgb =[]
         self.args = args
 
         for item in raw_data:
             self.package_seq.append(item['package_seq'])
             self.package_similarity.append(item['package_similarity'])
             self.package_saliency.append(item['package_saliency'])
+            self.package_rgb.append(item['package_rgb'])
+            
             
         self.data_total_length = len(self.package_seq)
         
@@ -312,7 +315,7 @@ class SimilarityFixDataset(Dataset):
 
     # support indexing such that dataset[i] can be used to get i-th sample
     def __getitem__(self, index):
-        return self.package_seq[index],self.package_similarity[index], self.package_saliency[index]
+        return self.package_seq[index],self.package_similarity[index], self.package_saliency[index],self.package_rgb[index]
 
     # we can call len(dataset) to return the size
     def __len__(self):
@@ -360,10 +363,11 @@ def collate_fn_similarity(data):
     package_seq = []
     package_similarity = []
     package_saliency = []
-
+    package_rgb = []
     for data_entry in data:
         img_similarity = data_entry[1]  
         img_saliency = data_entry[2]
+        img_rgb = data_entry[3]
         gaze_seq = data_entry[0] #9,int
         gaze_seq = np.stack([gaze_seq]) - 1 #tgt, from 0-26
         gaze_seq = torch.from_numpy(gaze_seq).squeeze(0)
@@ -380,13 +384,17 @@ def collate_fn_similarity(data):
         img_saliency = np.stack([img_saliency])
         img_saliency = torch.from_numpy(img_saliency).squeeze(0)
         package_saliency.append(img_saliency)
-
+        
+        img_rgb = np.stack([img_rgb])
+        img_rgb = torch.from_numpy(img_rgb).squeeze(0)
+        package_rgb.append(img_rgb)
         
     package_seq = pad_sequence(package_seq, batch_first=False, padding_value=PAD_IDX)
     package_similarity = torch.stack(package_similarity)
     package_saliency = torch.stack(package_saliency)
+    package_rgb = torch.stack(package_rgb)
     
-    return package_similarity, package_saliency, package_seq
+    return package_similarity, package_saliency,package_rgb, package_seq
     # torch.Size([1, b])
     # torch.Size([b, 450, 837, 3])
     # torch.Size([b, 1, 150, 93, 3])

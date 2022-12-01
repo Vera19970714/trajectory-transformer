@@ -2,7 +2,7 @@
 import numpy as np
 import pickle
 
-file = './dataset/processdata/dataset_Q23_mousedel_time'
+file = './dataset/processdata/dataset_Q23_similarity_mousedel_time'
 indexFile = './dataset/processdata/splitlist_time_mousedel.txt'
 
 def randsplit(file):
@@ -28,9 +28,9 @@ def randsplit(file):
     print(len(traindata))
     print(len(valdata))
     
-    with open("./dataset/processdata/dataset_Q23_mousedel_time_train", "wb") as fp:  # Pickling
+    with open("./dataset/processdata/dataset_Q23_similarity_mousedel_time_train", "wb") as fp:  # Pickling
         pickle.dump(traindata, fp)
-    with open("./dataset/processdata/dataset_Q23_mousedel_time_val", "wb") as fp:  # Pickling
+    with open("./dataset/processdata/dataset_Q23_similarity_mousedel_time_val", "wb") as fp:  # Pickling
         pickle.dump(valdata, fp)
     '''with open('./dataset/processdata/splitlist_time_mousedel.txt', 'w') as F:
         F.writelines([str(item).replace(' ', '\t')+'\n' for item in list])
