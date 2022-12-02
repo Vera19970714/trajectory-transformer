@@ -29,16 +29,23 @@ class Similarity(object):
             df_part = df1[df1["ID"]==int(key)]
             df_part.reset_index(drop=True, inplace=True)
             question_name = list(df_part["Question"])[0]
+            target_name = list(df_part["Target"])[0]
+            target = list(df_part["T_Package"])[0]
             package_seq = list(df_part["Choice"])
             package_similarity = list(df_part.iloc[0,10:37])
             package_saliency  = list(df_part.iloc[0,37:64])
             package_rgb  = list(df_part.iloc[0,64:91])
+            package_ae  = list(df_part.iloc[0,91:118])
             
             dataset_dict = {}          
             dataset_dict['package_seq'] = package_seq
             dataset_dict['package_similarity'] =  package_similarity
             dataset_dict['package_saliency'] =  package_saliency
             dataset_dict['package_rgb'] =  package_rgb
+            dataset_dict['package_questionname'] =  question_name
+            dataset_dict['package_targetname'] =  target_name
+            dataset_dict['package_target'] =  target
+            dataset_dict['package_ae'] = package_ae
             
 
             dataset2.append(dataset_dict)
@@ -47,6 +54,8 @@ class Similarity(object):
             df_part = df2[df2["ID"]==int(key)]
             df_part.reset_index(drop=True, inplace=True)
             question_name = list(df_part["Question"])[0]
+            target_name = list(df_part["Target"])[0]
+            target = list(df_part["T_Package"])[0]
             package_seq = list(df_part["Choice"])
             package_similarity = list(df_part.iloc[0,9:36])
             package_saliency  = list(df_part.iloc[0,36:63])
@@ -57,7 +66,10 @@ class Similarity(object):
             dataset_dict['package_similarity'] =  package_similarity
             dataset_dict['package_saliency'] =  package_saliency
             dataset_dict['package_rgb'] =  package_rgb
-
+            dataset_dict['package_questionname'] =  question_name
+            dataset_dict['package_targetname'] =  target_name
+            dataset_dict['package_target'] =  target
+            dataset_dict['package_ae'] = 0
             dataset2.append(dataset_dict)
 
        

@@ -14,5 +14,6 @@ source activate aging
 # srun python ./src/preprocess/img_feature.py \
 # srun python ./src/preprocess/randsplit.py \
 # srun python ./src/preprocess/benchmark_feature.py \
-srun python ./src/benchmark_similaritysaliancy.py \
+# srun python ./src/benchmark_similaritysaliancy.py \
 # srun python ./src/preprocess/clean.py \
+srun python ./src/preprocess/heatmapplot.py \
