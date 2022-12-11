@@ -231,8 +231,9 @@ class Conv_AutoencoderModel(pl.LightningModule):
         length = tgt_pos.size(0)
         loss = 0
         max_length = 18
-        LOSS = torch.zeros((max_length, 1))-1
-        GAZE = torch.zeros((max_length, 1))-1
+        LOSS = torch.zeros((length-1, 1))-1
+        GAZE = torch.zeros((length-1, 1))-1
+        LOGITS = torch.zeros((length-1, 31))
         blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
         new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
         for i in range(1,length):
@@ -250,8 +251,9 @@ class Conv_AutoencoderModel(pl.LightningModule):
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 _, predicted = torch.max(logits[-1,:,:], 1)
                 tgt_out = tgt_pos[i, :]
-                LOSS[i][0] = self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
-                GAZE[i][0] = predicted
+                LOSS[i-1][0] = self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
+                GAZE[i-1][0] = predicted
+                LOGITS[i-1,:] = logits[-1,:,:].reshape(1,-1)
                 loss += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
 
                 next_tgt_img_input = torch.cat((tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
@@ -269,14 +271,14 @@ class Conv_AutoencoderModel(pl.LightningModule):
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 _, predicted = torch.max(logits[-1,:,:], 1)
                 tgt_out = tgt_pos[i, :]
-                LOSS[i][0] = self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
-                GAZE[i][0] = predicted
+                LOSS[i-1][0] = self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
+                GAZE[i-1][0] = predicted
+                LOGITS[i-1,:] = logits[-1,:,:].reshape(1,-1)
                 loss += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
                 next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1,1)), dim=0)
-                
         loss = loss / i
-        return loss, LOSS, GAZE
+        return loss, LOSS, GAZE,LOGITS
 
     def test_expect(self,src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
@@ -285,7 +287,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
         loss = 0
         blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
         new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
-        iter = 100
+        iter = 2
         for n in range(iter):
             loss_per = 0
             for i in range(1,length):
@@ -334,7 +336,10 @@ class Conv_AutoencoderModel(pl.LightningModule):
     def test_gt(self,src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
         tgt_img_input = tgt_img[:, :-1, :, :, :]
-       
+        length = tgt_pos.size(0) - 1
+        GAZE_gt = torch.zeros((length, 1))-1
+        GAZE_true = torch.zeros((length, 1))-1
+        LOGITS_gt = torch.zeros((length, 31))
         # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input)
         if self.args.use_threedimension == 'True':
@@ -348,8 +353,11 @@ class Conv_AutoencoderModel(pl.LightningModule):
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         _, predicted = torch.max(logits, 2)
+        GAZE_gt[:length,:]=predicted.reshape(length,-1)
+        GAZE_true[:length,:]=tgt_out.reshape(length,-1)
+        LOGITS_gt[:length,:]=logits.reshape(length,-1)
         print(predicted)
-        return loss
+        return loss,GAZE_gt,GAZE_true,LOGITS_gt
         
     def test_step(self, batch, batch_idx):
         src_pos, src_img, tgt_pos, tgt_img = batch
@@ -362,32 +370,47 @@ class Conv_AutoencoderModel(pl.LightningModule):
         assert cnnFeature.size()[1] == 1
         cnnFeature = cnnFeature[:, 0, :].cpu().detach().numpy()
 
-        loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
+        loss_max, LOSS, GAZE,LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         loss_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
-        loss_gt = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
+        loss_gt,GAZE_gt,GAZE_true,LOGITS_gt = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
         self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         if self.args.write_output == 'True':
-            return {'loss_max': loss_max, 'LOSS':LOSS, 'GAZE':GAZE}
+            return {'loss_max': loss_max, 'LOSS':LOSS, 'GAZE':GAZE,'LOGITS':LOGITS,'GAZE_gt':GAZE_gt,'GAZE_true':GAZE_true,'LOGITS_gt':LOGITS_gt}
         else:
             return {'loss_max': loss_max, 'loss_expect':loss_expect, 'loss_gt': loss_gt,
                     'cnnFeature': cnnFeature}
 
     def test_epoch_end(self, test_step_outputs):
         if self.args.write_output == 'True':
-            avg_loss = torch.stack([x['loss'].cpu().detach() for x in test_step_outputs]).mean()
-            all_loss,all_gaze = pd.DataFrame(),pd.DataFrame()
+            # avg_loss = torch.stack([x['loss'].cpu().detach() for x in test_step_outputs]).mean()
+            all_loss,all_gaze,all_gaze_gt,all_gaze_true,all_logits,all_logits_gt = pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame()
             for output in test_step_outputs:
                 losses = list(output['LOSS'].cpu().detach().numpy())
                 all_loss = pd.concat([all_loss, pd.DataFrame(losses)],axis=0)
                 gazes = list(output['GAZE'].cpu().detach().numpy())
                 all_gaze = pd.concat([all_gaze, pd.DataFrame(gazes)],axis=0)
+                logits = list(output['LOGITS'].cpu().detach().numpy())
+                all_logits = pd.concat([all_logits, pd.DataFrame(logits)],axis=0)
+                gazes_gt = list(output['GAZE_gt'].cpu().detach().numpy())
+                all_gaze_gt = pd.concat([all_gaze_gt, pd.DataFrame(gazes_gt)],axis=0)
+                gazes_true = list(output['GAZE_true'].cpu().detach().numpy())
+                all_gaze_true = pd.concat([all_gaze_true, pd.DataFrame(gazes_true)],axis=0)
+                logits_gt = list(output['LOGITS_gt'].cpu().detach().numpy())
+                all_logits_gt = pd.concat([all_logits_gt, pd.DataFrame(logits_gt)],axis=0)
+
             all_loss.reset_index().drop(['index'],axis=1)
-            all_loss.replace(-1, np.nan, inplace=True)
             all_gaze.reset_index().drop(['index'],axis=1)
-            all_gaze.replace(-1, np.nan, inplace=True)
-            all_loss.to_excel('./dataset/outputdata/loss_gt_twodim.xlsx', index=False)
-            all_gaze.to_excel('./dataset/outputdata/gaze_gt_twodim.xlsx', index=False)
-            self.log('test_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+            all_logits.reset_index().drop(['index'],axis=1)
+            all_gaze_gt.reset_index().drop(['index'],axis=1)
+            all_gaze_true.reset_index().drop(['index'],axis=1)
+            all_logits_gt.reset_index().drop(['index'],axis=1)
+            all_loss.to_csv('./dataset/outputdata/loss_max_threedim.csv', index=False)
+            all_gaze.to_csv('./dataset/outputdata/gaze_max_threedim.csv', index=False)
+            all_logits.to_csv('./dataset/outputdata/logits_max_threedim.csv', index=False)
+            all_gaze_gt.to_csv('./dataset/outputdata/gaze_gt_threedim.csv', index=False)
+            all_gaze_true.to_csv('./dataset/outputdata/gaze_true_threedim.csv', index=False)
+            all_logits_gt.to_csv('./dataset/outputdata/logits_gt_threedim.csv', index=False)
+            # self.log('test_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
         else:
             avg_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
             self.log('test_loss_max_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
