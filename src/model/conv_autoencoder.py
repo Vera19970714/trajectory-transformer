@@ -287,7 +287,8 @@ class Conv_AutoencoderModel(pl.LightningModule):
         loss = 0
         blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
         new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
-        iter = 2
+        iter = 100
+        GAZE = torch.zeros((length-1, iter))-1
         for n in range(iter):
             loss_per = 0
             for i in range(1,length):
@@ -306,6 +307,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
                                         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                     logits_new = F.softmax(logits[-1,:,:].view(-1), dim=0)
                     predicted = torch.multinomial(logits_new,1,replacement=True)
+                    GAZE[i-1][n] = predicted
                     tgt_out = tgt_pos[i, :]
                     loss_per += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
                     next_tgt_img_input = torch.cat((tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
@@ -324,6 +326,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
                                         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                     logits_new = F.softmax(logits[-1,:,:].view(-1), dim=0)
                     predicted = torch.multinomial(logits_new,1,replacement=True)
+                    GAZE[i-1][n] = predicted
                     tgt_out = tgt_pos[i, :]
                     loss_per += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
                     next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
@@ -331,7 +334,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
                     
             loss += loss_per / i
         loss= loss / iter
-        return loss
+        return loss,GAZE
 
     def test_gt(self,src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
@@ -371,11 +374,11 @@ class Conv_AutoencoderModel(pl.LightningModule):
         cnnFeature = cnnFeature[:, 0, :].cpu().detach().numpy()
 
         loss_max, LOSS, GAZE,LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
-        loss_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
+        loss_expect,GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
         loss_gt,GAZE_gt,GAZE_true,LOGITS_gt = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
         self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         if self.args.write_output == 'True':
-            return {'loss_max': loss_max, 'LOSS':LOSS, 'GAZE':GAZE,'LOGITS':LOGITS,'GAZE_gt':GAZE_gt,'GAZE_true':GAZE_true,'LOGITS_gt':LOGITS_gt}
+            return {'loss_max': loss_max, 'LOSS':LOSS, 'GAZE':GAZE,'LOGITS':LOGITS,'GAZE_gt':GAZE_gt,'GAZE_true':GAZE_true,'LOGITS_gt':LOGITS_gt,'GAZE_expect':GAZE_expect}
         else:
             return {'loss_max': loss_max, 'loss_expect':loss_expect, 'loss_gt': loss_gt,
                     'cnnFeature': cnnFeature}
@@ -383,7 +386,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
     def test_epoch_end(self, test_step_outputs):
         if self.args.write_output == 'True':
             # avg_loss = torch.stack([x['loss'].cpu().detach() for x in test_step_outputs]).mean()
-            all_loss,all_gaze,all_gaze_gt,all_gaze_true,all_logits,all_logits_gt = pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame()
+            all_loss,all_gaze,all_gaze_gt,all_gaze_true,all_logits,all_logits_gt,all_gaze_expect = pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame()
             for output in test_step_outputs:
                 losses = list(output['LOSS'].cpu().detach().numpy())
                 all_loss = pd.concat([all_loss, pd.DataFrame(losses)],axis=0)
@@ -397,6 +400,8 @@ class Conv_AutoencoderModel(pl.LightningModule):
                 all_gaze_true = pd.concat([all_gaze_true, pd.DataFrame(gazes_true)],axis=0)
                 logits_gt = list(output['LOGITS_gt'].cpu().detach().numpy())
                 all_logits_gt = pd.concat([all_logits_gt, pd.DataFrame(logits_gt)],axis=0)
+                gazes_expect = list(output['GAZE_expect'].cpu().detach().numpy())
+                all_gaze_expect = pd.concat([all_gaze_expect, pd.DataFrame(gazes_expect)],axis=0)
 
             all_loss.reset_index().drop(['index'],axis=1)
             all_gaze.reset_index().drop(['index'],axis=1)
@@ -404,12 +409,14 @@ class Conv_AutoencoderModel(pl.LightningModule):
             all_gaze_gt.reset_index().drop(['index'],axis=1)
             all_gaze_true.reset_index().drop(['index'],axis=1)
             all_logits_gt.reset_index().drop(['index'],axis=1)
+            all_gaze_expect.reset_index().drop(['index'],axis=1)
             all_loss.to_csv('./dataset/outputdata/loss_max_threedim.csv', index=False)
             all_gaze.to_csv('./dataset/outputdata/gaze_max_threedim.csv', index=False)
             all_logits.to_csv('./dataset/outputdata/logits_max_threedim.csv', index=False)
             all_gaze_gt.to_csv('./dataset/outputdata/gaze_gt_threedim.csv', index=False)
             all_gaze_true.to_csv('./dataset/outputdata/gaze_true_threedim.csv', index=False)
             all_logits_gt.to_csv('./dataset/outputdata/logits_gt_threedim.csv', index=False)
+            all_gaze_expect.to_csv('./dataset/outputdata/gaze_expect_threedim.csv', index=False)
             # self.log('test_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
         else:
             avg_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
