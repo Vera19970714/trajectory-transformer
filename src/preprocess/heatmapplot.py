@@ -16,6 +16,7 @@ gazetrue = './dataset/outputdata/gaze_true_threedim.csv'
 gazemax = './dataset/outputdata/gaze_max_threedim.csv'
 logitsgt = './dataset/outputdata/logits_gt_threedim.csv'
 logitsmax = './dataset/outputdata/logits_max_threedim.csv'
+gazeexpect = './dataset/outputdata/gaze_expect_threedim.csv'
 
 datapath = './dataset/processdata/dataset_Q23_similarity_mousedel_time_val'
 target_dir = './dataset/img/Target/'
@@ -31,6 +32,7 @@ save_path_7 = './dataset/output/Plot_Heatmap/Gazetrue/'
 save_path_8 = './dataset/output/Plot_Heatmap/Logitsgt/'
 save_path_9 = './dataset/output/Plot_Heatmap/Logitsmax/'
 save_path_10 = './dataset/output/Plot_Heatmap/Gazetruestep/'
+save_path_11 = './dataset/output/Plot_Heatmap/Gazeexpect/'
 
 class HeatmapPlot(object):
     def __init__(self):
@@ -63,6 +65,7 @@ class HeatmapPlot(object):
         self.gazemax = np.array(pd.read_csv(gazemax))
         self.logitsgt = np.array(pd.read_csv(logitsgt))
         self.logitsmax = np.array(pd.read_csv(logitsmax))
+        self.gazeexpect = np.array(pd.read_csv(gazeexpect))
 
     def getSimCnnFeature(self,data):
         #specify the data
@@ -99,9 +102,10 @@ class HeatmapPlot(object):
                 gaze_length += 1
                 gazelogits = logits[i,:27]
                 gaze_logits.append(gazelogits)
-                gazeheatmap[:,int(current_gaze)]+=1
-                gazeheatmap_step[:,int(current_gaze)]=1
-                gaze_heatmap.append(gazeheatmap_step)
+                if current_gaze < 27:
+                    gazeheatmap[:,int(current_gaze)]+=1
+                    gazeheatmap_step[:,int(current_gaze)]=1
+                    gaze_heatmap.append(gazeheatmap_step)
                 if i==1:
                     if current_gaze == gaze[i-1,:]:
                         gaze_refix += 1
@@ -154,9 +158,11 @@ class HeatmapPlot(object):
 
     def forward(self):
         sum = 0
+        iter = 100
         correct_gt = 0
         correct_max = 0
         correct_true = 0
+        correct_expect = 0 
 
         search_gt_perc = 0
         refix_gt_perc = 0 
@@ -170,9 +176,14 @@ class HeatmapPlot(object):
         refix_true_perc = 0 
         revisit_true_perc = 0 
 
+        search_expect_perc = 0
+        refix_expect_perc = 0 
+        revisit_expect_perc = 0 
+
         length_gt = 0
         length_max = 0
         length_true = 0
+        length_expect = 0 
 
         for i in tqdm(range(self.data_length)):
             cnn_result = self.cnnfeature[i] #size 28, 256
@@ -195,7 +206,24 @@ class HeatmapPlot(object):
             gazegt_length,correctgt,search_per_gt,refix_per_gt,revisit_per_gt,gaze_heatmap_gt,gazeheatmap_gt,gaze_logits_gt = self.behaviorcal(each_length,int(targetpack)-1,gazegt_each,logitsgt_each)
             gazemax_length,correctmax,search_per_max,refix_per_max,revisit_per_max,gaze_heatmap_max,gazeheatmap_max,gaze_logits_max = self.behaviorcal(each_length,int(targetpack)-1,gazemax_each,logitsmax_each)
             gazetrue_length,correcttrue,search_per_true,refix_per_true,revisit_per_true,gaze_heatmap_true,gazeheatmap_true,_ = self.behaviorcal(each_length,int(targetpack)-1,gazetrue_each,logitsgt_each)
-            
+            correct_expect_per = 0
+            length_expect_per = 0
+            search_expect_per = 0
+            refix_expect_per = 0 
+            revisit_expect_per = 0
+            for j in range(iter):
+                gazeexpect_each = self.gazeexpect[(sum-each_length):sum,j].reshape(-1,1)
+                gazeexpect_length,correctexpect,search_per_expect,refix_per_expect,revisit_per_expect,gaze_heatmap_expect,gazeheatmap_expect,_ = self.behaviorcal(each_length,int(targetpack)-1,gazeexpect_each,logitsgt_each)
+                correct_expect_per += correctexpect
+                length_expect_per += gazeexpect_length
+                search_expect_per += search_per_expect
+                refix_expect_per += refix_per_expect
+                revisit_expect_per += revisit_per_expect
+            correct_expect += correct_expect_per / iter
+            search_expect_perc += search_expect_per / iter
+            refix_expect_perc += refix_expect_per / iter
+            revisit_expect_perc += revisit_expect_per / iter
+            length_expect += length_expect_per / iter
 
             correct_gt += correctgt
             correct_max += correctmax
@@ -216,7 +244,7 @@ class HeatmapPlot(object):
             length_max += gazemax_length
             length_true += gazetrue_length
             
-            question_img = Image.open(img_dir + questionname + '.png')
+            # question_img = Image.open(img_dir + questionname + '.png')
 
             if questionname.startswith('Q1'):
                 IMAGE_SIZE_1 = 449
@@ -235,47 +263,49 @@ class HeatmapPlot(object):
                 IMAGE_SIZE_2 = 186
                 IMAGE_ROW = 3
                 IMAGE_COLUMN = 9
-            if questionname.startswith('Q2'):
-                question_cropped_range = (0, (1050-IMAGE_SIZE_1*IMAGE_ROW), IMAGE_COLUMN*IMAGE_SIZE_2,  (1050-IMAGE_SIZE_1*IMAGE_ROW)+IMAGE_ROW *IMAGE_SIZE_1)
-                question_img_cropped =  question_img.crop(question_cropped_range)
-                gazeheatmap_gt = pd.DataFrame(gazeheatmap_gt.reshape(3,9))
-                gazeheatmap_max = pd.DataFrame(gazeheatmap_max.reshape(3,9))
-                gazeheatmap_true = pd.DataFrame(gazeheatmap_true.reshape(3,9))
-                saliency_result = np.array(saliency_result).reshape(3,9)
-                resnet_result = np.array(resnet_result).reshape(3,9)
-                rgb_result = np.array(rgb_result).reshape(3,9)
-                ae_result = np.array(ae_result).reshape(3,9)
-                resnet_result = pd.DataFrame(resnet_result)
-                rgb_result = pd.DataFrame(rgb_result)
-                ae_result = pd.DataFrame(ae_result)
-                cnn_result = pd.DataFrame(cnn_result)
-                self.heatmapplot(resnet_result,question_img_cropped,0.3,1,0.5,questionname,targetpack,' ','Heatmap_Resnet',save_path_1)
-                self.heatmapplot(rgb_result,question_img_cropped,0.6,1,0.5,questionname,targetpack,' ','Heatmap_RGB',save_path_2)
-                self.heatmapplot(ae_result,question_img_cropped,0.8,1,0.5,questionname,targetpack,' ','Heatmap_AE',save_path_3)
-                self.heatmapplot(cnn_result,question_img_cropped,0.8,1,0.5,questionname,targetpack,' ','Heatmap_CNN',save_path_4)
-                self.heatmapplot(gazeheatmap_gt,question_img_cropped,0,3,0.5,questionname,targetpack,' ','Heatmap_gt',save_path_5)
-                self.heatmapplot(gazeheatmap_max,question_img_cropped,0,3,0.5,questionname,targetpack,' ','Heatmap_max',save_path_6)
-                self.heatmapplot(gazeheatmap_true,question_img_cropped,0,3,0.5,questionname,targetpack,' ','Heatmap_true',save_path_7)
+            # if questionname.startswith('Q2'):
+                # question_cropped_range = (0, (1050-IMAGE_SIZE_1*IMAGE_ROW), IMAGE_COLUMN*IMAGE_SIZE_2,  (1050-IMAGE_SIZE_1*IMAGE_ROW)+IMAGE_ROW *IMAGE_SIZE_1)
+                # question_img_cropped =  question_img.crop(question_cropped_range)
+                # gazeheatmap_gt = pd.DataFrame(gazeheatmap_gt.reshape(3,9))
+                # gazeheatmap_max = pd.DataFrame(gazeheatmap_max.reshape(3,9))
+                # gazeheatmap_true = pd.DataFrame(gazeheatmap_true.reshape(3,9))
+                # saliency_result = np.array(saliency_result).reshape(3,9)
+                # resnet_result = np.array(resnet_result).reshape(3,9)
+                # rgb_result = np.array(rgb_result).reshape(3,9)
+                # ae_result = np.array(ae_result).reshape(3,9)
+                # resnet_result = pd.DataFrame(resnet_result)
+                # rgb_result = pd.DataFrame(rgb_result)
+                # ae_result = pd.DataFrame(ae_result)
+                # cnn_result = pd.DataFrame(cnn_result)
+                # self.heatmapplot(resnet_result,question_img_cropped,0.3,1,0.5,questionname,targetpack,' ','Heatmap_Resnet',save_path_1)
+                # self.heatmapplot(rgb_result,question_img_cropped,0.6,1,0.5,questionname,targetpack,' ','Heatmap_RGB',save_path_2)
+                # self.heatmapplot(ae_result,question_img_cropped,0.8,1,0.5,questionname,targetpack,' ','Heatmap_AE',save_path_3)
+                # self.heatmapplot(cnn_result,question_img_cropped,0.8,1,0.5,questionname,targetpack,' ','Heatmap_CNN',save_path_4)
+                # self.heatmapplot(gazeheatmap_gt,question_img_cropped,0,3,0.5,questionname,targetpack,' ','Heatmap_gt',save_path_5)
+                # self.heatmapplot(gazeheatmap_max,question_img_cropped,0,3,0.5,questionname,targetpack,' ','Heatmap_max',save_path_6)
+                # self.heatmapplot(gazeheatmap_true,question_img_cropped,0,3,0.5,questionname,targetpack,' ','Heatmap_true',save_path_7)
 
-                for n in range(len(gaze_logits_gt)):
-                    gaze_logits_gt_each = pd.DataFrame(gaze_logits_gt[n].reshape(3,9)) 
-                    self.heatmapplot(gaze_logits_gt_each,question_img_cropped,0,5,0.8,questionname,targetpack,str(n),'Heatmap_logits_gt',save_path_8)
+                # for n in range(len(gaze_logits_gt)):
+                #     gaze_logits_gt_each = pd.DataFrame(gaze_logits_gt[n].reshape(3,9)) 
+                #     self.heatmapplot(gaze_logits_gt_each,question_img_cropped,0,5,0.8,questionname,targetpack,str(n),'Heatmap_logits_gt',save_path_8)
                     
-                for m in range(len(gaze_logits_max)):
-                    gaze_logits_max_each = pd.DataFrame(gaze_logits_max[m].reshape(3,9)) 
-                    self.heatmapplot(gaze_logits_max_each,question_img_cropped,0,5,0.8,questionname,targetpack,str(m),'Heatmap_logits_max',save_path_9)
+                # for m in range(len(gaze_logits_max)):
+                #     gaze_logits_max_each = pd.DataFrame(gaze_logits_max[m].reshape(3,9)) 
+                #     self.heatmapplot(gaze_logits_max_each,question_img_cropped,0,5,0.8,questionname,targetpack,str(m),'Heatmap_logits_max',save_path_9)
                     
-                for l in range(len(gaze_heatmap_true)):
-                    gaze_heatmap_true_each = pd.DataFrame(gaze_heatmap_true[l].reshape(3,9)) 
-                    self.heatmapplot(gaze_heatmap_true_each,question_img_cropped,0,1,0.8,questionname,targetpack,str(l),'Heatmap_true_step',save_path_10)
+                # for l in range(len(gaze_heatmap_true)):
+                #     gaze_heatmap_true_each = pd.DataFrame(gaze_heatmap_true[l].reshape(3,9)) 
+                #     self.heatmapplot(gaze_heatmap_true_each,question_img_cropped,0,1,0.8,questionname,targetpack,str(l),'Heatmap_true_step',save_path_10)
                 
         correct_gt_total = correct_gt / int(self.data_length)
         correct_max_total = correct_max / int(self.data_length)
         correct_true_total = correct_true /int(self.data_length)
-
+        correct_expect_total = correct_expect /int(self.data_length)
+        
         search_gt_perc_total = search_gt_perc / int(self.data_length)
         refix_gt_perc_total = refix_gt_perc / int(self.data_length)
         revisit_gt_perc_total = revisit_gt_perc / int(self.data_length)
+        
 
         search_max_perc_total = search_max_perc / int(self.data_length)
         refix_max_perc_total = refix_max_perc / int(self.data_length)
@@ -284,14 +314,20 @@ class HeatmapPlot(object):
         search_true_perc_total = search_true_perc / int(self.data_length)
         refix_true_perc_total = refix_true_perc / int(self.data_length)
         revisit_true_perc_total = revisit_true_perc / int(self.data_length)
+
+        search_expect_perc_total = search_expect_perc / int(self.data_length)
+        refix_expect_perc_total = refix_expect_perc / int(self.data_length)
+        revisit_expect_perc_total = revisit_expect_perc / int(self.data_length)
          
         length_gt_total = length_gt /int(self.data_length)
         length_max_total = length_max /int(self.data_length)
         length_true_total = length_true /int(self.data_length)
+        length_expect_total = length_expect /int(self.data_length)
 
         print(f'correct_gt_total:{correct_gt_total}')
         print(f'correct_max_total:{correct_max_total}')
         print(f'correct_true_total:{correct_true_total}')
+        print(f'correct_expect_total:{correct_expect_total}')
 
         print(f'search_gt_perc_total:{search_gt_perc_total}')
         print(f'refix_gt_perc_total:{refix_gt_perc_total}')
@@ -305,9 +341,14 @@ class HeatmapPlot(object):
         print(f'refix_true_perc_total:{refix_true_perc_total}')
         print(f'revisit_true_perc_total:{revisit_true_perc_total}')
 
+        print(f'search_expect_perc_total:{search_expect_perc_total}')
+        print(f'refix_expect_perc_total:{refix_expect_perc_total}')
+        print(f'revisit_expect_perc_total:{revisit_expect_perc_total}')
+
         print(f'length_gt_total:{length_gt_total}')
         print(f'length_max_total:{length_max_total}')
         print(f'length_true_total:{length_true_total}')
+        print(f'length_expect_total:{length_expect_total}')
 
          
 if __name__ == '__main__':
