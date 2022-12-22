@@ -33,6 +33,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
         self.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
+        self.norm = torch.nn.Softmax()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
         self.loggerS= SummaryWriter(f'./lightning_logs/{args.log_name}')
         self.total_step = 0
@@ -253,7 +254,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
                 tgt_out = tgt_pos[i, :]
                 LOSS[i-1][0] = self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
                 GAZE[i-1][0] = predicted
-                LOGITS[i-1,:] = logits[-1,:,:].reshape(1,-1)
+                LOGITS[i-1,:] = self.norm(logits[-1,:,:]).reshape(1,-1)
                 loss += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
 
                 next_tgt_img_input = torch.cat((tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
@@ -273,7 +274,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
                 tgt_out = tgt_pos[i, :]
                 LOSS[i-1][0] = self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
                 GAZE[i-1][0] = predicted
-                LOGITS[i-1,:] = logits[-1,:,:].reshape(1,-1)
+                LOGITS[i-1,:] = self.norm(logits[-1,:,:]).reshape(1,-1)
                 loss += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
                 next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1,1)), dim=0)
@@ -287,7 +288,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
         loss = 0
         blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
         new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
-        iter = 100
+        iter = 1
         GAZE = torch.zeros((length-1, iter))-1
         for n in range(iter):
             loss_per = 0
@@ -343,6 +344,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
         GAZE_gt = torch.zeros((length, 1))-1
         GAZE_true = torch.zeros((length, 1))-1
         LOGITS_gt = torch.zeros((length, 31))
+        soft = torch.nn.Softmax(dim =2)
         # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input)
         if self.args.use_threedimension == 'True':
@@ -358,7 +360,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
         _, predicted = torch.max(logits, 2)
         GAZE_gt[:length,:]=predicted.reshape(length,-1)
         GAZE_true[:length,:]=tgt_out.reshape(length,-1)
-        LOGITS_gt[:length,:]=logits.reshape(length,-1)
+        LOGITS_gt[:length,:]=soft(logits).reshape(length,-1)
         print(predicted)
         return loss,GAZE_gt,GAZE_true,LOGITS_gt
         
