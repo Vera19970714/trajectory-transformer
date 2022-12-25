@@ -19,6 +19,7 @@ loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
 losses = 0
 time = 0
 iter = 100
+max_length = 17
 all_gaze = pd.DataFrame()
 
 for src_pos, src_img, tgt_pos, tgt_img in test_loader:
@@ -30,22 +31,21 @@ for src_pos, src_img, tgt_pos, tgt_img in test_loader:
 
     tgt_input = tgt_pos[:-1, :]
     tgt_img = tgt_img[:, :-1, :, :, :]
-
     tgt_out = tgt_pos[1:, :]
-
     output = torch.zeros((tgt_out.size()[0], tgt_out.size()[1], 31))
-    length = tgt_pos.size(0)
-    GAZE = torch.zeros((length-1, iter))-1
+    length = tgt_out.size()[0]
+    GAZE = torch.zeros((max_length, iter))-1
     for n in range(iter):
-        for i in range(tgt_out.size()[0]):
+        for i in range(max_length):
             for j in range(tgt_out.size()[1]):
                 ind = int(randint(0, 30))
-                output[i][j][ind] = 1
+                if i<length:
+                    output[i][j][ind] = 1
                 GAZE[i][n] = ind
     loss = loss_fn(output.reshape(-1, output.shape[-1]), tgt_out.reshape(-1))
     gaze_df = GAZE.numpy()
     all_gaze = pd.concat([all_gaze, pd.DataFrame(gaze_df)],axis=0)
     losses += loss.item()
 print(losses / time)
-all_gaze.to_csv('./dataset/outputdata/gaze_random.csv', index=False)
+all_gaze.to_csv('./dataset/outputdata/gaze_random_new.csv', index=False)
 

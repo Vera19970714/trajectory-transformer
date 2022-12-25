@@ -20,6 +20,7 @@ loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
 losses1 = 0
 losses2 = 0
 losses3 = 0
+max_length = 17
 time = 0
 iter = 100
 xk = np.arange(31)
@@ -33,9 +34,9 @@ for package_similarity, package_saliency, package_rgb, package_seq in test_loade
     
     tgt_out = package_seq[1:, :]
     length = tgt_out.size(0)
-    GAZE_similarity = np.zeros((length, iter))-1
-    GAZE_saliency = np.zeros((length, iter))-1
-    GAZE_rgb = np.zeros((length, iter))-1
+    GAZE_similarity = np.zeros((max_length, iter))-1
+    GAZE_saliency = np.zeros((max_length, iter))-1
+    GAZE_rgb = np.zeros((max_length, iter))-1
     similarity_dis = (continue_pro/torch.sum(package_similarity))*package_similarity
     saliency_dis = (continue_pro/torch.sum(package_saliency))*package_saliency
     rgb_dis = (continue_pro/torch.sum(package_rgb))*package_rgb
@@ -47,9 +48,9 @@ for package_similarity, package_saliency, package_rgb, package_seq in test_loade
     output_saliency = saliency_dis.repeat(tgt_out.size()[0], 1)
     output_rgb = rgb_dis.repeat(tgt_out.size()[0], 1)
     for i in range(iter):
-        output_similarity_dis = np.random.choice(xk,length,p=output_similarity[0,:].numpy())
-        output_saliency_dis = np.random.choice(xk,length,p=output_saliency[0,:].numpy())
-        output_rgb_dis = np.random.choice(xk,length,p=output_rgb[0,:].numpy())
+        output_similarity_dis = np.random.choice(xk,max_length,p=output_similarity[0,:].numpy())
+        output_saliency_dis = np.random.choice(xk,max_length,p=output_saliency[0,:].numpy())
+        output_rgb_dis = np.random.choice(xk,max_length,p=output_rgb[0,:].numpy())
         GAZE_similarity[:,i] = output_similarity_dis
         GAZE_saliency[:,i] = output_saliency_dis
         GAZE_rgb[:,i]= output_rgb_dis
@@ -68,6 +69,6 @@ print('similarity loss:',losses1 / time)
 print('saliency loss:',losses2 / time)
 print('rgb loss:',losses3 / time)
 
-all_gaze_similarity.to_csv('./dataset/outputdata/gaze_similarity.csv', index=False)
-all_gaze_saliency.to_csv('./dataset/outputdata/gaze_saliency.csv', index=False)
-all_gaze_rgb.to_csv('./dataset/outputdata/gaze_rgb.csv', index=False)
+all_gaze_similarity.to_csv('./dataset/outputdata/gaze_similarity_new.csv', index=False)
+all_gaze_saliency.to_csv('./dataset/outputdata/gaze_saliency_new.csv', index=False)
+all_gaze_rgb.to_csv('./dataset/outputdata/gaze_rgb_new.csv', index=False)
