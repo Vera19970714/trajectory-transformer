@@ -11,6 +11,7 @@ import numpy as np
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 TGT_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
+TOTAL_TOKEN = 31
 class Conv_AutoencoderModel(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
@@ -37,6 +38,38 @@ class Conv_AutoencoderModel(pl.LightningModule):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
         self.loggerS= SummaryWriter(f'./lightning_logs/{args.log_name}')
         self.total_step = 0
+        self.customCELoss = self.customCELoss
+
+    def customCELoss(self, y1, y2):
+        # y1: 14,20,31
+        # y2: 14,20
+        y1 = torch.softmax(y1, dim=2)
+
+        y1 = y1.view(-1, TOTAL_TOKEN)
+        y2 = y2.view(-1)
+        y = torch.zeros((y1.size())).to(DEVICE) #14,20,31
+        total = y.size()[0]
+        y[np.arange(total).tolist(), y2.cpu().detach().numpy().tolist()] = 1
+        _, predicted = torch.max(y1, 1)
+
+        #calculate between y2 and predicted
+        with torch.no_grad():
+            y2_2d = torch.zeros((y2.size()[0], 2)).to(DEVICE).float()
+            y2_2d[:, 0] = y2 // 9
+            y2_2d[:, 1] = torch.remainder(y2, 9)
+            predicted_2d = torch.zeros((predicted.size()[0], 2)).to(DEVICE).float()
+            predicted_2d[:, 0] = predicted // 9
+            predicted_2d[:, 1] = torch.remainder(predicted, 9)
+            distance = ((predicted_2d[:,0]-y2_2d[:,0])**2+(predicted_2d[:,1]-y2_2d[:,1])**2)**0.5
+            distance = distance/4.73 + 1
+            distance = distance.view(-1,1).repeat(1,TOTAL_TOKEN)
+
+        def cross_entropy(y, y_pre, dis):
+            loss = -torch.sum(y * torch.log(y_pre) * dis)
+            return loss / float(y_pre.shape[0])
+        result = cross_entropy(y,y1, distance)
+        return result
+
 
     def log_gradients_in_model(self, step):
         for tag, value in self.model.named_parameters():
@@ -67,7 +100,9 @@ class Conv_AutoencoderModel(pl.LightningModule):
                             src_img, tgt_img,
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
         tgt_out = tgt_pos[1:, :]
-        loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
+        loss = self.customCELoss(logits, tgt_out)
+        #loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
+
         #self.log_gradients_in_model(self.total_step)
         self.total_step += 1
         self.log('training_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)

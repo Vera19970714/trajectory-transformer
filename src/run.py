@@ -14,9 +14,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path
-    parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
-    parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
-    parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_time_val', type=str)
+    parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_train', type=str)
+    parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
+    parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
     parser.add_argument('-checkpoint', default=None, type=str)
 
     parser.add_argument('-log_name', default='test_log', type=str)
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('-do_test', type=str, default='True')
     parser.add_argument('-limit_val_batches', default=1.0, type=float)
     parser.add_argument('-val_check_interval', default=1.0, type=float)
-    parser.add_argument('-use_threedimension', type=str, default='False')
+    parser.add_argument('-use_threedimension', type=str, default='True')
     parser.add_argument('-write_output', type=str, default='False')
 
     args = parser.parse_args()
