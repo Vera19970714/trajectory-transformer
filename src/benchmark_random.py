@@ -17,10 +17,9 @@ test_set = FixDataset(0, test_datapath)
 test_loader = DataLoader(dataset=test_set, batch_size=1, num_workers=0, collate_fn=collate_fn, shuffle=False)
 
 time = 0
-iter = 2 #todo: change
-#max_length = 17
+iter = 2
 all_gaze = pd.DataFrame()
-end_prob = 1 / 7.7 * 100 #todo: check
+end_prob = 1 / 8.7 * 100
 minLen = 1
 
 for src_pos, src_img, tgt_pos, tgt_img in test_loader:
@@ -39,13 +38,12 @@ for src_pos, src_img, tgt_pos, tgt_img in test_loader:
     for n in range(iter):
         GAZE = []
         x = randint(0, 101)
-        while x > end_prob or len(GAZE)<minLen:
+        while x >= end_prob or len(GAZE)<minLen:
             ind = randint(0, TOTAL_PCK-1)
             GAZE.append(ind)
             x = randint(0, 101)
         gaze_df = np.stack(GAZE).reshape(1, -1)
         all_gaze = pd.concat([all_gaze, pd.DataFrame(gaze_df)],axis=0)
-        #todo: check if min is 0, the length should be 7.7
 
 loss = np.log(TOTAL_PCK+3)
 print('loss=', loss)

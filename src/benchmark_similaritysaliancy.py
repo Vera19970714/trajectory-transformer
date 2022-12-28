@@ -11,7 +11,7 @@ from random import randint
 #avg_len = 7.71
 end_pro = 0.13
 #continue_pro = 0.87
-end_prob = 1 / 7.7 * 100 #todo: check
+end_prob = 1 / 8.7 * 100
 minLen = 1
 iter = 2
 
@@ -57,7 +57,7 @@ for package_similarity, package_saliency, package_rgb, package_seq in test_loade
         GAZE_rgb = []
 
         x = randint(0, 101)
-        while x > end_prob or len(GAZE_similarity)<minLen:
+        while x >= end_prob or len(GAZE_similarity)<minLen:
             ind = np.random.choice(TOTAL_PCK,1,p=sim.numpy())
             GAZE_similarity.append(ind)
             x = randint(0, 101)
@@ -65,7 +65,7 @@ for package_similarity, package_saliency, package_rgb, package_seq in test_loade
         all_gaze_similarity = pd.concat([all_gaze_similarity, pd.DataFrame(gaze_df)],axis=0)
 
         x = randint(0, 101)
-        while x > end_prob or len(GAZE_saliency) < minLen:
+        while x >= end_prob or len(GAZE_saliency) < minLen:
             ind = np.random.choice(TOTAL_PCK, 1, p=sal.numpy())
             GAZE_saliency.append(ind)
             x = randint(0, 101)
@@ -73,7 +73,7 @@ for package_similarity, package_saliency, package_rgb, package_seq in test_loade
         all_gaze_saliency = pd.concat([all_gaze_saliency, pd.DataFrame(gaze_df)], axis=0)
 
         x = randint(0, 101)
-        while x > end_prob or len(GAZE_rgb) < minLen:
+        while x >= end_prob or len(GAZE_rgb) < minLen:
             ind = np.random.choice(TOTAL_PCK, 1, p=rgb.numpy())
             GAZE_rgb.append(ind)
             x = randint(0, 101)
