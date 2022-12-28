@@ -20,7 +20,6 @@ class FixDataset(Dataset):
         self.package_sequence = []
         self.args = args
 
-        #todo: test overfitting
         #i=0
         for item in raw_data:
             self.package_target.append(item['package_target'])

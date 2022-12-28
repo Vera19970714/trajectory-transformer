@@ -11,6 +11,8 @@ import numpy as np
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 TGT_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
+iter = 2 #todo: changed
+
 class Conv_AutoencoderModel(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
@@ -33,7 +35,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
         self.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
-        self.norm = torch.nn.Softmax()
+        self.norm = torch.nn.Softmax(dim=1)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
         self.loggerS= SummaryWriter(f'./lightning_logs/{args.log_name}')
         self.total_step = 0
@@ -231,7 +233,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
         tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)
         loss = 0
-        max_length = 17
+        max_length = 16
         LOSS = torch.zeros((length-1, 1))-1
         GAZE = torch.zeros((max_length, 1))-1
         LOGITS = torch.zeros((max_length, 31))
@@ -282,6 +284,10 @@ class Conv_AutoencoderModel(pl.LightningModule):
                 next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1,1)), dim=0)
         loss = loss / (length-1)
+        if EOS_IDX in GAZE:
+            endIndex = torch.where(GAZE == EOS_IDX)[0][0]
+            GAZE = GAZE[:endIndex]
+            LOGITS = LOGITS[:endIndex]
         return loss, LOSS, GAZE,LOGITS
 
     def test_expect(self,src_pos, src_img, tgt_pos, tgt_img):
@@ -289,10 +295,9 @@ class Conv_AutoencoderModel(pl.LightningModule):
         tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)
         loss = 0
-        max_length = 17
+        max_length = 16
         blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
         new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
-        iter = 100
         GAZE = torch.zeros((max_length, iter))-1
         for n in range(iter):
             loss_per = 0
@@ -342,16 +347,20 @@ class Conv_AutoencoderModel(pl.LightningModule):
                     
             loss += loss_per / (length-1)
         loss= loss / iter
-        return loss,GAZE
+        GAZE_ALL = []
+        for i in range(iter):
+            if EOS_IDX in GAZE[:,i]:
+                j = torch.where(GAZE[:,i]==EOS_IDX)[0][0]
+                GAZE_ALL.append(GAZE[:j, i])
+            else:
+                GAZE_ALL.append(GAZE[:,i])
+        return loss,GAZE_ALL
 
     def test_gt(self,src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
         tgt_img_input = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0) - 1
-        GAZE_gt = torch.zeros((length, 1))-1
-        GAZE_true = torch.zeros((length, 1))-1
-        LOGITS_gt = torch.zeros((length, 31))
-        soft = torch.nn.Softmax(dim =2)
+        soft = torch.nn.Softmax(dim=2)
         # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input)
         if self.args.use_threedimension == 'True':
@@ -365,11 +374,9 @@ class Conv_AutoencoderModel(pl.LightningModule):
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         _, predicted = torch.max(logits, 2)
-        GAZE_gt[:length,:]=predicted.reshape(length,-1)
-        GAZE_true[:length,:]=tgt_out.reshape(length,-1)
-        LOGITS_gt[:length,:]=soft(logits).reshape(length,-1)
-        print(predicted)
-        return loss,GAZE_gt,GAZE_true,LOGITS_gt
+        LOGITS_tf=soft(logits).squeeze(1)
+        print(predicted.view(-1))
+        return loss,predicted[:-1],tgt_out[:-1],LOGITS_tf[:-1]
         
     def test_step(self, batch, batch_idx):
         src_pos, src_img, tgt_pos, tgt_img = batch
@@ -380,48 +387,47 @@ class Conv_AutoencoderModel(pl.LightningModule):
 
         loss_max, LOSS, GAZE,LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         loss_expect,GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
-        loss_gt,GAZE_gt,GAZE_true,LOGITS_gt = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
+        loss_gt,GAZE_tf,GAZE_gt,LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
         self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         if self.args.write_output == 'True':
-            return {'loss_max': loss_max, 'LOSS':LOSS, 'GAZE':GAZE,'LOGITS':LOGITS,'GAZE_gt':GAZE_gt,'GAZE_true':GAZE_true,'LOGITS_gt':LOGITS_gt,'GAZE_expect':GAZE_expect}
+            return {'loss_max': loss_max, 'LOSS':LOSS, 'GAZE':GAZE,'LOGITS':LOGITS,'GAZE_tf':GAZE_tf,'GAZE_gt':GAZE_gt,'LOGITS_tf':LOGITS_tf,'GAZE_expect':GAZE_expect}
         else:
             return {'loss_max': loss_max, 'loss_expect':loss_expect, 'loss_gt': loss_gt}
 
     def test_epoch_end(self, test_step_outputs):
         if self.args.write_output == 'True':
-            # avg_loss = torch.stack([x['loss'].cpu().detach() for x in test_step_outputs]).mean()
-            all_loss,all_gaze,all_gaze_gt,all_gaze_true,all_logits,all_logits_gt,all_gaze_expect = pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame()
+            all_loss,all_gaze,all_gaze_tf,all_gaze_gt,all_logits,all_logits_tf,all_gaze_expect = pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame()
             for output in test_step_outputs:
-                losses = list(output['LOSS'].cpu().detach().numpy())
-                all_loss = pd.concat([all_loss, pd.DataFrame(losses)],axis=0)
-                gazes = list(output['GAZE'].cpu().detach().numpy())
+                #losses = output['LOSS'].cpu().detach().numpy().T
+                #all_loss = pd.concat([all_loss, pd.DataFrame(losses)],axis=0)
+                gazes = output['GAZE'].cpu().detach().numpy().T
                 all_gaze = pd.concat([all_gaze, pd.DataFrame(gazes)],axis=0)
-                logits = list(output['LOGITS'].cpu().detach().numpy())
-                all_logits = pd.concat([all_logits, pd.DataFrame(logits)],axis=0)
-                gazes_gt = list(output['GAZE_gt'].cpu().detach().numpy())
+                #logits = output['LOGITS'].cpu().detach().view(1, -1).numpy()
+                #all_logits = pd.concat([all_logits, pd.DataFrame(logits)],axis=0)
+                gazes_tf = output['GAZE_tf'].cpu().detach().numpy().T
+                all_gaze_tf = pd.concat([all_gaze_tf, pd.DataFrame(gazes_tf)],axis=0)
+                gazes_gt = output['GAZE_gt'].cpu().detach().numpy().T
                 all_gaze_gt = pd.concat([all_gaze_gt, pd.DataFrame(gazes_gt)],axis=0)
-                gazes_true = list(output['GAZE_true'].cpu().detach().numpy())
-                all_gaze_true = pd.concat([all_gaze_true, pd.DataFrame(gazes_true)],axis=0)
-                logits_gt = list(output['LOGITS_gt'].cpu().detach().numpy())
-                all_logits_gt = pd.concat([all_logits_gt, pd.DataFrame(logits_gt)],axis=0)
-                gazes_expect = list(output['GAZE_expect'].cpu().detach().numpy())
-                all_gaze_expect = pd.concat([all_gaze_expect, pd.DataFrame(gazes_expect)],axis=0)
+                #logits_tf = output['LOGITS_tf'].cpu().detach().view(1, -1).numpy()
+                #all_logits_tf = pd.concat([all_logits_tf, pd.DataFrame(logits_tf)],axis=0)
+                for i in range(iter):
+                    gazes_expect = output['GAZE_expect'][i].cpu().detach().view(1, -1).numpy()
+                    all_gaze_expect = pd.concat([all_gaze_expect, pd.DataFrame(gazes_expect)],axis=0)
 
-            all_loss.reset_index().drop(['index'],axis=1)
+            #all_loss.reset_index().drop(['index'],axis=1)
             all_gaze.reset_index().drop(['index'],axis=1)
-            all_logits.reset_index().drop(['index'],axis=1)
+            #all_logits.reset_index().drop(['index'],axis=1)
+            all_gaze_tf.reset_index().drop(['index'],axis=1)
             all_gaze_gt.reset_index().drop(['index'],axis=1)
-            all_gaze_true.reset_index().drop(['index'],axis=1)
-            all_logits_gt.reset_index().drop(['index'],axis=1)
+            #all_logits_tf.reset_index().drop(['index'],axis=1)
             all_gaze_expect.reset_index().drop(['index'],axis=1)
-            all_loss.to_csv('./dataset/outputdata/loss_max_threedim.csv', index=False)
-            all_gaze.to_csv('./dataset/outputdata/gaze_max_threedim_new.csv', index=False)
-            all_logits.to_csv('./dataset/outputdata/logits_max_threedim_new.csv', index=False)
-            all_gaze_gt.to_csv('./dataset/outputdata/gaze_gt_threedim.csv', index=False)
-            all_gaze_true.to_csv('./dataset/outputdata/gaze_true_threedim.csv', index=False)
-            all_logits_gt.to_csv('./dataset/outputdata/logits_gt_threedim.csv', index=False)
-            all_gaze_expect.to_csv('./dataset/outputdata/gaze_expect_threedim_new.csv', index=False)
-            # self.log('test_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+            #all_loss.to_csv('../dataset/checkEvaluation/loss_max.csv', index=False)
+            all_gaze.to_csv('../dataset/checkEvaluation/gaze_max.csv', index=False)
+            #all_logits.to_csv('../dataset/checkEvaluation/logits_max.csv', index=False)
+            all_gaze_tf.to_csv('../dataset/checkEvaluation/gaze_tf.csv', index=False)
+            all_gaze_gt.to_csv('../dataset/checkEvaluation/gaze_gt.csv', index=False)
+            #all_logits_tf.to_csv('../dataset/checkEvaluation/logits_tf.csv', index=False)
+            all_gaze_expect.to_csv('../dataset/checkEvaluation/gaze_expect.csv', index=False)
         else:
             avg_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
             self.log('test_loss_max_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
