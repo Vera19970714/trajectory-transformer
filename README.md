@@ -1,4 +1,13 @@
-# trajectory-transformer
+# Human-like Gaze Trajectory Generation Using Transformer
+
+
+Update on evaluation:
+1. save gaze files from random / similarity / saliency / transformer
+2. create new folder: dataset/checkEvaluation/
+3. run src/evaluation/evaluation.py
+
+
+---------------------------------------------------------------------------------------------------------
 
 How to calculate lenght, behavior, correct and heatmap?
 
