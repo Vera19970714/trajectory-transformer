@@ -13,7 +13,7 @@ end_pro = 0.13
 #continue_pro = 0.87
 end_prob = 1 / 8.7 * 100
 minLen = 1
-iter = 2
+iter = 100
 
 UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
 TOTAL_PCK = 27

@@ -11,7 +11,7 @@ import numpy as np
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 TGT_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
-iter = 2 #todo: changed
+iter = 100
 
 class Conv_AutoencoderModel(pl.LightningModule):
     def __init__(self, args):

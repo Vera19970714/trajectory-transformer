@@ -17,7 +17,7 @@ test_set = FixDataset(0, test_datapath)
 test_loader = DataLoader(dataset=test_set, batch_size=1, num_workers=0, collate_fn=collate_fn, shuffle=False)
 
 time = 0
-iter = 2
+iter = 100
 all_gaze = pd.DataFrame()
 end_prob = 1 / 8.7 * 100
 minLen = 1

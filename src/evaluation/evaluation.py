@@ -8,7 +8,7 @@ from itertools import groupby
 from dictances import bhattacharyya
 from scipy.stats import wasserstein_distance
 
-ITERATION = 2
+ITERATION = 100
 TOTAL_PCK = 27
 
 
@@ -43,9 +43,6 @@ def losses(heatmap_gt, gaze, result_array):
         for element in single:
             heatmap_single[int(element)] += 1
         heatmap_single = heatmap_single / heatmap_single.sum()
-        #distribution1 = dict(enumerate(heatmap_single.numpy().flatten()+(1e-20), 1))
-        #distribution2 = dict(enumerate(heatmap_gt.numpy().flatten()+(1e-20), 1))
-        #distance = bhattacharyya(distribution1, distribution2)
         distance = wasserstein_distance(heatmap_single, heatmap_gt)
         result_array[5] += distance
         result_array[6] += np.minimum(heatmap_single, heatmap_gt).mean()
