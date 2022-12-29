@@ -15,7 +15,7 @@ TOTAL_PCK = 27
 def behavior(result_array, target, gaze):
     for i in range(len(gaze)):
         gaze_element = gaze[i][~np.isnan(gaze[i])]
-        result_array[0] += int(target in gaze_element)
+        result_array[0] += int(target == gaze_element[-1])
         result_array[1] += len(gaze_element)
         search_len = 0
         refix_len = 0
