@@ -6,8 +6,6 @@ import torch.nn as nn
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 import pandas as pd
-import numpy as np
-
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 TGT_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
@@ -209,6 +207,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
             src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData2d(src_pos, src_img, tgt_pos,
                                                                                       tgt_img)
 
+        # TODO: change src_img 1,28,150,93,3 based on tgt_pos[:-1]
         logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),   #src_pos, tgt_input,
                             src_img, tgt_img,
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
