@@ -6,6 +6,7 @@ import torch.nn as nn
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 import pandas as pd
+from model.fovea import *
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 TGT_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
@@ -19,7 +20,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
         SRC_VOCAB_SIZE = 27+4
         TGT_VOCAB_SIZE = 27+4
         EMB_SIZE = 512
-        NHEAD = 4 #todo: changed settings
+        NHEAD = 4
         FFN_HID_DIM = 512
         NUM_ENCODER_LAYERS = 4
         NUM_DECODER_LAYERS = 4
@@ -63,9 +64,24 @@ class Conv_AutoencoderModel(pl.LightningModule):
             src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData2d(src_pos, src_img, tgt_pos,
                                                                                       tgt_img)
 
-        logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+        foveated_img = fovea_tf(src_img, tgt_pos)
+        tgt_len = foveated_img.size()[0]
+        logits = []
+        for i in range(0, tgt_len):
+            src_img_sub = foveated_img[i]
+            tgt_img_sub = tgt_img[:, :(i + 1)]
+            tgt_input_2d_sub = tgt_input_2d[:(i + 1)]
+            tgt_mask_sub = tgt_mask[:(i + 1), :(i + 1)]
+            tgt_padding_mask_sub = tgt_padding_mask[:, :(i + 1)]
+            logits_sub = self.model(src_pos_2d.float(), tgt_input_2d_sub.float(),
+                                    src_img_sub, tgt_img_sub,
+                                    src_mask, tgt_mask_sub, src_padding_mask, tgt_padding_mask_sub, src_padding_mask)
+            logits.append(logits_sub[-1])  # 1, 20, 31
+        logits = torch.stack(logits)
+
+        '''logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img,
-                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)'''
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         #self.log_gradients_in_model(self.total_step)
@@ -207,10 +223,30 @@ class Conv_AutoencoderModel(pl.LightningModule):
             src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData2d(src_pos, src_img, tgt_pos,
                                                                                       tgt_img)
 
-        # TODO: change src_img 1,28,150,93,3 based on tgt_pos[:-1]
-        logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),   #src_pos, tgt_input,
+        # loop in 18: src_img to 18,bs,28,150,93,3
+        # fovea input: bs,28,150,93,3, and tgt_pos len,bs; output: len-1,bs,28,150,93,3
+        # output logits: take the last one
+
+        # testGaussian(src_img)
+        foveated_img = fovea_tf(src_img, tgt_pos)
+        tgt_len = foveated_img.size()[0]
+        logits = []
+        for i in range(0, tgt_len):
+            src_img_sub = foveated_img[i]
+            tgt_img_sub = tgt_img[:, :(i+1)]
+            tgt_input_2d_sub = tgt_input_2d[:(i+1)]
+            tgt_mask_sub = tgt_mask[:(i+1), :(i+1)]
+            tgt_padding_mask_sub = tgt_padding_mask[:, :(i+1)]
+            logits_sub = self.model(src_pos_2d.float(), tgt_input_2d_sub.float(),
+                                src_img_sub, tgt_img_sub,
+                                src_mask, tgt_mask_sub, src_padding_mask, tgt_padding_mask_sub, src_padding_mask)
+            logits.append(logits_sub[-1]) #1, 20, 31
+        logits = torch.stack(logits)
+
+        '''logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),   #src_pos, tgt_input,
                             src_img, tgt_img,
-                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)'''
+
         # logits: 11, 1, 31, tgt_out: 11, 1
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
@@ -228,7 +264,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
         self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def test_max(self,src_pos, src_img, tgt_pos, tgt_img):
-        tgt_input = tgt_pos[:-1, :]
+        #tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)
         loss = 0
@@ -238,6 +274,9 @@ class Conv_AutoencoderModel(pl.LightningModule):
         LOGITS = torch.zeros((max_length, 31))
         blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
         new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
+
+        foveated_src_img = GaussianBlur(src_img)
+        bs = tgt_pos.size()[1]
         for i in range(1,max_length+1):
             if i==1:
                 tgt_input = tgt_pos[:i, :]
@@ -249,8 +288,9 @@ class Conv_AutoencoderModel(pl.LightningModule):
                     src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
 
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
-                                    src_img, tgt_img_input,
+                                    foveated_src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+
                 _, predicted = torch.max(logits[-1,:,:], 1)
                 if i<length:
                     tgt_out = tgt_pos[i, :]
@@ -270,8 +310,16 @@ class Conv_AutoencoderModel(pl.LightningModule):
                     src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
                 else:
                     src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
+
+                # Fovea module:
+                if i < length:
+                    tokens = [torch.arange(bs), tgt_pos[i-1]]  # bs
+                    valid_token_ind = torch.where(tokens[1] < 27)[0]
+                    valid_token = [tokens[0][valid_token_ind], tokens[1][valid_token_ind]]
+                    foveated_src_img[valid_token] = src_img[valid_token]
+
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
-                                    src_img, tgt_img_input,
+                                    foveated_src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 _, predicted = torch.max(logits[-1,:,:], 1)
                 if i<length:
@@ -367,9 +415,24 @@ class Conv_AutoencoderModel(pl.LightningModule):
         else:
             src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
 
-        logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+        foveated_img = fovea_tf(src_img, tgt_pos)
+        tgt_len = foveated_img.size()[0]
+        logits = []
+        for i in range(0, tgt_len):
+            src_img_sub = foveated_img[i]
+            tgt_img_sub = tgt_img[:, :(i + 1)]
+            tgt_input_2d_sub = tgt_input_2d[:(i + 1)]
+            tgt_mask_sub = tgt_mask[:(i + 1), :(i + 1)]
+            tgt_padding_mask_sub = tgt_padding_mask[:, :(i + 1)]
+            logits_sub = self.model(src_pos_2d.float(), tgt_input_2d_sub.float(),
+                                    src_img_sub, tgt_img_sub,
+                                    src_mask, tgt_mask_sub, src_padding_mask, tgt_padding_mask_sub, src_padding_mask)
+            logits.append(logits_sub[-1])  # 1, 20, 31
+        logits = torch.stack(logits)
+
+        '''logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img_input,
-                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)'''
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         _, predicted = torch.max(logits, 2)

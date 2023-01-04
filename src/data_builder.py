@@ -8,6 +8,8 @@ import pickle
 from torch.nn.utils.rnn import pad_sequence
 import matplotlib.pyplot as plt
 
+TGT_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
+
 class FixDataset(Dataset):
     def __init__(self, args, new_datapath):
         #raw_data = torch.load(new_datapath)
@@ -72,7 +74,7 @@ class SearchDataModule(pl.LightningDataModule):
                                     collate_fn=collate_fn,
                                     shuffle=True)
     self.val_loader = DataLoader(dataset=val_set,
-                                    batch_size=1,
+                                    batch_size=args.batch_size,
                                     num_workers=2,
                                     collate_fn=collate_fn,
                                     shuffle=False)
@@ -100,7 +102,6 @@ class SearchDataModule(pl.LightningDataModule):
     # return test_images
     return self.test_loader
 
-TGT_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
 
 def collate_fn(data):
     package_target = []
