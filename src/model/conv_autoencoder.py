@@ -77,6 +77,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
                                     src_img_sub, tgt_img_sub,
                                     src_mask, tgt_mask_sub, src_padding_mask, tgt_padding_mask_sub, src_padding_mask)
             logits.append(logits_sub[-1])  # 1, 20, 31
+            del src_img_sub, tgt_img_sub, tgt_input_2d_sub, tgt_padding_mask_sub, logits_sub
         logits = torch.stack(logits)
 
         '''logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
@@ -241,6 +242,7 @@ class Conv_AutoencoderModel(pl.LightningModule):
                                 src_img_sub, tgt_img_sub,
                                 src_mask, tgt_mask_sub, src_padding_mask, tgt_padding_mask_sub, src_padding_mask)
             logits.append(logits_sub[-1]) #1, 20, 31
+            del src_img_sub, tgt_img_sub, tgt_input_2d_sub, tgt_padding_mask_sub, logits_sub
         logits = torch.stack(logits)
 
         '''logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),   #src_pos, tgt_input,
