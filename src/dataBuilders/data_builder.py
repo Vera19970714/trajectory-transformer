@@ -47,6 +47,8 @@ class FixDataset(Dataset):
         return [len(sent) for sent in sents]
 
     def drawTrajectoryDis(self):
+        BOS_IDX = self.args.package_size + 2
+        EOS_IDX = self.args.package_size + 3
         output = []
         for entry in self.package_sequence:
             entry = np.stack(entry) - 1
