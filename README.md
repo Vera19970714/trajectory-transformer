@@ -1,6 +1,11 @@
 # Human-like Gaze Trajectory Generation Using Transformer
 
+Update on the overall coding structure for new dataset, Jan 10, 2023:
+1. move the scripts to corresponding folders
+2. add more CLI arguments, important ones: package_size, output_path/postfix, etc
+3. change logic: testing ends sooner so it is faster; eos/bos/.. indexes are calculated automatically
 
+---------------------------------------------------------------------------------------------------------
 Update on evaluation:
 1. save gaze files from random / similarity / saliency / transformer
 2. create new folder: dataset/checkEvaluation/

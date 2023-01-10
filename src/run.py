@@ -1,44 +1,50 @@
 import argparse
-import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.utilities.seed import seed_everything
 from pytorch_lightning import loggers as pl_loggers
-from pytorch_lightning.plugins import DDPPlugin
-from data_builder import SearchDataModule, BaseSearchDataModule
-from model.conv_autoencoder import Conv_AutoencoderModel
-from model.base_lightning import BaseModel
+from dataBuilders.data_builder import SearchDataModule
+from dataBuilders.data_builder_base import BaseSearchDataModule
+from model.transformerLightning import TransformerModel
+from benchmark.base_lightning import BaseModel
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    # data path
+    # data path and output files
     parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_train', type=str)
     parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
     parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
+    parser.add_argument('-package_size', type=int, default=27)
     parser.add_argument('-checkpoint', default='../ckpt/bestxy1.ckpt', type=str)
 
     parser.add_argument('-log_name', default='test_log', type=str)
-    # model setting
-    parser.add_argument('-model', default='Conv_Autoencoder', type=str) #BaseModel, Conv_Autoencoder
-    # training hyperparameters
-    parser.add_argument('-gpus', default='0', type=str)
-    parser.add_argument('-batch_size', type=int, default=20)
+    parser.add_argument('-write_output', type=str, default='True')
+    parser.add_argument('-output_path', type=str, default='../dataset/checkEvaluation/')
+    parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
+    parser.add_argument('-stochastic_iteration', type=int, default=100)
+
+    # model settings and hyperparameters
+    parser.add_argument('-model', default='Transformer', type=str) #BaseModel,
     parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=20, type=int)
     parser.add_argument('-scheduler_lambda2', default=0.95, type=float)
-    parser.add_argument('-num_epochs', type=int, default=500)
     parser.add_argument('-grad_accumulate', type=int, default=1)
     parser.add_argument('-clip_val', default=1.0, type=float)
-    parser.add_argument('-random_seed', type=int, default=3407)
-    parser.add_argument('-early_stop_patience', type=int, default=5)
-    parser.add_argument('-do_train', type=str, default='False')
-    parser.add_argument('-do_test', type=str, default='True')
     parser.add_argument('-limit_val_batches', default=1.0, type=float)
     parser.add_argument('-val_check_interval', default=1.0, type=float)
     parser.add_argument('-use_threedimension', type=str, default='True')
-    parser.add_argument('-write_output', type=str, default='True')
+
+    # training settings
+    parser.add_argument('-gpus', default='0', type=str)
+    parser.add_argument('-batch_size', type=int, default=20)
+    parser.add_argument('-num_epochs', type=int, default=500)
+    parser.add_argument('-random_seed', type=int, default=3407)
+    parser.add_argument('-early_stop_patience', type=int, default=5)
+
+    parser.add_argument('-do_train', type=str, default='False')
+    parser.add_argument('-do_test', type=str, default='True')
 
     args = parser.parse_args()
 
@@ -65,8 +71,8 @@ if __name__ == '__main__':
 
     # make dataloader & model
 
-    if args.model == 'Conv_Autoencoder':
-        model = Conv_AutoencoderModel(args)
+    if args.model == 'Transformer':
+        model = TransformerModel(args)
         search_data = SearchDataModule(args)
     if args.model == 'BaseModel':
         model = BaseModel(args)
@@ -83,7 +89,7 @@ if __name__ == '__main__':
                       gpus=args.gpus,
                       #distributed_backend='ddp',
                       #plugins=DDPPlugin(find_unused_parameters=True),
-                      gradient_clip_val=1.0,
+                      gradient_clip_val=args.clip_val,
                       max_epochs=args.num_epochs,
                       limit_val_batches=args.limit_val_batches,
                       val_check_interval=args.val_check_interval,

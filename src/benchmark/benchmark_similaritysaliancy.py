@@ -5,20 +5,21 @@ import torch
 from scipy.stats import rv_discrete
 import pandas as pd
 from random import randint
-
 # seed random number generator
 #seed(1)
-#avg_len = 7.71
-end_pro = 0.13
-#continue_pro = 0.87
-end_prob = 1 / 8.7 * 100
+
+# TODO: carefully fit the number accordingly
+avg_len = 7.7
 minLen = 1
 iter = 100
-
+test_datapath = '../dataset/processdata/dataset_Q23_similarity_mousedel_time_val'
 UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
 TOTAL_PCK = 27
+
+# ------------------------------------------------------
+end_pro = 1/avg_len
+end_prob = 1 / (avg_len+1) * 100
 DEVICE = torch.device('cpu')
-test_datapath = '../dataset/processdata/dataset_Q23_similarity_mousedel_time_val'
 test_set = SimilarityFixDataset(0, test_datapath)
 test_loader = DataLoader(dataset=test_set, batch_size=1, num_workers=0, collate_fn=collate_fn_similarity, shuffle=False)
 loss_fn = torch.nn.CrossEntropyLoss(ignore_index=PAD_IDX)
