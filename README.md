@@ -1,5 +1,12 @@
 # Human-like Gaze Trajectory Generation Using Transformer
 
+Update on Feb 4th, 2023:
+Add transformer model for MIT1003 dataset
+How to train:
+1. run preprocess/extract_data_mit1003.py to generate data file (pay attention to save path)
+2. run run.py, pay attention to new CLI arguments
+
+---------------------------------------------------------------------------------------------------------
 Update on the overall coding structure for new dataset, Jan 10, 2023:
 1. move the scripts to corresponding folders
 2. add more CLI arguments, important ones: package_size, output_path/postfix, etc
