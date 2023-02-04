@@ -12,6 +12,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class TransformerModel(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
+        args.package_size = 27
         self.args = args
         torch.manual_seed(0)
         SRC_VOCAB_SIZE = self.args.package_size+4

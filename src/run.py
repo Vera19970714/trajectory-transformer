@@ -6,18 +6,25 @@ from pytorch_lightning.utilities.seed import seed_everything
 from pytorch_lightning import loggers as pl_loggers
 from dataBuilders.data_builder import SearchDataModule
 from dataBuilders.data_builder_base import BaseSearchDataModule
+from dataBuilders.data_builder_mit1003 import MIT1003DataModule
 from model.transformerLightning import TransformerModel
 from benchmark.base_lightning import BaseModel
+from model.transformerLightningMIT1003 import TransformerModelMIT1003
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
+    # NOT USED IN MIT1003
     parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_train', type=str)
     parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
     parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
-    parser.add_argument('-package_size', type=int, default=27)
-    parser.add_argument('-checkpoint', default='../ckpt/bestxy1.ckpt', type=str)
+    parser.add_argument('-checkpoint', default=None, type=str)
+
+    # parameters ONLY for MIT1003
+    parser.add_argument('-datapath', default='../dataset/MIT1003/processedData', type=str)
+    parser.add_argument('-subject', default='emb', type=str)
+    #allSubjects = ['CNG', 'ajs', 'emb', 'ems', 'ff', 'hp', 'jcw', 'jw', 'kae', 'krl', 'po', 'tmj', 'tu', 'ya', 'zb']
 
     parser.add_argument('-log_name', default='test_log', type=str)
     parser.add_argument('-write_output', type=str, default='True')
@@ -26,7 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('-stochastic_iteration', type=int, default=100)
 
     # model settings and hyperparameters
-    parser.add_argument('-model', default='Transformer', type=str) #BaseModel,
+    parser.add_argument('-model', default='TransformerMIT1003', type=str) #choices: BaseModel,TransformerMIT1003,Transformer
     parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=20, type=int)
     parser.add_argument('-scheduler_lambda2', default=0.95, type=float)
@@ -34,7 +41,7 @@ if __name__ == '__main__':
     parser.add_argument('-clip_val', default=1.0, type=float)
     parser.add_argument('-limit_val_batches', default=1.0, type=float)
     parser.add_argument('-val_check_interval', default=1.0, type=float)
-    parser.add_argument('-use_threedimension', type=str, default='True')
+    parser.add_argument('-use_threedimension', type=str, default='True') #NOT USED IN MIT1003
 
     # training settings
     parser.add_argument('-gpus', default='0', type=str)
@@ -43,7 +50,7 @@ if __name__ == '__main__':
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=5)
 
-    parser.add_argument('-do_train', type=str, default='False')
+    parser.add_argument('-do_train', type=str, default='True')
     parser.add_argument('-do_test', type=str, default='True')
 
     args = parser.parse_args()
@@ -74,9 +81,12 @@ if __name__ == '__main__':
     if args.model == 'Transformer':
         model = TransformerModel(args)
         search_data = SearchDataModule(args)
-    if args.model == 'BaseModel':
+    elif args.model == 'BaseModel':
         model = BaseModel(args)
         search_data = BaseSearchDataModule(args)
+    elif args.model == 'TransformerMIT1003':
+        model = TransformerModelMIT1003(args)
+        search_data = MIT1003DataModule(args)
     else:
         print('Invalid model')
     

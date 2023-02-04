@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from torch.nn import Transformer
 import math
-UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # helper Module that adds positional encoding to the token embedding to introduce a notion of word order.
@@ -50,6 +49,7 @@ class TokenEmbedding(nn.Module):
 
     def forward(self, tokens: Tensor):
         return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
+
 
 class CNNEmbedding(nn.Module):
     def __init__(self, outputSize):

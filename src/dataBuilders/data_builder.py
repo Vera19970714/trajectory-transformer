@@ -65,6 +65,7 @@ class FixDataset(Dataset):
 class SearchDataModule(pl.LightningDataModule):
   def __init__(self, args):
     super().__init__()
+    args.package_size = 27
     train_set = FixDataset(args, args.train_datapath)
     val_set = FixDataset(args, args.valid_datapath)
     test_set = FixDataset(args, args.test_datapath)
