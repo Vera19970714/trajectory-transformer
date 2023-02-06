@@ -9,7 +9,7 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
                  stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
                    saveFilePath='../dataset/MIT1003/processedData'):
     gazesExcel = pd.read_excel(gazePath)
-    oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageFeature': None,
+    oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], #'imageFeature': None,
                 'patchIndex': None, 'scanpathInPatch': []}
     processed_dataset = []
     #negativeValue = False
@@ -17,6 +17,7 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
     negativePoints = 0
     dataEntry = 0
     numOfRows = len(gazesExcel)
+    allImages = {}
     #for i, row in tqdm(gazesExcel.iterrows()):
     for i in tqdm(range(numOfRows)):
         row = gazesExcel.loc[i]
@@ -30,11 +31,11 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
         if index == 1 and i != 0: #and not negativeValue:
             assert oneEntry['sub'] is not None
             assert oneEntry['imagePath'] is not None
-            assert oneEntry['imageFeature'] is not None
+            #assert oneEntry['imageFeature'] is not None
             oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
             processed_dataset.append(oneEntry)
             dataEntry += 1
-            oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageFeature': None,
+            oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], #'imageFeature': None,
                         'patchIndex': None, 'scanpathInPatch': []}
 
         # check for negative values
@@ -50,7 +51,7 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
         imagePath = stimuliPath + task #+ '.jpeg'
         if index == 1:
             oneEntry['sub'] = subject
-            oneEntry['imagePath'] = imagePath
+            oneEntry['imagePath'] = task #imagePath
 
             # process image feature
             image = cv2.imread(imagePath)
@@ -79,12 +80,15 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
             patches = np.stack(np.split(image, patchH, axis=0))  # 96, 4, 512, 3
             patches = np.stack(np.split(patches, patchW, axis=2))  # 128, 96, 4, 4, 3
             patches = patches.reshape(patchW, patchH, -1, 3).transpose(2,1,0,3)  # 16, 96, 128, 3
-            indexs = np.unravel_index(np.arange(N*N), (N, N))  # size: 16, 2
+            # indexs are always the same
+            '''indexs = np.unravel_index(np.arange(N*N), (N, N))  # size: 16, 2
             indexs = np.concatenate((indexs[0].reshape(1, -1), indexs[1].reshape(1, -1)), axis=0)
             oneEntry['patchIndex'] = indexs
-            oneEntry['imageFeature'] = patches
+            oneEntry['imageFeature'] = patches'''
+            if task not in allImages:
+                allImages[task] = patches
         else:
-            assert oneEntry['imagePath'] == imagePath
+            assert oneEntry['imagePath'] == task
             assert oneEntry['sub'] == subject
         if x_coor > 0 and y_coor > 0 and x_coor < imageW and y_coor < imageH:
             oneEntry['scanpath'].append([y_coor, x_coor])
@@ -101,11 +105,12 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
     #if not negativeValue:
     assert oneEntry['sub'] is not None
     assert oneEntry['imagePath'] is not None
-    assert oneEntry['imageFeature'] is not None
+    #assert oneEntry['imageFeature'] is not None
     oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
     processed_dataset.append(oneEntry)
     dataEntry += 1
 
+    processed_dataset.append(allImages)
     if saveFilePath is not None:
         with open(saveFilePath, "wb") as fp:  # Pickling
             pickle.dump(processed_dataset, fp)
