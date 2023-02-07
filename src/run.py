@@ -25,7 +25,7 @@ if __name__ == '__main__':
     parser.add_argument('-data_folder_path', default='../dataset/MIT1003/', type=str)
     #parser.add_argument('-subject', default='emb', type=str)
     #allSubjects = ['CNG', 'ajs', 'emb', 'ems', 'ff', 'hp', 'jcw', 'jw', 'kae', 'krl', 'po', 'tmj', 'tu', 'ya', 'zb']
-    parser.add_argument('-fold', default='1', type=str)  # ten fold cross validation: 1 to 10
+    parser.add_argument('-fold', default='1', type=int)  # ten fold cross validation: 1 to 10
 
     parser.add_argument('-log_name', default='test_log', type=str)
     parser.add_argument('-write_output', type=str, default='False')
@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     # training settings
     parser.add_argument('-gpus', default='0', type=str)
-    parser.add_argument('-batch_size', type=int, default=20)
+    parser.add_argument('-batch_size', type=int, default=2)
     parser.add_argument('-num_epochs', type=int, default=500)
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=5)

@@ -1,5 +1,5 @@
 import pytorch_lightning as pl
-from .models import *
+from models import *
 import torch
 import torch.nn as nn
 from tensorboardX import SummaryWriter

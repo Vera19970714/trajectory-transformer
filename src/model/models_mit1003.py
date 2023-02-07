@@ -4,12 +4,12 @@ import torch.nn as nn
 from torch.nn import Transformer
 import math
 import torch.nn.functional as F
-from .transformerLightning import PositionalEncoding, VisualPositionalEncoding, TokenEmbedding
+from transformerLightning import PositionalEncoding, VisualPositionalEncoding, TokenEmbedding
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class SPPLayer(nn.Module):
-    def __init__(self, num_levels=4, pool_type='max_pool'):
+    def __init__(self, num_levels=4, pool_type='max'):
         super(SPPLayer, self).__init__()
         self.num_levels = num_levels
         self.pool_type = pool_type
@@ -17,17 +17,28 @@ class SPPLayer(nn.Module):
     def forward(self, x):
         bs, c, h, w = x.size()
         pooling_layers = []
+        previous_conv_size = [h, w]
         for i in range(self.num_levels):
             level = 2 ** i
-            kernel_size = (math.ceil(h / level), math.ceil(w / level))
-            stride = (math.floor(h / level), math.floor(w / level))
+            h_kernel = int(math.ceil(previous_conv_size[0] / level))
+            w_kernel = int(math.ceil(previous_conv_size[1] / level))
+            w_pad1 = int(math.floor((w_kernel * level - previous_conv_size[1]) / 2))
+            w_pad2 = int(math.ceil((w_kernel * level - previous_conv_size[1]) / 2))
+            h_pad1 = int(math.floor((h_kernel * level - previous_conv_size[0]) / 2))
+            h_pad2 = int(math.ceil((h_kernel * level - previous_conv_size[0]) / 2))
+            assert w_pad1 + w_pad2 == (w_kernel * level - previous_conv_size[1]) and \
+                   h_pad1 + h_pad2 == (h_kernel * level - previous_conv_size[0])
 
-            if self.pool_type == 'max_pool':
-                tensor = F.max_pool2d(x, kernel_size=kernel_size,
-                                      stride=stride)
+            padded_input = F.pad(input=x, pad=[w_pad1, w_pad2, h_pad1, h_pad2],
+                                 mode='constant', value=0)
+            if self.pool_type == "max":
+                pool = nn.MaxPool2d((h_kernel, w_kernel), stride=(h_kernel, w_kernel), padding=(0, 0))
+            elif self.pool_type == "avg":
+                pool = nn.AvgPool2d((h_kernel, w_kernel), stride=(h_kernel, w_kernel), padding=(0, 0))
             else:
-                tensor = F.avg_pool2d(x, kernel_size=kernel_size,
-                                      stride=stride)
+                raise RuntimeError("Unknown pooling type: %s, please use \"max\" or \"avg\".")
+
+            tensor = pool(padded_input)
             tensor = torch.flatten(tensor, start_dim=1, end_dim=-1)
             pooling_layers.append(tensor)
         x = torch.cat(pooling_layers, dim=-1)
@@ -120,3 +131,12 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
         outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
                                 src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
         return self.generator(outs)
+
+if __name__ == '__main__':
+    cnn = CNNEmbedding(512)
+    input = []
+    input.append(torch.randn((16, 96, 128, 3)))
+    #input.append(torch.randn((16, 128, 96, 3)))
+    input.append(torch.randn((16, 72, 128, 3)))
+    output = cnn(input)
+    a = 1

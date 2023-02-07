@@ -18,6 +18,16 @@ class MIT1003Dataset(Dataset):
         subjectData = raw_data[:-1]
         self.imageData = raw_data[-1]
 
+        # calculate how many kinds of image sizes
+        '''allSizes = {}
+        for element in list(self.imageData):
+            feature = self.imageData[element]
+            name = str(feature.shape[1])+','+str(feature.shape[2])
+            allSizes[name] = 0
+        print(allSizes)
+        print(len(allSizes))
+        quit()'''
+
         indexTxtFilePath = data_folder_path + 'crossValidationIndex.txt'
         indexTxtFile = open(indexTxtFilePath, "r")
         indexTxt = indexTxtFile.read()
@@ -41,7 +51,7 @@ class MIT1003Dataset(Dataset):
         self.patchIndex = []
         self.args = args
 
-        # i=0
+        #i=0
         for item in subjectData:
             imageName = item['imagePath']
             if isTrain:  # exclude the subject
@@ -52,6 +62,7 @@ class MIT1003Dataset(Dataset):
                     #self.imageFeature.append(item['imageFeature'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
+                    #i += 1
             else:
                 #if item['sub'] == subject:  # only include the subject
                 if imageName in foldImage:
@@ -60,9 +71,10 @@ class MIT1003Dataset(Dataset):
                     #self.imageFeature.append(item['imageFeature'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
-            '''i+=1
-            if i > 10:
-                break'''
+                    #i += 1
+
+            #if i > 10:
+            #    break
 
         self.data_total_length = len(self.subject)
 
@@ -95,7 +107,7 @@ class MIT1003DataModule(pl.LightningDataModule):
                                        collate_fn=collate_fn,
                                        shuffle=True)
         self.val_loader = DataLoader(dataset=val_set,
-                                     batch_size=1, #SHOULD ALWAYS BE 1
+                                     batch_size=1,
                                      num_workers=2,
                                      collate_fn=collate_fn,
                                      shuffle=False)
@@ -183,6 +195,7 @@ if __name__ == '__main__':
     class ARGS(object):
         def __init__(self):
             self.fold = 1
+            self.data_folder_path = '../dataset/MIT1003/'
     args = ARGS()
     mit = MIT1003Dataset(args, True)
     collate_fn = Collator(mit.getImageData())

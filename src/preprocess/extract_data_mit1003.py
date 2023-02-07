@@ -65,6 +65,7 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
                                                dtype=cv2.CV_32F)
             imageH = image.shape[0]
             imageW = image.shape[1]
+            print(imageH, imageW)
             # padding, make it dividable by N
             margin1 = N * (math.ceil(image.shape[0] / N)) - image.shape[0]
             margin2 = N * (math.ceil(image.shape[1] / N)) - image.shape[1]
