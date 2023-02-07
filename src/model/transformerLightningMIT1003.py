@@ -136,7 +136,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
 
         _, predicted = torch.max(logits, 2)
-        print(predicted.view(1, -1))
+        #print(predicted.view(1, -1))
 
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, }
@@ -290,7 +290,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         _, predicted = torch.max(logits, 2)
         LOGITS_tf = soft(logits).squeeze(1)
-        print(predicted.view(-1))
+        #print(predicted.view(-1))
         return loss, predicted[:-1], tgt_out[:-1], LOGITS_tf[:-1]
 
     def test_step(self, batch, batch_idx):

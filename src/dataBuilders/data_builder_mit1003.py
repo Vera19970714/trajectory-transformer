@@ -160,14 +160,9 @@ class Collator(object):
             gaze_seq = data_entry[1]
             gaze_seq = torch.from_numpy(gaze_seq).squeeze(0)
 
-            try:
-                gaze_seq = torch.cat((torch.tensor([self.BOS_IDX]),
-                                  gaze_seq,
-                                  torch.tensor([self.EOS_IDX])))
-            except:
-                print(imageName)
-                print(data_entry[3])
-                print(gaze_seq)
+            gaze_seq = torch.cat((torch.tensor([self.BOS_IDX]),
+                              gaze_seq,
+                              torch.tensor([self.EOS_IDX])))
             package_seq.append(gaze_seq)
             target = torch.arange(self.package_size)
             package_target.append(target)

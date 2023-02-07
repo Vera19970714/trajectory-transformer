@@ -6,7 +6,7 @@ from torchvision import datasets, transforms
 import pytorch_lightning as pl
 import pickle
 from torch.nn.utils.rnn import pad_sequence
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 
 class FixDataset(Dataset):
