@@ -125,4 +125,7 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
 
 if __name__ == '__main__':
     #processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx', saveFilePath=None)
-    processRawData()
+    #processRawData()
+    processRawData(gazePath='/home/yfangba/trajectory-transformer/dataset/MIT1003/fakedata.xlsx',
+                   stimuliPath='/home/yfangba/trajectory-transformer/dataset/MIT1003/ALLSTIMULI/',
+                   saveFilePath='/home/yfangba/trajectory-transformer/dataset/MIT1003/processedData')
