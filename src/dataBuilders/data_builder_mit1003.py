@@ -7,32 +7,59 @@ from torch.nn.utils.rnn import pad_sequence
 import numpy as np
 
 class MIT1003Dataset(Dataset):
-    def __init__(self, args, subject, isTrain, dataPath='../dataset/MIT1003/processedData'):
+    def __init__(self, args, isTrain, data_folder_path='../dataset/MIT1003/',
+                 N=4):
+        dataPath = data_folder_path + 'processedData'
+        self.fold = args.fold
         #allSubjects = ['CNG', 'ajs', 'emb', 'ems', 'ff', 'hp', 'jcw', 'jw', 'kae', 'krl', 'po', 'tmj', 'tu', 'ya', 'zb']
         with open(dataPath, "rb") as fp:  # Unpickling
             raw_data = pickle.load(fp)
-        self.data_length = len(raw_data)
-        print(F'len = {self.data_length}')
+
+        subjectData = raw_data[:-1]
+        self.imageData = raw_data[-1]
+
+        indexTxtFilePath = data_folder_path + 'crossValidationIndex.txt'
+        indexTxtFile = open(indexTxtFilePath, "r")
+        indexTxt = indexTxtFile.read()
+        indexTxtList = indexTxt.split("\n")
+        indexTxtFile.close()
+
+        assert len(self.imageData) == int(indexTxtList[0])
+        foldImage = list(self.imageData)[int(indexTxtList[self.fold]):int(indexTxtList[self.fold+1])]
+
+        # not used
+        '''indexs = np.unravel_index(np.arange(N * N), (N, N))  # size: 16, 2
+        indexs = np.concatenate((indexs[0].reshape(1, -1), indexs[1].reshape(1, -1)), axis=0)
+        self.indices = indexs'''
+
+        #self.data_length = len(subjectData)
+        #print(F'len = {self.data_length}')
         self.subject = []
         self.scanpath = []
-        self.imageFeature = []
+        #self.imageFeature = []
+        self.imageName = []
         self.patchIndex = []
         self.args = args
 
         # i=0
-        for item in raw_data:
+        for item in subjectData:
+            imageName = item['imagePath']
             if isTrain:  # exclude the subject
-                if item['sub'] != subject:
+                #if item['sub'] != subject:
+                if imageName not in foldImage:
                     self.subject.append(item['sub'])
                     self.scanpath.append(item['scanpathInPatch'])
-                    self.imageFeature.append(item['imageFeature'])
-                    self.patchIndex.append(item['patchIndex'])
+                    #self.imageFeature.append(item['imageFeature'])
+                    self.imageName.append(item['imagePath'])
+                    #self.patchIndex.append(self.indices)
             else:
-                if item['sub'] == subject:  # only include the subject
+                #if item['sub'] == subject:  # only include the subject
+                if imageName in foldImage:
                     self.subject.append(item['sub'])
                     self.scanpath.append(item['scanpathInPatch'])
-                    self.imageFeature.append(item['imageFeature'])
-                    self.patchIndex.append(item['patchIndex'])
+                    #self.imageFeature.append(item['imageFeature'])
+                    self.imageName.append(item['imagePath'])
+                    #self.patchIndex.append(self.indices)
             '''i+=1
             if i > 10:
                 break'''
@@ -42,7 +69,7 @@ class MIT1003Dataset(Dataset):
         print(F'total_len = {self.data_total_length}')
 
     def __getitem__(self, index):
-        return self.subject[index], self.scanpath[index], self.imageFeature[index], self.patchIndex[index]
+        return self.subject[index], self.scanpath[index], self.imageName[index] #, self.patchIndex[index]
 
     def __len__(self):
         return self.data_total_length
@@ -50,14 +77,17 @@ class MIT1003Dataset(Dataset):
     def get_lens(self, sents):
         return [len(sent) for sent in sents]
 
+    def getImageData(self):
+        return self.imageData
+
 
 class MIT1003DataModule(pl.LightningDataModule):
     def __init__(self, args):
         super().__init__()
-        train_set = MIT1003Dataset(args, args.subject, True, args.datapath)
-        val_set = MIT1003Dataset(args, args.subject, False, args.datapath)
-        test_set = MIT1003Dataset(args, args.subject, False, args.datapath)
-        collate_fn = Collator()
+        train_set = MIT1003Dataset(args, True, args.datapath)
+        val_set = MIT1003Dataset(args, False, args.datapath)
+        test_set = MIT1003Dataset(args, False, args.datapath)
+        collate_fn = Collator(train_set.getImageData())
 
         self.train_loader = DataLoader(dataset=train_set,
                                        batch_size=args.batch_size,
@@ -95,13 +125,14 @@ class MIT1003DataModule(pl.LightningDataModule):
 
 
 class Collator(object):
-    def __init__(self):
+    def __init__(self, imageData):
         super().__init__()
         self.PAD_IDX = 16
         self.BOS_IDX = 17
         self.EOS_IDX = 18
         self.total_extra_index = 3
         self.package_size = 16
+        self.imageData = imageData
 
     def __call__(self, data):
         package_target = []
@@ -112,7 +143,8 @@ class Collator(object):
         tgt_img = []
 
         for data_entry in data:
-            question_img_feature = data_entry[2]  # 27,300,186,3
+            imageName = data_entry[2]
+            question_img_feature = self.imageData[imageName]
             gaze_seq = data_entry[1]
             gaze_seq = torch.from_numpy(gaze_seq).squeeze(0)
 
@@ -147,10 +179,13 @@ class Collator(object):
         return package_target, src_img, package_seq, tgt_img
 
 
-
 if __name__ == '__main__':
-    mit = MIT1003Dataset(0, 'emb', True)
-    collate_fn = Collator()
+    class ARGS(object):
+        def __init__(self):
+            self.fold = 1
+    args = ARGS()
+    mit = MIT1003Dataset(args, True)
+    collate_fn = Collator(mit.getImageData())
     train_loader = DataLoader(dataset=mit,
                               batch_size=2,
                               num_workers=0,

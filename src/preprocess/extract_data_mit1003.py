@@ -124,8 +124,8 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
 
 
 if __name__ == '__main__':
-    #processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx', saveFilePath=None)
+    processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx', saveFilePath='../dataset/MIT1003/processedData')
     #processRawData()
-    processRawData(gazePath='/home/yfangba/trajectory-transformer/dataset/MIT1003/fakedata.xlsx',
+    '''processRawData(gazePath='/home/yfangba/trajectory-transformer/dataset/MIT1003/fakedata.xlsx',
                    stimuliPath='/home/yfangba/trajectory-transformer/dataset/MIT1003/ALLSTIMULI/',
-                   saveFilePath='/home/yfangba/trajectory-transformer/dataset/MIT1003/processedData')
+                   saveFilePath='/home/yfangba/trajectory-transformer/dataset/MIT1003/processedData')'''

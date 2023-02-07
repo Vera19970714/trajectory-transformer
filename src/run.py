@@ -22,12 +22,13 @@ if __name__ == '__main__':
     parser.add_argument('-checkpoint', default=None, type=str)
 
     # parameters ONLY for MIT1003
-    parser.add_argument('-datapath', default='../dataset/MIT1003/processedData', type=str)
-    parser.add_argument('-subject', default='emb', type=str)
+    parser.add_argument('-data_folder_path', default='../dataset/MIT1003/', type=str)
+    #parser.add_argument('-subject', default='emb', type=str)
     #allSubjects = ['CNG', 'ajs', 'emb', 'ems', 'ff', 'hp', 'jcw', 'jw', 'kae', 'krl', 'po', 'tmj', 'tu', 'ya', 'zb']
+    parser.add_argument('-fold', default='1', type=str)  # ten fold cross validation: 1 to 10
 
     parser.add_argument('-log_name', default='test_log', type=str)
-    parser.add_argument('-write_output', type=str, default='True')
+    parser.add_argument('-write_output', type=str, default='False')
     parser.add_argument('-output_path', type=str, default='../dataset/checkEvaluation/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
