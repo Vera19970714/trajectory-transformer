@@ -18,6 +18,7 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
     dataEntry = 0
     numOfRows = len(gazesExcel)
     allImages = {}
+    onePointSeq = 0
     #for i, row in tqdm(gazesExcel.iterrows()):
     for i in tqdm(range(numOfRows)):
         row = gazesExcel.loc[i]
@@ -33,7 +34,10 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
             assert oneEntry['imagePath'] is not None
             #assert oneEntry['imageFeature'] is not None
             oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
-            processed_dataset.append(oneEntry)
+            if len(oneEntry['scanpath']) == 1:
+                onePointSeq += 1
+            else:
+                processed_dataset.append(oneEntry)
             dataEntry += 1
             oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], #'imageFeature': None,
                         'patchIndex': None, 'scanpathInPatch': []}
@@ -55,17 +59,12 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
 
             # process image feature
             image = cv2.imread(imagePath)
-            try:
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            except:
-                print('cannot find image ' + str(imagePath))
-                quit()
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             image = cv2.resize(image, (int(image.shape[1]/resizeFactor), int(image.shape[0]/resizeFactor)))
             image = cv2.normalize(image, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX,
                                                dtype=cv2.CV_32F)
             imageH = image.shape[0]
             imageW = image.shape[1]
-            print(imageH, imageW)
             # padding, make it dividable by N
             margin1 = N * (math.ceil(image.shape[0] / N)) - image.shape[0]
             margin2 = N * (math.ceil(image.shape[1] / N)) - image.shape[1]
@@ -108,7 +107,10 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
     assert oneEntry['imagePath'] is not None
     #assert oneEntry['imageFeature'] is not None
     oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
-    processed_dataset.append(oneEntry)
+    if len(oneEntry['scanpath']) == 1:
+        onePointSeq += 1
+    else:
+        processed_dataset.append(oneEntry)
     dataEntry += 1
 
     processed_dataset.append(allImages)
@@ -122,6 +124,7 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
     print('# Total data: ', dataEntry)
     avgLen = validPoints / dataEntry
     print('Average length: ', avgLen)
+    print('# one-point gaze seq:', onePointSeq)
 
 
 if __name__ == '__main__':
