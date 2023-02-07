@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.nn import Transformer
 import math
 import torch.nn.functional as F
-from transformerLightning import PositionalEncoding, VisualPositionalEncoding, TokenEmbedding
+from .transformerLightning import PositionalEncoding, VisualPositionalEncoding, TokenEmbedding
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 

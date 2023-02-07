@@ -81,7 +81,7 @@ class MIT1003Dataset(Dataset):
         print(F'total_len = {self.data_total_length}')
 
     def __getitem__(self, index):
-        return self.subject[index], self.scanpath[index], self.imageName[index] #, self.patchIndex[index]
+        return self.subject[index], self.scanpath[index], self.imageName[index], self.subject[index] #, self.patchIndex[index]
 
     def __len__(self):
         return self.data_total_length
@@ -160,9 +160,14 @@ class Collator(object):
             gaze_seq = data_entry[1]
             gaze_seq = torch.from_numpy(gaze_seq).squeeze(0)
 
-            gaze_seq = torch.cat((torch.tensor([self.BOS_IDX]),
+            try:
+                gaze_seq = torch.cat((torch.tensor([self.BOS_IDX]),
                                   gaze_seq,
                                   torch.tensor([self.EOS_IDX])))
+            except:
+                print(imageName)
+                print(data_entry[3])
+                print(gaze_seq)
             package_seq.append(gaze_seq)
             target = torch.arange(self.package_size)
             package_target.append(target)
