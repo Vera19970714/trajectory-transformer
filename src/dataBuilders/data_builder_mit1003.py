@@ -7,8 +7,8 @@ from torch.nn.utils.rnn import pad_sequence
 import numpy as np
 
 class MIT1003Dataset(Dataset):
-    def __init__(self, args, isTrain, data_folder_path='../dataset/MIT1003/',
-                 N=4):
+    def __init__(self, args, isTrain, N=4):
+        data_folder_path = args.data_folder_path
         dataPath = data_folder_path + 'processedData'
         self.fold = args.fold
         #allSubjects = ['CNG', 'ajs', 'emb', 'ems', 'ff', 'hp', 'jcw', 'jw', 'kae', 'krl', 'po', 'tmj', 'tu', 'ya', 'zb']
@@ -84,9 +84,9 @@ class MIT1003Dataset(Dataset):
 class MIT1003DataModule(pl.LightningDataModule):
     def __init__(self, args):
         super().__init__()
-        train_set = MIT1003Dataset(args, True, args.datapath)
-        val_set = MIT1003Dataset(args, False, args.datapath)
-        test_set = MIT1003Dataset(args, False, args.datapath)
+        train_set = MIT1003Dataset(args, True)
+        val_set = MIT1003Dataset(args, False)
+        test_set = MIT1003Dataset(args, False)
         collate_fn = Collator(train_set.getImageData())
 
         self.train_loader = DataLoader(dataset=train_set,
