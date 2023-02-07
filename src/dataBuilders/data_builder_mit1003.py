@@ -107,7 +107,7 @@ class MIT1003DataModule(pl.LightningDataModule):
                                        collate_fn=collate_fn,
                                        shuffle=True)
         self.val_loader = DataLoader(dataset=val_set,
-                                     batch_size=1,
+                                     batch_size=args.batch_size,
                                      num_workers=2,
                                      collate_fn=collate_fn,
                                      shuffle=False)
