@@ -33,10 +33,11 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
             assert oneEntry['sub'] is not None
             assert oneEntry['imagePath'] is not None
             #assert oneEntry['imageFeature'] is not None
-            oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
-            if len(oneEntry['scanpath']) == 1:
+
+            if len(oneEntry['scanpath']) <= 1:
                 onePointSeq += 1
             else:
+                oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
                 processed_dataset.append(oneEntry)
             dataEntry += 1
             oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], #'imageFeature': None,
@@ -124,12 +125,17 @@ def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xl
     print('# Total data: ', dataEntry)
     avgLen = validPoints / dataEntry
     print('Average length: ', avgLen)
-    print('# one-point gaze seq:', onePointSeq)
+    print('# one-point/zero-point gaze seq:', onePointSeq)
 
 
 if __name__ == '__main__':
-    processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx', saveFilePath='../dataset/MIT1003/processedData')
+    # Resize Factor: 2 for MIT1003, 1 for Toronto
+    #processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx', saveFilePath='../dataset/MIT1003/processedData')
     #processRawData()
     '''processRawData(gazePath='/home/yfangba/trajectory-transformer/dataset/MIT1003/fakedata.xlsx',
                    stimuliPath='/home/yfangba/trajectory-transformer/dataset/MIT1003/ALLSTIMULI/',
                    saveFilePath='/home/yfangba/trajectory-transformer/dataset/MIT1003/processedData')'''
+    processRawData(gazePath='../dataset/Toronto/Toronto.xlsx',
+                   saveFilePath='../dataset/Toronto/processedData',
+                   stimuliPath='../dataset/Toronto/Images/',
+                   resizeFactor=1)

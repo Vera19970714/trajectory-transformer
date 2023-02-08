@@ -195,7 +195,7 @@ if __name__ == '__main__':
     class ARGS(object):
         def __init__(self):
             self.fold = 1
-            self.data_folder_path = '../dataset/MIT1003/'
+            self.data_folder_path = '../dataset/Toronto/'
     args = ARGS()
     mit = MIT1003Dataset(args, True)
     collate_fn = Collator(mit.getImageData())
