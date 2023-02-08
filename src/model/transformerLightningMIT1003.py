@@ -15,6 +15,7 @@ class TransformerModelMIT1003(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
+        self.enableLogging = args.enable_logging
         self.package_size = 16
         self.numOfRegion = 4
         torch.manual_seed(0)
@@ -38,7 +39,8 @@ class TransformerModelMIT1003(pl.LightningModule):
         self.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=self.PAD_IDX)
         self.norm = torch.nn.Softmax(dim=1)
         # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate, betas=(0.9, 0.98), eps=1e-9)
-        self.loggerS = SummaryWriter(f'./lightning_logs/{args.log_name}')
+        if self.enableLogging == 'True':
+            self.loggerS = SummaryWriter(f'./lightning_logs/{args.log_dir}')
         self.total_step = 0
 
     def log_gradients_in_model(self, step):
@@ -68,12 +70,14 @@ class TransformerModelMIT1003(pl.LightningModule):
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         # self.log_gradients_in_model(self.total_step)
         self.total_step += 1
-        self.log('training_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+        if self.enableLogging == 'True':
+            self.log('training_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, }
 
     def training_epoch_end(self, training_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in training_step_outputs]).mean()
-        self.log('training_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+        if self.enableLogging == 'True':
+            self.log('training_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
 
     def processData2d(self, src_pos, src_img, tgt_pos, tgt_img):
@@ -137,13 +141,14 @@ class TransformerModelMIT1003(pl.LightningModule):
 
         _, predicted = torch.max(logits, 2)
         #print(predicted.view(1, -1))
-
-        self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+        if self.enableLogging == 'True':
+            self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, }
 
     def validation_epoch_end(self, validation_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
-        self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+        if self.enableLogging == 'True':
+            self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def test_max(self, src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
@@ -307,7 +312,8 @@ class TransformerModelMIT1003(pl.LightningModule):
         loss_max, LOSS, GAZE, LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
         loss_gt, GAZE_tf, GAZE_gt, LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
-        self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+        if self.enableLogging == 'True':
+            self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         if self.args.write_output == 'True':
             return {'loss_max': loss_max, 'LOSS': LOSS, 'GAZE': GAZE, 'LOGITS': LOGITS, 'GAZE_tf': GAZE_tf,
                     'GAZE_gt': GAZE_gt, 'LOGITS_tf': LOGITS_tf, 'GAZE_expect': GAZE_expect}
@@ -351,14 +357,13 @@ class TransformerModelMIT1003(pl.LightningModule):
             all_gaze_expect.to_csv(self.args.output_path + '/gaze_expect' + self.args.output_postfix + '.csv',
                                    index=False)
         else:
-            avg_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
-            self.log('test_loss_max_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-
-            avg_loss = torch.stack([x['loss_expect'].cpu().detach() for x in test_step_outputs]).mean()
-            self.log('test_loss_expect_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-
-            avg_loss = torch.stack([x['loss_gt'].cpu().detach() for x in test_step_outputs]).mean()
-            self.log('test_loss_gt_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+            max_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
+            expect_loss = torch.stack([x['loss_expect'].cpu().detach() for x in test_step_outputs]).mean()
+            gt_loss = torch.stack([x['loss_gt'].cpu().detach() for x in test_step_outputs]).mean()
+            if self.enableLogging == 'True':
+                self.log('test_loss_max_each_epoch', max_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+                self.log('test_loss_expect_each_epoch', expect_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+                self.log('test_loss_gt_each_epoch', gt_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)

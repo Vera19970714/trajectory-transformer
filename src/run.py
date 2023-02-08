@@ -22,12 +22,14 @@ if __name__ == '__main__':
     parser.add_argument('-checkpoint', default=None, type=str)
 
     # parameters ONLY for MIT1003
-    parser.add_argument('-data_folder_path', default='../dataset/MIT1003/', type=str)
+    parser.add_argument('-data_folder_path', default='../dataset/Toronto/', type=str)
     #parser.add_argument('-subject', default='emb', type=str)
     #allSubjects = ['CNG', 'ajs', 'emb', 'ems', 'ff', 'hp', 'jcw', 'jw', 'kae', 'krl', 'po', 'tmj', 'tu', 'ya', 'zb']
     parser.add_argument('-fold', default='1', type=int)  # ten fold cross validation: 1 to 10
 
-    parser.add_argument('-log_name', default='test_log', type=str)
+    parser.add_argument('-enable_logging', default='False', type=str)
+    parser.add_argument('-log_dir', default='transformerMIT', type=str)
+    parser.add_argument('-log_name', default='fold_1', type=str)
     parser.add_argument('-write_output', type=str, default='False')
     parser.add_argument('-output_path', type=str, default='../dataset/checkEvaluation/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
@@ -45,7 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('-use_threedimension', type=str, default='True') #NOT USED IN MIT1003
 
     # training settings
-    parser.add_argument('-gpus', default='1', type=str)
+    parser.add_argument('-gpus', default='0', type=str)
     parser.add_argument('-batch_size', type=int, default=2)
     parser.add_argument('-num_epochs', type=int, default=500)
     parser.add_argument('-random_seed', type=int, default=3407)
@@ -60,22 +62,27 @@ if __name__ == '__main__':
     seed_everything(args.random_seed)
 
     # set logger
-    logger = pl_loggers.TensorBoardLogger(f'./lightning_logs/{args.log_name}')
-
-    # # save checkpoint & early stopping & learning rate decay & learning rate monitor
-    checkpoint_callback = ModelCheckpoint(monitor='validation_loss_each_epoch',
-                                          save_last=True,
-                                          save_top_k=1,
-                                          mode='min',)
-
-    early_stop_callback = EarlyStopping(
-                            monitor='validation_loss_each_epoch',
-                            min_delta=0.00,
-                            patience=args.early_stop_patience,
-                            verbose=False,
-                            mode='min'
-                            )
-    lr_monitor = LearningRateMonitor(logging_interval='step')
+    if args.enable_logging == 'True':
+        logger = pl_loggers.TensorBoardLogger(f'./lightning_logs/{args.log_dir}', name=args.log_name)
+        # # save checkpoint & early stopping & learning rate decay & learning rate monitor
+        checkpoint_callback = ModelCheckpoint(monitor='validation_loss_each_epoch',
+                                              save_last=True,
+                                              save_top_k=1,
+                                              mode='min', )
+        early_stop_callback = EarlyStopping(
+            monitor='validation_loss_each_epoch',
+            min_delta=0.00,
+            patience=args.early_stop_patience,
+            verbose=False,
+            mode='min'
+        )
+        lr_monitor = LearningRateMonitor(logging_interval='step')
+        enable_checkpointing = True
+        callbacks = [lr_monitor, checkpoint_callback, early_stop_callback]
+    else:
+        logger = False
+        callbacks= None
+        enable_checkpointing = False
 
     # make dataloader & model
 
@@ -106,7 +113,8 @@ if __name__ == '__main__':
                       val_check_interval=args.val_check_interval,
                       accumulate_grad_batches=args.grad_accumulate,
                       fast_dev_run=False,
-                      callbacks=[lr_monitor, checkpoint_callback, early_stop_callback])
+                      enable_checkpointing=enable_checkpointing,
+                      callbacks=callbacks)
 
     # Fit the instantiated model to the data
     if args.do_train == 'True':
