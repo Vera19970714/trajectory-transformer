@@ -5,9 +5,7 @@ import cv2
 from tqdm import tqdm
 import math
 
-def processRawData(N=4, resizeFactor=2, gazePath='../dataset/MIT1003/fakedata.xlsx',
-                 stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
-                   saveFilePath='../dataset/MIT1003/processedData'):
+def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
     gazesExcel = pd.read_excel(gazePath)
     oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], #'imageFeature': None,
                 'patchIndex': None, 'scanpathInPatch': []}
