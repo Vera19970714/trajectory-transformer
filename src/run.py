@@ -49,9 +49,9 @@ if __name__ == '__main__':
     # training settings
     parser.add_argument('-gpus', default='0', type=str)
     parser.add_argument('-batch_size', type=int, default=2)
-    parser.add_argument('-num_epochs', type=int, default=500)
+    parser.add_argument('-num_epochs', type=int, default=1)
     parser.add_argument('-random_seed', type=int, default=3407)
-    parser.add_argument('-early_stop_patience', type=int, default=5)
+    parser.add_argument('-early_stop_patience', type=int, default=10)
 
     parser.add_argument('-do_train', type=str, default='True')
     parser.add_argument('-do_test', type=str, default='True')
@@ -70,7 +70,7 @@ if __name__ == '__main__':
                                               save_top_k=1,
                                               mode='min', )
         early_stop_callback = EarlyStopping(
-            monitor='validation_loss_each_epoch',
+            monitor='validation_evaluation_sed',
             min_delta=0.00,
             patience=args.early_stop_patience,
             verbose=False,

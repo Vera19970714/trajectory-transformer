@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 from nltk.metrics import edit_distance
 
 class EvaluationMetric():
-    def __init__(self):
-        pass
+    def __init__(self, minLen=10):
+        self.minLen = minLen
 
     def scanpath_to_string(self,
             scanpath
@@ -83,4 +83,12 @@ class EvaluationMetric():
         else:
             print('ERROR: distance mode not defined.')
             return False
+
+    def get_sed_and_sbtde(self, scanpath_gt, scanpath_pre):
+        sed_i = np.stack(
+            [self.string_edit_distance(scanpath_gt[:i], scanpath_pre[:i]) for i in range(1, self.minLen + 1)]).mean()
+        sbtde_i = np.stack(
+            [self.string_based_time_delay_embedding_distance(scanpath_gt, scanpath_pre, k) for k in
+             range(1, self.minLen + 1)]).mean()
+        return sed_i, sbtde_i
 
