@@ -392,7 +392,7 @@ class TransformerModelMIT1003(pl.LightningModule):
             #self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
             self.log('testing_loss_sed', sed, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
             self.log('testing_loss_sbtde', sbtde, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return
+        return {'testing_sed': sed, 'testing_sbtde': sbtde}
         # DISABLE this for now
         '''if self.args.write_output == 'True':
             return {'loss_max': loss_max, 'LOSS': LOSS, 'GAZE': GAZE, 'LOGITS': LOGITS, 'GAZE_tf': GAZE_tf,
@@ -448,9 +448,9 @@ class TransformerModelMIT1003(pl.LightningModule):
             loss_sed = []
             loss_sbtde = []
             for x in test_step_outputs:
-                if x['sed'] != -1:
-                    loss_sed.append(x['sed'])
-                    loss_sbtde.append(x['sbtde'])
+                if x['testing_sed'] != -1:
+                    loss_sed.append(x['testing_sed'])
+                    loss_sbtde.append(x['testing_sbtde'])
             if len(loss_sed) != 0:
                 avg_loss_sed = np.mean(loss_sed)
                 avg_loss_sbtde = np.mean(loss_sbtde)
