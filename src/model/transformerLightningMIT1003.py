@@ -76,6 +76,7 @@ class TransformerModelMIT1003(pl.LightningModule):
 
     def training_epoch_end(self, training_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in training_step_outputs]).mean()
+        print('training_loss_each_epoch: ', avg_loss)
         if self.enableLogging == 'True':
             self.log('training_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
@@ -147,6 +148,7 @@ class TransformerModelMIT1003(pl.LightningModule):
 
     def validation_epoch_end(self, validation_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
+        print('validation_loss_each_epoch: ', avg_loss)
         if self.enableLogging == 'True':
             self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
@@ -295,7 +297,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         _, predicted = torch.max(logits, 2)
         LOGITS_tf = soft(logits).squeeze(1)
-        #print(predicted.view(-1))
+        print(predicted.view(-1))
         return loss, predicted[:-1], tgt_out[:-1], LOGITS_tf[:-1]
 
     def test_step(self, batch, batch_idx):
@@ -366,7 +368,7 @@ class TransformerModelMIT1003(pl.LightningModule):
                 self.log('test_loss_gt_each_epoch', gt_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate, weight_decay=1e-4)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.args.scheduler_lambda1,
                                                     gamma=self.args.scheduler_lambda2)
         return [optimizer], [scheduler]

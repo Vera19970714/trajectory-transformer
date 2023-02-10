@@ -195,16 +195,16 @@ if __name__ == '__main__':
     class ARGS(object):
         def __init__(self):
             self.fold = 1
-            self.data_folder_path = '../dataset/Toronto/'
+            self.data_folder_path = '../dataset/MIT1003/'
     args = ARGS()
-    mit = MIT1003Dataset(args, True)
+    mit = MIT1003Dataset(args, False)
     collate_fn = Collator(mit.getImageData())
     train_loader = DataLoader(dataset=mit,
-                              batch_size=2,
+                              batch_size=1,
                               num_workers=0,
                               collate_fn=collate_fn,
                               shuffle=True)
     for batch in train_loader:
-        print(batch)
+        print(batch[2].flatten())
 
 
