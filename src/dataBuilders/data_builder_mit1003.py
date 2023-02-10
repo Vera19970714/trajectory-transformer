@@ -99,22 +99,23 @@ class MIT1003DataModule(pl.LightningDataModule):
         train_set = MIT1003Dataset(args, True)
         val_set = MIT1003Dataset(args, False)
         test_set = MIT1003Dataset(args, False)
-        collate_fn = Collator(train_set.getImageData())
+        collate_fn_train = Collator(train_set.getImageData(), True)
+        collate_fn_test = Collator(train_set.getImageData(), False)
 
         self.train_loader = DataLoader(dataset=train_set,
                                        batch_size=args.batch_size,
                                        num_workers=2,
-                                       collate_fn=collate_fn,
+                                       collate_fn=collate_fn_train,
                                        shuffle=True)
         self.val_loader = DataLoader(dataset=val_set,
                                      batch_size=args.batch_size,
                                      num_workers=2,
-                                     collate_fn=collate_fn,
+                                     collate_fn=collate_fn_train,
                                      shuffle=False)
         self.test_loader = DataLoader(dataset=test_set,
                                       batch_size=1, #SHOULD ALWAYS BE 1
                                       num_workers=2,
-                                      collate_fn=collate_fn,
+                                      collate_fn=collate_fn_test,
                                       shuffle=False)
 
     def train_dataloader(self):
@@ -137,7 +138,7 @@ class MIT1003DataModule(pl.LightningDataModule):
 
 
 class Collator(object):
-    def __init__(self, imageData):
+    def __init__(self, imageData, isTrain):
         super().__init__()
         self.PAD_IDX = 16
         self.BOS_IDX = 17
@@ -145,6 +146,7 @@ class Collator(object):
         self.total_extra_index = 3
         self.package_size = 16
         self.imageData = imageData
+        self.isTrain = isTrain
 
     def __call__(self, data):
         package_target = []
@@ -153,9 +155,12 @@ class Collator(object):
 
         src_img = []
         tgt_img = []
+        firstImageName = data[0][2]
 
         for data_entry in data:
             imageName = data_entry[2]
+            if not self.isTrain:
+                assert firstImageName == imageName
             question_img_feature = self.imageData[imageName]
             gaze_seq = data_entry[1]
             gaze_seq = torch.from_numpy(gaze_seq).squeeze(0)
@@ -188,9 +193,10 @@ class Collator(object):
         #tgt_img = torch.stack(tgt_img)
         #src_img = torch.stack(src_img)
         # output: src_pos (16, b), src_img(b, 16, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
-        return imageName,package_target, src_img, package_seq, tgt_img
-
-
+        if self.isTrain:
+            return package_target, src_img, package_seq, tgt_img
+        else:  # extra image name for SPP evaluation
+            return firstImageName, package_target, src_img, package_seq, tgt_img
 
 
 if __name__ == '__main__':

@@ -373,7 +373,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         return loss, predicted[:-1], tgt_out[:-1], LOGITS_tf[:-1]
 
     def test_step(self, batch, batch_idx):
-        src_pos, src_img, tgt_pos, tgt_img = batch
+        imageName, src_pos, src_img, tgt_pos, tgt_img = batch
         # src_img and tgt_img always have batch size 1
         src_img = torch.stack(src_img)
         tgt_img = torch.stack(tgt_img)
@@ -392,7 +392,7 @@ class TransformerModelMIT1003(pl.LightningModule):
             #self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
             self.log('testing_loss_sed', sed, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
             self.log('testing_loss_sbtde', sbtde, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'testing_sed': sed, 'testing_sbtde': sbtde}
+        return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_image': imageName}
         # DISABLE this for now
         '''if self.args.write_output == 'True':
             return {'loss_max': loss_max, 'LOSS': LOSS, 'GAZE': GAZE, 'LOGITS': LOGITS, 'GAZE_tf': GAZE_tf,
@@ -447,18 +447,29 @@ class TransformerModelMIT1003(pl.LightningModule):
             # have been changed based on the new evaluation SED
             loss_sed = []
             loss_sbtde = []
+            testResult_sed = []
+            testResult_sbtde = []
             for x in test_step_outputs:
                 if x['testing_sed'] != -1:
                     loss_sed.append(x['testing_sed'])
                     loss_sbtde.append(x['testing_sbtde'])
+                    testResult_sed.append((x['testing_image'], x['testing_sed']))
+                    testResult_sbtde.append((x['testing_image'], x['testing_sbtde']))
             if len(loss_sed) != 0:
                 avg_loss_sed = np.mean(loss_sed)
                 avg_loss_sbtde = np.mean(loss_sbtde)
-                print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde)
+                sppSED, sppSBTDE = self.metrics.get_sppSed_and_sppSbtde(testResult_sed, testResult_sbtde)
+                sppSED = np.mean(sppSED)
+                sppSBTDE = np.mean(sppSBTDE)
+                print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde, ', spp SED: ', sppSED, ', spp SBTDE: ', sppSBTDE)
                 if self.enableLogging == 'True':
-                    self.log('testing_evaluation_sed', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
+                    self.log('testing_evaluation_meanSED', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
                              sync_dist=True)
-                    self.log('testing_evaluation_sbtde', avg_loss_sbtde, on_step=False, on_epoch=True, prog_bar=True,
+                    self.log('testing_evaluation_meanSBTDE', avg_loss_sbtde, on_step=False, on_epoch=True, prog_bar=True,
+                             sync_dist=True)
+                    self.log('testing_evaluation_sppSED', sppSED, on_step=False, on_epoch=True, prog_bar=True,
+                             sync_dist=True)
+                    self.log('testing_evaluation_sppSBTDE', sppSBTDE, on_step=False, on_epoch=True, prog_bar=True,
                              sync_dist=True)
 
     def configure_optimizers(self):
