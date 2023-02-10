@@ -454,7 +454,7 @@ class TransformerModelMIT1003(pl.LightningModule):
             if len(loss_sed) != 0:
                 avg_loss_sed = np.mean(loss_sed)
                 avg_loss_sbtde = np.mean(loss_sbtde)
-                print('testing_loss_each_epoch: ', avg_loss_sed, ', sbtde: ', avg_loss_sbtde)
+                print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde)
                 if self.enableLogging == 'True':
                     self.log('testing_evaluation_sed', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
                              sync_dist=True)
