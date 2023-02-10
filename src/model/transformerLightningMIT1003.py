@@ -188,9 +188,9 @@ class TransformerModelMIT1003(pl.LightningModule):
             avg_loss_sbtde = np.mean(loss_sbtde)
             print('validation_loss_each_epoch: ', avg_loss, ', sed: ', avg_loss_sed, ', sbtde: ', avg_loss_sbtde)
             if self.enableLogging == 'True':
-                self.log('validation_evaluation_sed', avg_loss_sed, on_step=True, on_epoch=True, prog_bar=True,
+                self.log('validation_evaluation_sed', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
                          sync_dist=True)
-                self.log('validation_evaluation_sbtde', avg_loss_sbtde, on_step=True, on_epoch=True, prog_bar=True,
+                self.log('validation_evaluation_sbtde', avg_loss_sbtde, on_step=False, on_epoch=True, prog_bar=True,
                          sync_dist=True)
 
     def test_max(self, src_pos, src_img, tgt_pos, tgt_img):

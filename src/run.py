@@ -65,7 +65,7 @@ if __name__ == '__main__':
     if args.enable_logging == 'True':
         logger = pl_loggers.TensorBoardLogger(f'./lightning_logs/{args.log_dir}', name=args.log_name)
         # # save checkpoint & early stopping & learning rate decay & learning rate monitor
-        checkpoint_callback = ModelCheckpoint(monitor='validation_loss_each_epoch',
+        checkpoint_callback = ModelCheckpoint(monitor='validation_evaluation_sed',
                                               save_last=True,
                                               save_top_k=1,
                                               mode='min', )
