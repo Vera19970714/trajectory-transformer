@@ -171,23 +171,27 @@ class TransformerModelMIT1003(pl.LightningModule):
         if returnSED:
             return {'loss': loss, 'sed': sed, 'sbtde': sbtde}
         else:
-            return {'loss': loss}
+            return {'loss': loss, 'sed': -1, 'sbtde': -1}
 
     def validation_epoch_end(self, validation_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
         if self.enableLogging == 'True':
             self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-        try:
-            avg_loss_sed = np.stack([x['sed'] for x in validation_step_outputs]).mean()
-            avg_loss_sbtde = np.stack([x['sbtde'] for x in validation_step_outputs]).mean()
+        loss_sed = []
+        loss_sbtde = []
+        for x in validation_step_outputs:
+            if x['sed'] != -1:
+                loss_sed.append(x['sed'])
+                loss_sbtde.append(x['sbtde'])
+        if len(loss_sed) != 0:
+            avg_loss_sed = np.mean(loss_sed)
+            avg_loss_sbtde = np.mean(loss_sbtde)
             print('validation_loss_each_epoch: ', avg_loss, ', sed: ', avg_loss_sed, ', sbtde: ', avg_loss_sbtde)
             if self.enableLogging == 'True':
                 self.log('validation_evaluation_sed', avg_loss_sed, on_step=True, on_epoch=True, prog_bar=True,
                          sync_dist=True)
                 self.log('validation_evaluation_sbtde', avg_loss_sbtde, on_step=True, on_epoch=True, prog_bar=True,
                          sync_dist=True)
-        except:
-            a=0 # sed not calculated, do nothing
 
     def test_max(self, src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
