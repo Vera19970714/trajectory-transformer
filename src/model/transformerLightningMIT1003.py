@@ -7,6 +7,8 @@ from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 import pandas as pd
 import numpy as np
+from evaluation.evaluation_mit1003 import EvaluationMetric
+
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -18,6 +20,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         self.enableLogging = args.enable_logging
         self.package_size = 16
         self.numOfRegion = 4
+        self.max_length = 10
         torch.manual_seed(0)
         SRC_VOCAB_SIZE = self.package_size + 3
         TGT_VOCAB_SIZE = self.package_size + 3
@@ -42,6 +45,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         if self.enableLogging == 'True':
             self.loggerS = SummaryWriter(f'./lightning_logs/{args.log_dir}')
         self.total_step = 0
+        self.metrics = EvaluationMetric()
 
     def log_gradients_in_model(self, step):
         for tag, value in self.model.named_parameters():
@@ -76,6 +80,7 @@ class TransformerModelMIT1003(pl.LightningModule):
 
     def training_epoch_end(self, training_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in training_step_outputs]).mean()
+        print('training_loss_each_epoch: ', avg_loss)
         if self.enableLogging == 'True':
             self.log('training_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
@@ -141,27 +146,69 @@ class TransformerModelMIT1003(pl.LightningModule):
 
         _, predicted = torch.max(logits, 2)
         #print(predicted.view(1, -1))
+
+        # calculate SED and SBTDE
+        b = tgt_out.size()[1]
+        sed = []
+        sbtde = []
+        lenScanpath = tgt_out.size()[0]
+        returnSED = False
+        if lenScanpath >= self.metrics.minLen:
+            returnSED = True
+            for index in range(b):
+                scanpath_gt = tgt_out[:self.metrics.minLen, index].detach().cpu().numpy()
+                scanpath_pre = predicted[:self.metrics.minLen, index].detach().cpu().numpy()
+                sed_i, sbtde_i = self.metrics.get_sed_and_sbtde(scanpath_gt, scanpath_pre)
+                sed.append(sed_i)
+                sbtde.append(sbtde_i)
+            sed = np.mean(sed)
+            sbtde = np.mean(sbtde)
+
         if self.enableLogging == 'True':
             self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'loss': loss, }
+        if returnSED:
+            return {'loss': loss, 'sed': sed, 'sbtde': sbtde}
+        else:
+            return {'loss': loss, 'sed': -1, 'sbtde': -1}
 
     def validation_epoch_end(self, validation_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
         if self.enableLogging == 'True':
             self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+        loss_sed = []
+        loss_sbtde = []
+        for x in validation_step_outputs:
+            if x['sed'] != -1:
+                loss_sed.append(x['sed'])
+                loss_sbtde.append(x['sbtde'])
+        if len(loss_sed) != 0:
+            avg_loss_sed = np.mean(loss_sed)
+            avg_loss_sbtde = np.mean(loss_sbtde)
+            print('validation_loss_each_epoch: ', avg_loss, ', sed: ', avg_loss_sed, ', sbtde: ', avg_loss_sbtde)
+            if self.enableLogging == 'True':
+                self.log('validation_evaluation_sed', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
+                         sync_dist=True)
+                self.log('validation_evaluation_sbtde', avg_loss_sbtde, on_step=False, on_epoch=True, prog_bar=True,
+                         sync_dist=True)
 
     def test_max(self, src_pos, src_img, tgt_pos, tgt_img):
+        # If target sequence length less than 10, then skip this function
+        gt_seq = tgt_pos[1:, :]
+        tgt_seq_len = gt_seq.size()[0]
+        if tgt_seq_len < self.metrics.minLen:
+            return -1, -1
+        gt_seq = gt_seq[:self.metrics.minLen, :]
+
         tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)
         loss = 0
-        max_length = 16
         LOSS = torch.zeros((length - 1, 1)) - 1
-        GAZE = torch.zeros((max_length, 1)) - 1
-        LOGITS = torch.zeros((max_length, self.package_size+self.numofextraindex))
+        GAZE = torch.zeros((self.max_length, 1)) - 1
+        LOGITS = torch.zeros((self.max_length, self.package_size+self.numofextraindex))
         blank = torch.zeros((1, self.numofextraindex, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
         new_src_img = torch.cat((src_img, blank), dim=1)  # 31,300,186,3
-        for i in range(1, max_length + 1):
+        for i in range(1, self.max_length + 1):
             if i == 1:
                 tgt_input = tgt_pos[:i, :]
                 tgt_img_input = tgt_img[:, :i, :, :, :]
@@ -200,19 +247,38 @@ class TransformerModelMIT1003(pl.LightningModule):
                     loss += self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
                                          tgt_out.reshape(-1).long())
                 GAZE[i - 1][0] = predicted
-                if self.EOS_IDX in GAZE[:, 0] and i >= length:
-                    break
+
+                # COMMENT these because the rules have been changed, the output length is always 10
+                #if self.EOS_IDX in GAZE[:, 0] and i >= length:
+                #    break
                 LOGITS[i - 1, :] = self.norm(logits[-1, :, :]).reshape(1, -1)
                 next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1, 1)), dim=0)
         loss = loss / (length - 1)
-        if self.EOS_IDX in GAZE:
+
+        # compare gt_seq with GAZE and compute SED, they should be of same size
+        b = gt_seq.size()[1]
+        sed = []
+        sbtde = []
+        for index in range(b):
+            scanpath_gt = gt_seq[:self.metrics.minLen, index].detach().cpu().numpy()
+            scanpath_pre = GAZE[:self.metrics.minLen, index].detach().cpu().numpy()
+            sed_i, sbtde_i = self.metrics.get_sed_and_sbtde(scanpath_gt, scanpath_pre)
+            sed.append(sed_i)
+            sbtde.append(sbtde_i)
+        sed = np.mean(sed)
+        sbtde = np.mean(sbtde)
+        return sed, sbtde
+
+        # COMMENT these because the rules have been changed, the output length is always 10
+        '''if self.EOS_IDX in GAZE:
             endIndex = torch.where(GAZE == self.EOS_IDX)[0][0]
             GAZE = GAZE[:endIndex]
             LOGITS = LOGITS[:endIndex]
-        return loss, LOSS, GAZE, LOGITS
+        return loss, LOSS, GAZE, LOGITS'''
 
     def test_expect(self, src_pos, src_img, tgt_pos, tgt_img):
+        # TODO: remain unchanged, need to change based on new free viewing dataset
         tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)
@@ -280,6 +346,14 @@ class TransformerModelMIT1003(pl.LightningModule):
         return loss, GAZE_ALL
 
     def test_gt(self, src_pos, src_img, tgt_pos, tgt_img):
+        '''
+        NOT USED IN THE ACTUALLY EVALUATION
+        :param src_pos:
+        :param src_img:
+        :param tgt_pos:
+        :param tgt_img:
+        :return:
+        '''
         tgt_input = tgt_pos[:-1, :]
         tgt_img_input = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0) - 1
@@ -295,7 +369,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         _, predicted = torch.max(logits, 2)
         LOGITS_tf = soft(logits).squeeze(1)
-        #print(predicted.view(-1))
+        print(predicted.view(-1))
         return loss, predicted[:-1], tgt_out[:-1], LOGITS_tf[:-1]
 
     def test_step(self, batch, batch_idx):
@@ -309,16 +383,22 @@ class TransformerModelMIT1003(pl.LightningModule):
         tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
 
-        loss_max, LOSS, GAZE, LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
-        loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
-        loss_gt, GAZE_tf, GAZE_gt, LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
-        if self.enableLogging == 'True':
-            self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        if self.args.write_output == 'True':
+        #loss_max, LOSS, GAZE, LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
+        sed, sbtde = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
+        # TODO: these functions havent changed regard to free viewing datasets
+        #loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
+        #loss_gt, GAZE_tf, GAZE_gt, LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
+        if self.enableLogging == 'True' and sed != -1 and sbtde != -1:
+            #self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log('testing_loss_sed', sed, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log('testing_loss_sbtde', sbtde, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+        return {'testing_sed': sed, 'testing_sbtde': sbtde}
+        # DISABLE this for now
+        '''if self.args.write_output == 'True':
             return {'loss_max': loss_max, 'LOSS': LOSS, 'GAZE': GAZE, 'LOGITS': LOGITS, 'GAZE_tf': GAZE_tf,
                     'GAZE_gt': GAZE_gt, 'LOGITS_tf': LOGITS_tf, 'GAZE_expect': GAZE_expect}
         else:
-            return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt}
+            return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt}'''
 
     def test_epoch_end(self, test_step_outputs):
         if self.args.write_output == 'True':
@@ -357,16 +437,32 @@ class TransformerModelMIT1003(pl.LightningModule):
             all_gaze_expect.to_csv(self.args.output_path + '/gaze_expect' + self.args.output_postfix + '.csv',
                                    index=False)
         else:
-            max_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
+            '''max_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
             expect_loss = torch.stack([x['loss_expect'].cpu().detach() for x in test_step_outputs]).mean()
             gt_loss = torch.stack([x['loss_gt'].cpu().detach() for x in test_step_outputs]).mean()
             if self.enableLogging == 'True':
                 self.log('test_loss_max_each_epoch', max_loss, on_epoch=True, prog_bar=True, sync_dist=True)
                 self.log('test_loss_expect_each_epoch', expect_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-                self.log('test_loss_gt_each_epoch', gt_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+                self.log('test_loss_gt_each_epoch', gt_loss, on_epoch=True, prog_bar=True, sync_dist=True)'''
+            # have been changed based on the new evaluation SED
+            loss_sed = []
+            loss_sbtde = []
+            for x in test_step_outputs:
+                if x['testing_sed'] != -1:
+                    loss_sed.append(x['testing_sed'])
+                    loss_sbtde.append(x['testing_sbtde'])
+            if len(loss_sed) != 0:
+                avg_loss_sed = np.mean(loss_sed)
+                avg_loss_sbtde = np.mean(loss_sbtde)
+                print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde)
+                if self.enableLogging == 'True':
+                    self.log('testing_evaluation_sed', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
+                             sync_dist=True)
+                    self.log('testing_evaluation_sbtde', avg_loss_sbtde, on_step=False, on_epoch=True, prog_bar=True,
+                             sync_dist=True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate, weight_decay=1e-4)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.args.scheduler_lambda1,
                                                     gamma=self.args.scheduler_lambda2)
         return [optimizer], [scheduler]

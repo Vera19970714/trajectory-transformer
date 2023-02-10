@@ -5,8 +5,8 @@ from nltk.metrics import edit_distance
 from collections import defaultdict
 
 class EvaluationMetric():
-    def __init__(self):
-        pass
+    def __init__(self, minLen=10):
+        self.minLen = minLen
 
     def scanpath_to_string(self,
             scanpath
@@ -85,30 +85,30 @@ class EvaluationMetric():
             print('ERROR: distance mode not defined.')
             return False
 
-        def get_sed_and_sbtde(self, scanpath_gt, scanpath_pre):
-            sed_i = np.stack(
-                [self.string_edit_distance(scanpath_gt[:i], scanpath_pre[:i]) for i in
-                 range(1, self.minLen + 1)]).mean()
-            sbtde_i = np.stack(
-                [self.string_based_time_delay_embedding_distance(scanpath_gt, scanpath_pre, k) for k in
-                 range(1, self.minLen + 1)]).mean()
-            return sed_i, sbtde_i
+    def get_sed_and_sbtde(self, scanpath_gt, scanpath_pre):
+        sed_i = np.stack(
+            [self.string_edit_distance(scanpath_gt[:i], scanpath_pre[:i]) for i in
+             range(1, self.minLen + 1)]).mean()
+        sbtde_i = np.stack(
+            [self.string_based_time_delay_embedding_distance(scanpath_gt, scanpath_pre, k) for k in
+             range(1, self.minLen + 1)]).mean()
+        return sed_i, sbtde_i
 
-        def get_sppSed_and_sppSbtde(self, all_pre_sppSed_scanpaths,all_pre_sppSbtde_scanpaths):
+    def get_sppSed_and_sppSbtde(self, all_pre_sppSed_scanpaths,all_pre_sppSbtde_scanpaths):
 
-            '''
-            :param self:
-            :param all_pre_sppSed_scanpaths: list:[('imageName',sed),...)
-            :param all_pre_sppSbtde_scanpaths: list:[('imageName',sbtde),...)
-            :return: sppSed:list, sppSbtde:list
-            '''
+        '''
+        :param self:
+        :param all_pre_sppSed_scanpaths: list:[('imageName',sed),...)
+        :param all_pre_sppSbtde_scanpaths: list:[('imageName',sbtde),...)
+        :return: sppSed:list, sppSbtde:list
+        '''
 
-            sppSedDict, sppSbtdeDict = defaultdict(list), defaultdict(list)
-            for k, v in all_pre_sppSed_scanpaths:
-                sppSedDict[k].append(v)
-            for k, v in all_pre_sppSbtde_scanpaths:
-                sppSbtdeDict[k].append(v)
-            sppSED = [min(list(sppSedDict.values())[i]) for i in range(len(sppSedDict))]
-            sppSBTDE = [min(list(sppSbtdeDict.values())[i]) for i in range(len(sppSbtdeDict))]
+        sppSedDict, sppSbtdeDict = defaultdict(list), defaultdict(list)
+        for k, v in all_pre_sppSed_scanpaths:
+            sppSedDict[k].append(v)
+        for k, v in all_pre_sppSbtde_scanpaths:
+            sppSbtdeDict[k].append(v)
+        sppSED = [min(list(sppSedDict.values())[i]) for i in range(len(sppSedDict))]
+        sppSBTDE = [min(list(sppSbtdeDict.values())[i]) for i in range(len(sppSbtdeDict))]
 
-            return sppSED,sppSBTDE
+        return sppSED,sppSBTDE
