@@ -6,6 +6,9 @@ import torch
 from random import seed
 from random import randint
 import pandas as pd
+from copy import copy
+import matplotlib.pyplot as plt
+from nltk.metrics import edit_distance
 # seed random number generator
 #seed(1)
 
