@@ -7,6 +7,8 @@ from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 import pandas as pd
 import numpy as np
+from evaluation.evaluation_mit1003 import EvaluationMetric
+
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -42,6 +44,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         if self.enableLogging == 'True':
             self.loggerS = SummaryWriter(f'./lightning_logs/{args.log_dir}')
         self.total_step = 0
+        self.metrics = EvaluationMetric()
 
     def log_gradients_in_model(self, step):
         for tag, value in self.model.named_parameters():
@@ -142,15 +145,44 @@ class TransformerModelMIT1003(pl.LightningModule):
 
         _, predicted = torch.max(logits, 2)
         #print(predicted.view(1, -1))
+
+        # calculate SED and SBTDE
+        b = tgt_out.size()[1]
+        sed = []
+        sbtde = []
+        lenScanpath = tgt_out.size()[0]
+        minLen = 10
+        if lenScanpath >= 10:
+            for index in range(b):
+                scanpath_gt = tgt_out[:minLen, index].detach().cpu().numpy()
+                scanpath_pre = predicted[:minLen, index].detach().cpu().numpy()
+                sed_i = np.stack([self.metrics.string_edit_distance(scanpath_gt[:i], scanpath_pre[:i]) for i in range(1, lenScanpath + 1)]).mean()
+                sbtde_i = np.stack(
+                    [self.metrics.string_based_time_delay_embedding_distance(scanpath_gt, scanpath_pre, k) for k in range(1, lenScanpath + 1)]).mean()
+                sed.append(sed_i)
+                sbtde.append(sbtde_i)
+        sed = np.mean(sed)
+        sbtde = np.mean(sbtde)
+
         if self.enableLogging == 'True':
             self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'loss': loss, }
+
+        return {'loss': loss, 'sed': sed, 'sbtde': sbtde}
 
     def validation_epoch_end(self, validation_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
-        print('validation_loss_each_epoch: ', avg_loss)
+        if not math.isnan(validation_step_outputs[0]['sed']):
+            avg_loss_sed = torch.stack([x['sed'] for x in validation_step_outputs]).mean()
+            avg_loss_sbtde = torch.stack([x['sbtde'] for x in validation_step_outputs]).mean()
+            print('validation_loss_each_epoch: ', avg_loss, ', sed: ', avg_loss_sed, ', sbtde: ', avg_loss_sbtde)
+            if self.enableLogging == 'True':
+                self.log('validation_evaluation_sed', avg_loss_sed, on_step=True, on_epoch=True, prog_bar=True,
+                         sync_dist=True)
+                self.log('validation_evaluation_sbtde', avg_loss_sbtde, on_step=True, on_epoch=True, prog_bar=True,
+                         sync_dist=True)
         if self.enableLogging == 'True':
             self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+
 
     def test_max(self, src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]

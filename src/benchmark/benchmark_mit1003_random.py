@@ -1,13 +1,13 @@
 import numpy as np
 from torch.utils.data import DataLoader
 import sys
-sys.path.append('dataBuilders')
-from data_builder_mit1003 import MIT1003Dataset, Collator
+#sys.path.append('dataBuilders')
+from dataBuilders.data_builder_mit1003 import MIT1003Dataset, Collator
 import torch
 from random import seed
 from random import randint
-sys.path.append('evaluation')
-from evaluation_mit1003 import EvaluationMetric
+#sys.path.append('evaluation')
+from evaluation.evaluation_mit1003 import EvaluationMetric
 from tqdm import tqdm
 
 seed(1)
@@ -50,8 +50,8 @@ for i in tqdm(range(1,11)):
                 while len(Gaze)<minLen:
                     ind = randint(0,TOTAL_PCK-1)
                     Gaze.append(ind)
-                Gaze = np.stack(Gaze).reshape(-1)
-                GT = tgt_out[:minLen,:].reshape(-1).numpy()
+                Gaze = np.stack(Gaze).reshape(-1)  # size: ndarray (10,)
+                GT = tgt_out[:minLen,:].reshape(-1).numpy() # size: ndarray (10,)
                 sed = np.stack([metrics.string_edit_distance(GT[:i],Gaze[:i]) for i in range(1,minLen+1)]).mean()
                 sbtde = np.stack([metrics.string_based_time_delay_embedding_distance(GT,Gaze,k) for k in range(1,minLen+1)]).mean()
                 SED.append(sed)
