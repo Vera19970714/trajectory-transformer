@@ -47,7 +47,7 @@ for src_pos, src_img, tgt_pos, tgt_img in test_loader:
         GAZE = []
         x = randint(0, 101)
         while x >= end_prob or len(GAZE)<minLen:
-            ind = randint(0, TOTAL_PCK-1)
+            ind = randint(0, TOTAL_PCK)
             GAZE.append(ind)
             x = randint(0, 101)
         gaze_df = np.stack(GAZE).reshape(1, -1)

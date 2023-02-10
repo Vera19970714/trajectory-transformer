@@ -188,7 +188,9 @@ class Collator(object):
         #tgt_img = torch.stack(tgt_img)
         #src_img = torch.stack(src_img)
         # output: src_pos (16, b), src_img(b, 16, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
-        return package_target, src_img, package_seq, tgt_img
+        return imageName,package_target, src_img, package_seq, tgt_img
+
+
 
 
 if __name__ == '__main__':
