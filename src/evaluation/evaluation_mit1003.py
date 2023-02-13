@@ -5,18 +5,21 @@ from nltk.metrics import edit_distance
 from collections import defaultdict
 
 class EvaluationMetric():
-    def __init__(self, minLen=10):
+    def __init__(self,trainingGrid,evaluationGrid=4,minLen=10):
         self.minLen = minLen
+        self.traingingGrid = trainingGrid
+        self.evaluationGrid = evaluationGrid
 
     def scanpath_to_string(self,
             scanpath
     ):
         string = ''
-
+        step = self.traingingGrid / self.evaluationGrid
         for i in range(np.shape(scanpath)[0]):
-            fixation = scanpath[i].astype(np.int32)
-            string += chr(97 + int(fixation))
-
+            fixationX = scanpath[i] % self.traingingGrid
+            fixationY = scanpath[i] // self.traingingGrid
+            new_fixation = (fixationX // step)+ (fixationY // step) *self.evaluationGrid
+            string += chr(97 + int(new_fixation))
         return string
 
     def string_edit_distance(self,
@@ -112,3 +115,4 @@ class EvaluationMetric():
         sppSBTDE = [min(list(sppSbtdeDict.values())[i]) for i in range(len(sppSbtdeDict))]
 
         return sppSED,sppSBTDE
+
