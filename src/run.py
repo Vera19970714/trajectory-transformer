@@ -23,6 +23,8 @@ if __name__ == '__main__':
 
     # parameters ONLY for MIT1003
     parser.add_argument('-data_folder_path', default='../dataset/Toronto/', type=str)
+    parser.add_argument('-processed_data_name', default='processedData_N6', type=str)
+    parser.add_argument('-grid_partition', default='6', type=int)
     #parser.add_argument('-subject', default='emb', type=str)
     #allSubjects = ['CNG', 'ajs', 'emb', 'ems', 'ff', 'hp', 'jcw', 'jw', 'kae', 'krl', 'po', 'tmj', 'tu', 'ya', 'zb']
     parser.add_argument('-fold', default='1', type=int)  # ten fold cross validation: 1 to 10
@@ -65,12 +67,12 @@ if __name__ == '__main__':
     if args.enable_logging == 'True':
         logger = pl_loggers.TensorBoardLogger(f'./lightning_logs/{args.log_dir}', name=args.log_name)
         # # save checkpoint & early stopping & learning rate decay & learning rate monitor
-        checkpoint_callback = ModelCheckpoint(monitor='validation_evaluation_sed',
+        checkpoint_callback = ModelCheckpoint(monitor='validation_evaluation_all',
                                               save_last=True,
                                               save_top_k=1,
                                               mode='min', )
         early_stop_callback = EarlyStopping(
-            monitor='validation_evaluation_sed',
+            monitor='validation_evaluation_all',
             min_delta=0.00,
             patience=args.early_stop_patience,
             verbose=False,

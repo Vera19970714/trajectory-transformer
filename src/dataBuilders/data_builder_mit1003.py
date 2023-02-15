@@ -7,9 +7,9 @@ from torch.nn.utils.rnn import pad_sequence
 import numpy as np
 
 class MIT1003Dataset(Dataset):
-    def __init__(self, args, isTrain, N=4):
+    def __init__(self, args, isTrain):
         data_folder_path = args.data_folder_path
-        dataPath = data_folder_path + 'processedData'
+        dataPath = data_folder_path + args.processed_data_name
         self.fold = args.fold
         #allSubjects = ['CNG', 'ajs', 'emb', 'ems', 'ff', 'hp', 'jcw', 'jw', 'kae', 'krl', 'po', 'tmj', 'tu', 'ya', 'zb']
         with open(dataPath, "rb") as fp:  # Unpickling
@@ -99,8 +99,8 @@ class MIT1003DataModule(pl.LightningDataModule):
         train_set = MIT1003Dataset(args, True)
         val_set = MIT1003Dataset(args, False)
         test_set = MIT1003Dataset(args, False)
-        collate_fn_train = Collator(train_set.getImageData(), True)
-        collate_fn_test = Collator(train_set.getImageData(), False)
+        collate_fn_train = Collator(train_set.getImageData(), True, args.grid_partition)
+        collate_fn_test = Collator(train_set.getImageData(), False, args.grid_partition)
 
         self.train_loader = DataLoader(dataset=train_set,
                                        batch_size=args.batch_size,
@@ -138,13 +138,13 @@ class MIT1003DataModule(pl.LightningDataModule):
 
 
 class Collator(object):
-    def __init__(self, imageData, isTrain):
+    def __init__(self, imageData, isTrain, partitionGrid):
         super().__init__()
-        self.PAD_IDX = 16
-        self.BOS_IDX = 17
-        self.EOS_IDX = 18
+        self.PAD_IDX = int(partitionGrid*partitionGrid)
+        self.BOS_IDX = self.PAD_IDX+1
+        self.EOS_IDX = self.PAD_IDX+2
         self.total_extra_index = 3
-        self.package_size = 16
+        self.package_size = int(partitionGrid*partitionGrid)
         self.imageData = imageData
         self.isTrain = isTrain
 

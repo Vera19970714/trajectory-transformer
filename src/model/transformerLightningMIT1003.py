@@ -18,8 +18,8 @@ class TransformerModelMIT1003(pl.LightningModule):
         super().__init__()
         self.args = args
         self.enableLogging = args.enable_logging
-        self.package_size = 16
-        self.numOfRegion = 4
+        self.package_size = int(args.grid_partition*args.grid_partition)
+        self.numOfRegion = args.grid_partition
         self.max_length = 10
         torch.manual_seed(0)
         SRC_VOCAB_SIZE = self.package_size + 3
@@ -45,7 +45,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         if self.enableLogging == 'True':
             self.loggerS = SummaryWriter(f'./lightning_logs/{args.log_dir}')
         self.total_step = 0
-        self.metrics = EvaluationMetric()
+        self.metrics = EvaluationMetric(args.grid_partition)
 
     def log_gradients_in_model(self, step):
         for tag, value in self.model.named_parameters():
@@ -189,6 +189,8 @@ class TransformerModelMIT1003(pl.LightningModule):
                 self.log('validation_evaluation_sed', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
                          sync_dist=True)
                 self.log('validation_evaluation_sbtde', avg_loss_sbtde, on_step=False, on_epoch=True, prog_bar=True,
+                         sync_dist=True)
+                self.log('validation_evaluation_all', (avg_loss_sed+avg_loss_sbtde), on_step=False, on_epoch=True, prog_bar=True,
                          sync_dist=True)
 
     def test_max(self, src_pos, src_img, tgt_pos, tgt_img):
