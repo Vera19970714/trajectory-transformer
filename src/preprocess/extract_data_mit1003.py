@@ -130,11 +130,11 @@ if __name__ == '__main__':
     # Resize Factor: 2 for MIT1003, 1 for Toronto
     #processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx', saveFilePath='../dataset/MIT1003/processedData')
     #processRawData()
-    '''processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
+    processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
-                   saveFilePath='../dataset/MIT1003/processedData_N6',
-                   resizeFactor=2, N=6)'''
-    processRawData(gazePath='../dataset/Toronto/Toronto.xlsx',
+                   saveFilePath='../dataset/MIT1003/processedData_N5',
+                   resizeFactor=2, N=5)
+    '''processRawData(gazePath='../dataset/Toronto/Toronto.xlsx',
                    saveFilePath='../dataset/Toronto/processedData_N6',
                    stimuliPath='../dataset/Toronto/Images/',
-                   resizeFactor=1, N=6)
+                   resizeFactor=1, N=6)'''

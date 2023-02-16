@@ -28,7 +28,7 @@ class MIT1003Dataset(Dataset):
         print(len(allSizes))
         quit()'''
 
-        indexTxtFilePath = data_folder_path + 'crossValidationIndex.txt'
+        indexTxtFilePath = data_folder_path + 'crossValidationIndex20.txt'
         indexTxtFile = open(indexTxtFilePath, "r")
         indexTxt = indexTxtFile.read()
         indexTxtList = indexTxt.split("\n")
