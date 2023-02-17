@@ -132,8 +132,8 @@ if __name__ == '__main__':
     #processRawData()
     processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
-                   saveFilePath='../dataset/MIT1003/processedData_N5',
-                   resizeFactor=2, N=5)
+                   saveFilePath='../dataset/MIT1003/processedData1_N8',
+                   resizeFactor=1, N=8)
     '''processRawData(gazePath='../dataset/Toronto/Toronto.xlsx',
                    saveFilePath='../dataset/Toronto/processedData_N6',
                    stimuliPath='../dataset/Toronto/Images/',
