@@ -63,7 +63,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         if self.enableLogging == 'True':
             self.loggerS = SummaryWriter(f'./lightning_logs/{args.log_dir}')
         self.total_step = 0
-        self.metrics = EvaluationMetric(args.grid_partition)
+        self.metrics = EvaluationMetric(trainingGrid=args.grid_partition)
 
     def log_gradients_in_model(self, step):
         for tag, value in self.model.named_parameters():
