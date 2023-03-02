@@ -50,8 +50,8 @@ class CNNEmbedding(nn.Module):
         self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
         #self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
         self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU())
-        self.fc = nn.Linear(336, outputSize) #TODO: changed from 1360 to 336, for N=8
-        self.sppLayer = SPPLayer(num_levels=3) #TODO: changed for N=8
+        self.fc = nn.Linear(1360, outputSize)
+        self.sppLayer = SPPLayer()
         # nn.init.kaiming_normal_(self.fc.weight, mode='fan_in',
         #                        nonlinearity='leaky_relu')
 
