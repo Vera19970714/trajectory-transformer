@@ -12,7 +12,7 @@ class EvaluationMetric():
         self.trainingGrid = trainingGrid
         self.evaluationGrid = evaluationGrid
         if trainingGrid == -1:
-            file = open('./indexConversion.txt', mode='r')
+            file = open('evaluation/indexConversion.txt', mode='r')
             centerModeIndex = file.read()
             file.close()
             list1 = centerModeIndex.split('\n')
