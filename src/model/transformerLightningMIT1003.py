@@ -18,8 +18,26 @@ class TransformerModelMIT1003(pl.LightningModule):
         super().__init__()
         self.args = args
         self.enableLogging = args.enable_logging
-        self.package_size = int(args.grid_partition*args.grid_partition)
-        self.numOfRegion = args.grid_partition
+        partitionGrid = args.grid_partition
+        if partitionGrid != -1:
+            self.package_size = int(partitionGrid * partitionGrid)
+            self.numOfRegion = args.grid_partition
+        else:
+            self.package_size = 28
+            centerModeFilePath = self.args.data_folder_path + 'centerModeIndex.txt'
+            file = open(centerModeFilePath, mode='r')
+            centerModeIndex = file.read()
+            file.close()
+            list1 = centerModeIndex.split('\n')[1:]
+            self.centerModeIndexDict = {}
+            for a in list1:
+                x = a.split(',')
+                index = int(x[0])
+                x_range = [int(x[1][1]), int(x[1][3])]
+                y_range = [int(x[2][1]), int(x[2][3])]
+                coor = [int(x[3][1]), int(x[3][3])]
+                self.centerModeIndexDict[index] = {'x_range': x_range, 'y_range': y_range, 'coor': coor}
+
         self.max_length = 19
         torch.manual_seed(0)
         SRC_VOCAB_SIZE = self.package_size + 3
@@ -45,7 +63,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         if self.enableLogging == 'True':
             self.loggerS = SummaryWriter(f'./lightning_logs/{args.log_dir}')
         self.total_step = 0
-        self.metrics = EvaluationMetric(args.grid_partition)
+        self.metrics = EvaluationMetric(trainingGrid=args.grid_partition)
 
     def log_gradients_in_model(self, step):
         for tag, value in self.model.named_parameters():
@@ -94,18 +112,10 @@ class TransformerModelMIT1003(pl.LightningModule):
         tgt_input = tgt_pos[:-1, :]
         #tgt_img = tgt_img[:, :-1, :, :, :]
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
-
-        tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 2)).to(DEVICE).float()
-        tgt_input_2d[:, :, 0] = tgt_input // self.numOfRegion
-        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, self.numOfRegion)
-        tgt_input_2d[0, :, 0] = (self.numOfRegion-1)/2
-        tgt_input_2d[0, :, 1] = (self.numOfRegion-1)/2
-
-        src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 2)).to(DEVICE).float()
-        src_pos_2d[:, :, 0] = src_pos // self.numOfRegion
-        src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.numOfRegion)
-        src_pos_2d[0, :, 0] = -1
-        src_pos_2d[0, :, 1] = -1
+        if self.args.grid_partition != -1:
+            src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
+        else:
+            src_pos_2d, tgt_input_2d = self.generate2DInputCenterMode(tgt_input, src_pos)
 
         return src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
                src_padding_mask, tgt_padding_mask, src_padding_mask
@@ -122,6 +132,31 @@ class TransformerModelMIT1003(pl.LightningModule):
         src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.numOfRegion)
         src_pos_2d[0, :, 0] = -1
         src_pos_2d[0, :, 1] = -1
+        return src_pos_2d, tgt_input_2d
+
+    def generate2DInputCenterMode(self, tgt_input, src_pos):
+        tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 2)).to(DEVICE).float()
+        for i in range(tgt_input.size()[0]):
+            for j in range(tgt_input.size()[1]):
+                if tgt_input[i][j] < self.package_size:
+                    index = self.centerModeIndexDict[tgt_input[i][j].item()]['coor']
+                    tgt_input_2d[i][j][0] = index[0] / 8
+                    tgt_input_2d[i][j][1] = index[1] / 8
+                else:
+                    tgt_input_2d[i][j][0] = -1
+                    tgt_input_2d[i][j][1] = -1
+
+        src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 2)).to(DEVICE).float()
+        for i in range(src_pos.size()[0]):
+            for j in range(src_pos.size()[1]):
+                if src_pos[i][j] < self.package_size:
+                    index = self.centerModeIndexDict[src_pos[i][j].item()]['coor']
+                    src_pos_2d[i][j][0] = index[0] / 8
+                    src_pos_2d[i][j][1] = index[1] / 8
+                else:
+                    src_pos_2d[i][j][0] = -1
+                    src_pos_2d[i][j][1] = -1
+
         return src_pos_2d, tgt_input_2d
 
 

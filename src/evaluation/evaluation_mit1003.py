@@ -3,22 +3,36 @@ from copy import copy
 import matplotlib.pyplot as plt
 from nltk.metrics import edit_distance
 from collections import defaultdict
+<<<<<<< HEAD
+=======
+#import cv2
+#import os
+>>>>>>> afe2e6e87e0d6105a97ca273e95a7b19fb72b473
 
 class EvaluationMetric():
     def __init__(self,trainingGrid,evaluationGrid=4,minLen=10):
         self.minLen = minLen
-        self.traingingGrid = trainingGrid
+        self.trainingGrid = trainingGrid
         self.evaluationGrid = evaluationGrid
+        if trainingGrid == -1:
+            file = open('evaluation/indexConversion.txt', mode='r')
+            centerModeIndex = file.read()
+            file.close()
+            list1 = centerModeIndex.split('\n')
+            self.conversionList = [int(x.split(' ')[-1]) for x in list1]
 
     def scanpath_to_string(self,
             scanpath
     ):
         string = ''
-        step = self.traingingGrid / self.evaluationGrid
+        step = self.trainingGrid / self.evaluationGrid
         for i in range(np.shape(scanpath)[0]):
-            fixationX = scanpath[i] % self.traingingGrid
-            fixationY = scanpath[i] // self.traingingGrid
-            new_fixation = (fixationX // step)+ (fixationY // step) *self.evaluationGrid
+            if self.trainingGrid != -1:
+                fixationX = scanpath[i] % self.trainingGrid
+                fixationY = scanpath[i] // self.trainingGrid
+                new_fixation = (fixationX // step)+ (fixationY // step) *self.evaluationGrid
+            else:
+                new_fixation = self.conversionList[scanpath[i]]
             string += chr(97 + int(new_fixation))
         return string
 
@@ -141,3 +155,6 @@ class EvaluationMetric():
 
 
 
+if __name__ == '__main__':
+    eval = EvaluationMetric(trainingGrid=-1)
+    eval.scanpath_to_string([27, 26, 25])

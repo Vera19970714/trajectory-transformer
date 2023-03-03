@@ -143,11 +143,14 @@ class MIT1003DataModule(pl.LightningDataModule):
 class Collator(object):
     def __init__(self, imageData, isTrain, partitionGrid):
         super().__init__()
-        self.PAD_IDX = int(partitionGrid*partitionGrid)
+        if partitionGrid != -1:
+            self.package_size = int(partitionGrid * partitionGrid)
+        else:
+            self.package_size = 28
+        self.PAD_IDX = self.package_size
         self.BOS_IDX = self.PAD_IDX+1
         self.EOS_IDX = self.PAD_IDX+2
         self.total_extra_index = 3
-        self.package_size = int(partitionGrid*partitionGrid)
         self.imageData = imageData
         self.isTrain = isTrain
 
@@ -218,14 +221,19 @@ if __name__ == '__main__':
         def __init__(self):
             self.fold = 1
             self.data_folder_path = '../dataset/MIT1003/'
+            self.processed_data_name = 'processedData_N4_centerMode'
+            self.grid_partition = -1
+            self.batch_size = 10
     args = ARGS()
-    mit = MIT1003Dataset(args, False)
+    '''mit = MIT1003Dataset(args, False)
     collate_fn = Collator(mit.getImageData())
     train_loader = DataLoader(dataset=mit,
                               batch_size=1,
                               num_workers=0,
                               collate_fn=collate_fn,
-                              shuffle=True)
+                              shuffle=True)'''
+    mit = MIT1003DataModule(args)
+    train_loader = mit.train_loader
     for batch in train_loader:
         print(batch[2].flatten())
 
