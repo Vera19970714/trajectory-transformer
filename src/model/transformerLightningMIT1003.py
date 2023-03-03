@@ -20,7 +20,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         self.enableLogging = args.enable_logging
         self.package_size = int(args.grid_partition*args.grid_partition)
         self.numOfRegion = args.grid_partition
-        self.max_length = 10
+        self.max_length = 19
         torch.manual_seed(0)
         SRC_VOCAB_SIZE = self.package_size + 3
         TGT_VOCAB_SIZE = self.package_size + 3
@@ -193,14 +193,10 @@ class TransformerModelMIT1003(pl.LightningModule):
                 self.log('validation_evaluation_all', (avg_loss_sed+avg_loss_sbtde), on_step=False, on_epoch=True, prog_bar=True,
                          sync_dist=True)
 
-    def test_max(self, src_pos, src_img, tgt_pos, tgt_img):
+    def test_max(self, imgSize, src_pos, src_img, tgt_pos, tgt_img, scanpath):
         # If target sequence length less than 10, then skip this function
         gt_seq = tgt_pos[1:, :]
         tgt_seq_len = gt_seq.size()[0]
-        if tgt_seq_len < self.metrics.minLen:
-            return -1, -1
-        gt_seq = gt_seq[:self.metrics.minLen, :]
-
         tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)
@@ -242,6 +238,8 @@ class TransformerModelMIT1003(pl.LightningModule):
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 _, predicted = torch.max(logits[-1, :, :], 1)
+                if self.EOS_IDX in GAZE[:, n] and i >= length:
+                    break
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -251,33 +249,32 @@ class TransformerModelMIT1003(pl.LightningModule):
                 GAZE[i - 1][0] = predicted
 
                 # COMMENT these because the rules have been changed, the output length is always 10
-                #if self.EOS_IDX in GAZE[:, 0] and i >= length:
-                #    break
+                if self.EOS_IDX in GAZE[:, 0] and i >= length:
+                   break
                 LOGITS[i - 1, :] = self.norm(logits[-1, :, :]).reshape(1, -1)
                 next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1, 1)), dim=0)
         loss = loss / (length - 1)
-
-        # compare gt_seq with GAZE and compute SED, they should be of same size
-        b = gt_seq.size()[1]
-        sed = []
-        sbtde = []
-        for index in range(b):
-            scanpath_gt = gt_seq[:self.metrics.minLen, index].detach().cpu().numpy()
-            scanpath_pre = GAZE[:self.metrics.minLen, index].detach().cpu().numpy()
-            sed_i, sbtde_i = self.metrics.get_sed_and_sbtde(scanpath_gt, scanpath_pre)
-            sed.append(sed_i)
-            sbtde.append(sbtde_i)
-        sed = np.mean(sed)
-        sbtde = np.mean(sbtde)
-        return sed, sbtde
-
-        # COMMENT these because the rules have been changed, the output length is always 10
-        '''if self.EOS_IDX in GAZE:
+        if self.EOS_IDX in GAZE:
             endIndex = torch.where(GAZE == self.EOS_IDX)[0][0]
             GAZE = GAZE[:endIndex]
             LOGITS = LOGITS[:endIndex]
-        return loss, LOSS, GAZE, LOGITS'''
+
+        # compare gt_seq with GAZE and compute SED, they should be of same size
+        imgSize = imgSize.detach().cpu().numpy()
+        auc,nss = self.metrics.saliencyEvaluation(scanpath.detach().cpu().numpy(),GAZEdetach().cpu().numpy(),imgSize[0],imgSize[1])
+        if tgt_seq_len < self.metrics.minLen and len(GAZE)<self.metrics.minLen:
+            return -1, -1,auc,nss
+        scanpath_gt = gt_seq[:self.metrics.minLen, :].detach().cpu().numpy()
+        scanpath_pre = GAZE[:self.metrics.minLen, :].detach().cpu().numpy()
+        sed, sbtde = self.metrics.get_sed_and_sbtde(scanpath_gt, scanpath_pre)
+
+        return sed, sbtde, auc, nss
+
+        # COMMENT these because the rules have been changed, the output length is always 10
+
+        # return loss, LOSS, GAZE, LOGITS
+
 
     def test_expect(self, src_pos, src_img, tgt_pos, tgt_img):
         # TODO: remain unchanged, need to change based on new free viewing dataset
@@ -375,18 +372,20 @@ class TransformerModelMIT1003(pl.LightningModule):
         return loss, predicted[:-1], tgt_out[:-1], LOGITS_tf[:-1]
 
     def test_step(self, batch, batch_idx):
-        imageName, src_pos, src_img, tgt_pos, tgt_img = batch
+        imageName, imgSize, src_pos, src_img, tgt_pos, tgt_img, scanpath = batch
         # src_img and tgt_img always have batch size 1
         src_img = torch.stack(src_img)
         tgt_img = torch.stack(tgt_img)
-
+        scanpath = torch.stack(scanpath)
         src_pos.to(DEVICE)
         src_img = src_img.to(DEVICE)
         tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
+        scanpath = scanpath.to(DEVICE)
+        imgSize = imgSize.to(DEVICE)
 
         #loss_max, LOSS, GAZE, LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
-        sed, sbtde = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
+        sed, sbtde,auc, nss = self.test_max(imgSize, src_pos, src_img, tgt_pos, tgt_img,scanpath)
         # TODO: these functions havent changed regard to free viewing datasets
         #loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
         #loss_gt, GAZE_tf, GAZE_gt, LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
@@ -394,7 +393,9 @@ class TransformerModelMIT1003(pl.LightningModule):
             #self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
             self.log('testing_loss_sed', sed, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
             self.log('testing_loss_sbtde', sbtde, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_image': imageName}
+            self.log('testing_loss_auc', auc, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log('testing_loss_nss', nss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+        return {'testing_sed': sed, 'testing_sbtde': sbtde,'testing_auc': auc,'testing_nss': nss 'testing_image': imageName}
         # DISABLE this for now
         '''if self.args.write_output == 'True':
             return {'loss_max': loss_max, 'LOSS': LOSS, 'GAZE': GAZE, 'LOGITS': LOGITS, 'GAZE_tf': GAZE_tf,
@@ -449,25 +450,38 @@ class TransformerModelMIT1003(pl.LightningModule):
             # have been changed based on the new evaluation SED
             loss_sed = []
             loss_sbtde = []
+            loss_auc = []
+            loss_nss = []
             testResult_sed = []
             testResult_sbtde = []
+
             for x in test_step_outputs:
                 if x['testing_sed'] != -1:
                     loss_sed.append(x['testing_sed'])
                     loss_sbtde.append(x['testing_sbtde'])
+                    loss_auc.append(x['testing_auc'])
+                    loss_nss.append(x['testing_nss'])
                     testResult_sed.append((x['testing_image'], x['testing_sed']))
                     testResult_sbtde.append((x['testing_image'], x['testing_sbtde']))
             if len(loss_sed) != 0:
                 avg_loss_sed = np.mean(loss_sed)
                 avg_loss_sbtde = np.mean(loss_sbtde)
+                avg_loss_auc = np.mean(loss_auc)
+                avg_loss_nss = np.mean(loss_nss)
                 sppSED, sppSBTDE = self.metrics.get_sppSed_and_sppSbtde(testResult_sed, testResult_sbtde)
                 sppSED = np.mean(sppSED)
                 sppSBTDE = np.mean(sppSBTDE)
-                print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde, ', spp SED: ', sppSED, ', spp SBTDE: ', sppSBTDE)
+                print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde,', AUC: ', avg_loss_auc,', NSS: ', avg_loss_nss, ', spp SED: ', sppSED, ', spp SBTDE: ', sppSBTDE)
                 if self.enableLogging == 'True':
                     self.log('testing_evaluation_meanSED', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
                              sync_dist=True)
                     self.log('testing_evaluation_meanSBTDE', avg_loss_sbtde, on_step=False, on_epoch=True, prog_bar=True,
+                             sync_dist=True)
+                    self.log('testing_evaluation_meanAUC', avg_loss_auc, on_step=False, on_epoch=True,
+                             prog_bar=True,
+                             sync_dist=True)
+                    self.log('testing_evaluation_meanNSS', avg_loss_nss, on_step=False, on_epoch=True,
+                             prog_bar=True,
                              sync_dist=True)
                     self.log('testing_evaluation_sppSED', sppSED, on_step=False, on_epoch=True, prog_bar=True,
                              sync_dist=True)

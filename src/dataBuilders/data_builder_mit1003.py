@@ -46,7 +46,8 @@ class MIT1003Dataset(Dataset):
         #print(F'len = {self.data_length}')
         self.subject = []
         self.scanpath = []
-        #self.imageFeature = []
+        self.scanpathPixel = []
+        self.imageSize = []
         self.imageName = []
         self.patchIndex = []
         self.args = args
@@ -59,7 +60,8 @@ class MIT1003Dataset(Dataset):
                 if imageName not in foldImage:
                     self.subject.append(item['sub'])
                     self.scanpath.append(item['scanpathInPatch'])
-                    #self.imageFeature.append(item['imageFeature'])
+                    self.scanpathPixel.append(item['scanpath'])
+                    self.imageSize.append(item['imageSize'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
                     #i += 1
@@ -68,7 +70,8 @@ class MIT1003Dataset(Dataset):
                 if imageName in foldImage:
                     self.subject.append(item['sub'])
                     self.scanpath.append(item['scanpathInPatch'])
-                    #self.imageFeature.append(item['imageFeature'])
+                    self.scanpathPixel.append(item['scanpath'])
+                    self.imageSize.append(item['imageSize'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
                     #i += 1
@@ -81,7 +84,7 @@ class MIT1003Dataset(Dataset):
         print(F'total_len = {self.data_total_length}')
 
     def __getitem__(self, index):
-        return self.subject[index], self.scanpath[index], self.imageName[index], self.subject[index] #, self.patchIndex[index]
+        return self.subject[index], self.scanpath[index], self.imageName[index], self.subject[index],self.scanpathPixel[index],self.imageSize[index] #, self.patchIndex[index]
 
     def __len__(self):
         return self.data_total_length
@@ -151,16 +154,22 @@ class Collator(object):
     def __call__(self, data):
         package_target = []
         package_seq = []
+        scanpath_seq = []
         question_img = []
 
         src_img = []
         tgt_img = []
+
         firstImageName = data[0][2]
+        firstImgSize = data[0][5]
 
         for data_entry in data:
+            imgSize = data_entry[5]
             imageName = data_entry[2]
+            scanpath = data_entry[4]
             if not self.isTrain:
                 assert firstImageName == imageName
+                assert firstImgSize == imgSize
             question_img_feature = self.imageData[imageName]
             gaze_seq = data_entry[1]
             gaze_seq = torch.from_numpy(gaze_seq).squeeze(0)
@@ -168,7 +177,9 @@ class Collator(object):
             gaze_seq = torch.cat((torch.tensor([self.BOS_IDX]),
                               gaze_seq,
                               torch.tensor([self.EOS_IDX])))
+            scanpath = torch.from_numpy(np.array(scanpath)).squeeze(0)
             package_seq.append(gaze_seq)
+            scanpath_seq.append(scanpath)
             target = torch.arange(self.package_size)
             package_target.append(target)
             question_img_feature = np.stack(question_img_feature)
@@ -179,6 +190,7 @@ class Collator(object):
 
         package_seq = pad_sequence(package_seq, padding_value=self.PAD_IDX, batch_first=False)
         package_target = torch.stack(package_target).T
+        scanpath_seq = pad_sequence(scanpath_seq, padding_value=self.PAD_IDX, batch_first=False)
         #question_img = torch.stack(question_img)
 
         batch_size = len(question_img)
@@ -193,10 +205,12 @@ class Collator(object):
         #tgt_img = torch.stack(tgt_img)
         #src_img = torch.stack(src_img)
         # output: src_pos (16, b), src_img(b, 16, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
+        firstImgSize = torch.from_numpy(np.array(firstImgSize))
+
         if self.isTrain:
             return package_target, src_img, package_seq, tgt_img
         else:  # extra image name for SPP evaluation
-            return firstImageName, package_target, src_img, package_seq, tgt_img
+            return firstImageName, firstImgSize, package_target, src_img, package_seq, tgt_img, scanpath_seq
 
 
 if __name__ == '__main__':

@@ -1,7 +1,5 @@
 import numpy as np
-import sys
-
-sys.path.append('evaluation')
+# sys.path.append('evaluation')
 from src.evaluation.evaluation_mit1003 import EvaluationMetric
 from tqdm import tqdm
 import os
@@ -31,6 +29,13 @@ def getFileList(dir, Filelist, ext=None):
 
     return Filelist
 
+def random_uniform(n,x_max,y_max):
+    xy_min = [1, 1]
+    xy_max = [x_max, y_max]
+    data = np.random.randint(low=xy_min, high=xy_max, size=(n, 2))
+    return data
+
+
 metrics = EvaluationMetric()
 saliency_img_folder = '../dataset/MIT1003/SALIENCY_MAPS'
 gazePath = '../dataset/MIT1003/MIT1003.xlsx'
@@ -42,17 +47,17 @@ print('num of saliency_imglist ' + str(len(saliency_imglist)) + '\n')
 
 auc_judd_score = []
 nss_score = []
-# ll_score = []
+ll_score = []
 
 for i in tqdm(range(dataLength)):
     saliency_imgPath = saliency_imglist[i]
     imgName = os.path.splitext(os.path.basename(saliency_imgPath))[0]
     s_map = cv2.imread(saliency_imgPath,0)
     s_map = normalize_map(s_map)
-    base_map = np.ones((s_map.shape[0],s_map.shape[1]))
 
     for j in range(len(subList)):
         gt_sub = np.zeros((s_map.shape[0],s_map.shape[1]))
+        base_sub = np.zeros((s_map.shape[0],s_map.shape[1]))
         current_sub = subList[j]
 
         df = gazesExcel[(gazesExcel.Sub == current_sub) & (gazesExcel.Task == imgName + '.jpeg')]
@@ -62,15 +67,18 @@ for i in tqdm(range(dataLength)):
             X = list(df['X'])
             Y = list(df['Y'])
             eachLength = len(X)
+            base_xy = random_uniform(eachLength,s_map.shape[0],s_map.shape[1])
+
             for m in range(eachLength):
                 if 0<Y[m]<=s_map.shape[0] and 0<X[m]<=s_map.shape[1]:
                     gt_sub[Y[m]-1,X[m]-1] = 1
+                    base_sub[base_xy[m][0] - 1, base_xy[m][1] - 1] = 1
             auc_judd_score.append(metrics.AUC_Judd(s_map, gt_sub))
             nss_score.append(metrics.NSS(s_map, gt_sub))
-            # ll_score.append(metrics.InfoGain(base_map,gt_sub,base_map))
+            ll_score.append(metrics.InfoGain(s_map,gt_sub,base_sub))
     print('auc judd:',np.array(auc_judd_score).mean())
     print('nss:',np.array(nss_score).mean())
-    # print('ll:', np.array(ll_score).mean())
+    print('ll:', np.array(ll_score).mean())
 
 
 

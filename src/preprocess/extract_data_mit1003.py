@@ -7,7 +7,7 @@ import math
 
 def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
     gazesExcel = pd.read_excel(gazePath)
-    oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], #'imageFeature': None,
+    oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageSize': None,
                 'patchIndex': None, 'scanpathInPatch': []}
     processed_dataset = []
     #negativeValue = False
@@ -30,6 +30,7 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
         if index == 1 and i != 0: #and not negativeValue:
             assert oneEntry['sub'] is not None
             assert oneEntry['imagePath'] is not None
+            assert oneEntry['imageSize'] is not None
             #assert oneEntry['imageFeature'] is not None
 
             if len(oneEntry['scanpath']) <= 1:
@@ -38,7 +39,7 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
                 oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
                 processed_dataset.append(oneEntry)
             dataEntry += 1
-            oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], #'imageFeature': None,
+            oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageSize': None,
                         'patchIndex': None, 'scanpathInPatch': []}
 
         # check for negative values
@@ -64,6 +65,7 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
                                                dtype=cv2.CV_32F)
             imageH = image.shape[0]
             imageW = image.shape[1]
+            oneEntry['imageSize'] = [imageH, imageW]
             # padding, make it dividable by N
             margin1 = N * (math.ceil(image.shape[0] / N)) - image.shape[0]
             margin2 = N * (math.ceil(image.shape[1] / N)) - image.shape[1]
@@ -89,6 +91,7 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
         else:
             assert oneEntry['imagePath'] == task
             assert oneEntry['sub'] == subject
+            assert oneEntry['imageSize'] == [imageH, imageW]
         if x_coor > 0 and y_coor > 0 and x_coor < imageW and y_coor < imageH:
             oneEntry['scanpath'].append([y_coor, x_coor])
             assert math.floor(y_coor / patchH) < N
@@ -104,7 +107,7 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
     #if not negativeValue:
     assert oneEntry['sub'] is not None
     assert oneEntry['imagePath'] is not None
-    #assert oneEntry['imageFeature'] is not None
+    assert oneEntry['imageSize'] is not None
     oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
     if len(oneEntry['scanpath']) == 1:
         onePointSeq += 1
@@ -132,8 +135,8 @@ if __name__ == '__main__':
     #processRawData()
     processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
-                   saveFilePath='../dataset/MIT1003/processedData1_N8',
-                   resizeFactor=1, N=8)
+                   saveFilePath='../dataset/MIT1003/processedData',
+                   resizeFactor=2, N=4)
     '''processRawData(gazePath='../dataset/Toronto/Toronto.xlsx',
                    saveFilePath='../dataset/Toronto/processedData_N6',
                    stimuliPath='../dataset/Toronto/Images/',

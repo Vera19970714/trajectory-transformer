@@ -379,3 +379,28 @@ class EvaluationMetric():
 
         return score
 
+    def normalize_map(s_map):
+        # normalize the salience map (as done in MIT code)
+        norm_s_map = (s_map - np.min(s_map)) / ((np.max(s_map) - np.min(s_map)) * 1.0)
+        return norm_s_map
+
+    def saliencyEvaluation(self,scanpathPixel_gt, scanpath_pre,img_height,img_weight):
+        # we need transfer region scanpath to pixcel scanpath / transfer scanpath to fixation map
+        eachLength = len(scanpath_pre)
+        scanpathPixel_gt_img = np.zeros((img_height, img_weight))
+        scanpath_pre_img = np.zeros((img_height, img_weight))
+        stepX = img_weight / self.traingingGrid
+        stepY = img_height / self.traingingGrid
+
+        for m in range(eachLength):
+            scanpathPixel_gt_img[scanpathPixel_gt[m][0] - 1, scanpathPixel_gt[m][1] - 1] = 1
+            fixationX = scanpath_pre[m] % self.traingingGrid
+            fixationY = scanpath_pre[m] // self.traingingGrid
+            scanpath_pre_img[(fixationY * stepY):((fixationY+1) * stepY),(fixationX * stepX):((fixationX+1) * stepX)] = 1 / stepX*stepY
+        auc = self.AUC_Judd(scanpath_pre_img,scanpathPixel_gt_img)
+        nss = self.NSS(scanpath_pre_img,scanpathPixel_gt_img)
+        return auc, nss
+
+
+
+
