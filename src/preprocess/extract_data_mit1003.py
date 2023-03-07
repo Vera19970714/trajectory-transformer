@@ -145,7 +145,7 @@ def processRawDataCenterMode(resizeFactor, gazePath, stimuliPath, saveFilePath,
         centerModeIndexDict[index] = {'x_range': x_range, 'y_range': y_range, 'coor': coor}
     N = 4
     gazesExcel = pd.read_excel(gazePath)
-    oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], #'imageFeature': None,
+    oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageSize': None,
                 'patchIndex': None, 'scanpathInPatch': []}
     processed_dataset = []
     #negativeValue = False
@@ -168,6 +168,7 @@ def processRawDataCenterMode(resizeFactor, gazePath, stimuliPath, saveFilePath,
         if index == 1 and i != 0: #and not negativeValue:
             assert oneEntry['sub'] is not None
             assert oneEntry['imagePath'] is not None
+            assert oneEntry['imageSize'] is not None
             #assert oneEntry['imageFeature'] is not None
 
             if len(oneEntry['scanpath']) <= 1:
@@ -176,7 +177,7 @@ def processRawDataCenterMode(resizeFactor, gazePath, stimuliPath, saveFilePath,
                 oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
                 processed_dataset.append(oneEntry)
             dataEntry += 1
-            oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], #'imageFeature': None,
+            oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageSize': None,
                         'patchIndex': None, 'scanpathInPatch': []}
 
         imagePath = stimuliPath + task #+ '.jpeg'
@@ -193,6 +194,7 @@ def processRawDataCenterMode(resizeFactor, gazePath, stimuliPath, saveFilePath,
                                                    dtype=cv2.CV_32F)
                 imageH = image.shape[0]
                 imageW = image.shape[1]
+                oneEntry['imageSize'] = [imageH, imageW]
                 # padding, make it dividable by N
                 margin1 = N * (math.ceil(image.shape[0] / N)) - image.shape[0]
                 margin2 = N * (math.ceil(image.shape[1] / N)) - image.shape[1]
@@ -230,6 +232,7 @@ def processRawDataCenterMode(resizeFactor, gazePath, stimuliPath, saveFilePath,
         else:
             assert oneEntry['imagePath'] == task
             assert oneEntry['sub'] == subject
+            assert oneEntry['imageSize'] == [imageH, imageW]
         if x_coor > 0 and y_coor > 0 and x_coor < imageW and y_coor < imageH:
             oneEntry['scanpath'].append([y_coor, x_coor])
             # y/x_coor for indexing array
@@ -251,6 +254,7 @@ def processRawDataCenterMode(resizeFactor, gazePath, stimuliPath, saveFilePath,
     #if not negativeValue:
     assert oneEntry['sub'] is not None
     assert oneEntry['imagePath'] is not None
+    assert oneEntry['imageSize'] is not None
     #assert oneEntry['imageFeature'] is not None
     oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
     if len(oneEntry['scanpath']) == 1:

@@ -3,24 +3,30 @@ from copy import copy
 import matplotlib.pyplot as plt
 from nltk.metrics import edit_distance
 from collections import defaultdict
-<<<<<<< HEAD
-=======
 #import cv2
 #import os
->>>>>>> afe2e6e87e0d6105a97ca273e95a7b19fb72b473
+
+np.random.seed(1)
 
 class EvaluationMetric():
     def __init__(self,trainingGrid,evaluationGrid=4,minLen=10):
         self.minLen = minLen
         self.trainingGrid = trainingGrid
         self.evaluationGrid = evaluationGrid
+        self.scaleGrid = 8
         if trainingGrid == -1:
-            file = open('evaluation/indexConversion.txt', mode='r')
-            centerModeIndex = file.read()
-            file.close()
+            file1 = open('evaluation/indexConversion.txt', mode='r')
+            centerModeIndex = file1.read()
+            file1.close()
             list1 = centerModeIndex.split('\n')
             self.conversionList = [int(x.split(' ')[-1]) for x in list1]
-
+            
+            file2 = open('../dataset/MIT1003/centerModeIndex.txt', mode='r')
+            centerModeRange = file2.read()
+            file2.close()
+            list2 = centerModeRange.split('\n')
+            self.conversionRange = [x.replace(',','').split(' ')[:5] for x in list2]
+            
     def scanpath_to_string(self,
             scanpath
     ):
@@ -32,9 +38,45 @@ class EvaluationMetric():
                 fixationY = scanpath[i] // self.trainingGrid
                 new_fixation = (fixationX // step)+ (fixationY // step) *self.evaluationGrid
             else:
-                new_fixation = self.conversionList[scanpath[i]]
+                new_fixation = self.conversionList[int(scanpath[i])]
+               
             string += chr(97 + int(new_fixation))
         return string
+    
+    def scanpath_to_pixel(self,
+            scanpathPixel,
+            scanpath_pre,
+            img_height,
+            img_weight
+    ):
+        scanpathLength = len(scanpath_pre)
+        scanpathPixelLength = len(scanpathPixel)
+        scanpathPixel_gt_img = np.zeros((img_height, img_weight))
+        scanpath_pre_img = np.zeros((img_height, img_weight))
+        print(scanpathPixel.shape)
+        print(scanpathPixel)
+        print(scanpath_pre)
+        print(scanpath_pre.shape)
+        for i in range(scanpathPixelLength):
+            scanpathPixel_gt_img[int(scanpathPixel[i][0]) - 1, int(scanpathPixel[i][1]) - 1] = 1
+        for m in range(scanpathLength):
+            if self.trainingGrid != -1:
+                stepX = img_weight / self.trainingGrid
+                stepY = img_height / self.trainingGrid
+                fixationX = scanpath_pre[m] % self.trainingGrid
+                fixationY = scanpath_pre[m] // self.trainingGrid
+                scanpath_pre_img[int(fixationY * stepY):int((fixationY+1) * stepY),int(fixationX * stepX):int((fixationX+1) * stepX)] = 1 / stepX*stepY
+            else:
+                stepX = img_weight / self.scaleGrid
+                stepY = img_height / self.scaleGrid
+                fixationX_left = self.conversionRange[int(scanpath_pre[m])+1][3]
+                fixationX_right = self.conversionRange[int(scanpath_pre[m])+1][4]
+                fixationY_top = self.conversionRange[int(scanpath_pre[m])+1][1]
+                fixationY_down = self.conversionRange[int(scanpath_pre[m])+1][2]
+                scanpath_pre_img[int((int(fixationY_top) * stepY)):int((int(fixationY_down) * stepY)),int((int(fixationX_left) * stepX)):int((int(fixationX_right) * stepX))] = 1 / ((int(fixationX_right)-int(fixationX_left))*stepX*(int(fixationY_down)-int(fixationY_top))*stepY)
+                # scanpath_pre_img[int((int(fixationY_top) * stepY)):int((int(fixationY_down) * stepY)),int((int(fixationX_left) * stepX)):int((int(fixationX_right) * stepX))] = 1 
+                
+        return scanpathPixel_gt_img, scanpath_pre_img
 
     def string_edit_distance(self,
             scanpath_1,
@@ -130,31 +172,235 @@ class EvaluationMetric():
 
         return sppSED,sppSBTDE
 
-    def normalize_map(s_map):
+#########################################################################################
+##############################  saliency metrics  #######################################
+#########################################################################################
+
+    def AUC_Judd(self, saliencyMap, fixationMap, jitter=True, toPlot=False):
+        # saliencyMap is the saliency map
+        # fixationMap is the human fixation map (binary matrix)
+        # jitter=True will add tiny non-zero random constant to all map locations to ensure
+        # 		ROC can be calculated robustly (to avoid uniform region)
+        # if toPlot=True, displays ROC curve
+        # If there are no fixations to predict, return NaN
+        if not fixationMap.any():
+            print('Error: no fixationMap')
+            score = float('nan')
+            return score
+        # make the saliencyMap the size of the image of fixationMap
+        if not np.shape(saliencyMap) == np.shape(fixationMap):
+            # from scipy.misc import imresize
+            from skimage.transform import resize
+            saliencyMap = resize(saliencyMap, np.shape(fixationMap))
+        # jitter saliency maps that come from saliency models that have a lot of zero values.
+        # If the saliency map is made with a Gaussian then it does not need to be jittered as
+        # the values are varied and there is not a large patch of the same value. In fact
+        # jittering breaks the ordering in the small values!
+        if jitter:
+            # jitter the saliency map slightly to distrupt ties of the same numbers
+            saliencyMap = saliencyMap + np.random.random(np.shape(saliencyMap)) / 10 ** 7
+        # normalize saliency map
+        saliencyMap = (saliencyMap - saliencyMap.min()) \
+                      / (saliencyMap.max() - saliencyMap.min())
+        if np.isnan(saliencyMap).all():
+            print('NaN saliencyMap')
+            score = float('nan')
+            return score
+        S = saliencyMap.flatten()
+        F = fixationMap.flatten()
+        Sth = S[F > 0]  # sal map values at fixation locations
+        Nfixations = len(Sth)
+        Npixels = len(S)
+        allthreshes = sorted(Sth, reverse=True)  # sort sal map values, to sweep through values
+        tp = np.zeros((Nfixations + 2))
+        fp = np.zeros((Nfixations + 2))
+        tp[0], tp[-1] = 0, 1
+        fp[0], fp[-1] = 0, 1
+        for i in range(Nfixations):
+            thresh = allthreshes[i]
+            aboveth = (S >= thresh).sum()  # total number of sal map values above threshold
+            tp[i + 1] = float(i + 1) / Nfixations  # ratio sal map values at fixation locations
+            # above threshold
+            fp[i + 1] = float(aboveth - i) / (Npixels - Nfixations)  # ratio other sal map values
+            # above threshold
+        score = np.trapz(tp, x=fp)
+        allthreshes = np.insert(allthreshes, 0, 0)
+        allthreshes = np.append(allthreshes, 1)
+        if toPlot:
+            import matplotlib.pyplot as plt
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 2, 1)
+            ax.matshow(saliencyMap, cmap='gray')
+            ax.set_title('SaliencyMap with fixations to be predicted')
+            [y, x] = np.nonzero(fixationMap)
+            s = np.shape(saliencyMap)
+            plt.axis((-.5, s[1] - .5, s[0] - .5, -.5))
+            plt.plot(x, y, 'ro')
+            ax = fig.add_subplot(1, 2, 2)
+            plt.plot(fp, tp, '.b-')
+            ax.set_title('Area under ROC curve: ' + str(score))
+            plt.axis((0, 1, 0, 1))
+            plt.show()
+        return score
+
+
+    def AUC_shuffled(self, saliencyMap, fixationMap, otherMap, Nsplits=100, stepSize=0.1, toPlot=False):
+        '''saliencyMap is the saliency map
+        fixationMap is the human fixation map (binary matrix)
+        otherMap is a binary fixation map (like fixationMap) by taking the union of
+        fixations from M other random images (Borji uses M=10)
+        Nsplits is number of random splits
+        stepSize is for sweeping through saliency map
+        if toPlot=1, displays ROC curve
+        '''
+        # saliencyMap = saliencyMap.transpose()
+        # fixationMap = fixationMap.transpose()
+        # otherMap = otherMap.transpose()
+        # If there are no fixations to predict, return NaN
+        if not fixationMap.any():
+            print('Error: no fixationMap')
+            score = float('nan')
+            return score
+        if not np.shape(saliencyMap) == np.shape(fixationMap):
+            saliencyMap = np.array(
+                Image.fromarray(saliencyMap).resize((np.shape(fixationMap)[1], np.shape(fixationMap)[0])))
+        if np.isnan(saliencyMap).all():
+            print('NaN saliencyMap')
+            score = float('nan')
+            return score
+        # normalize saliency map
+        saliencyMap = (saliencyMap - saliencyMap.min()) \
+                      / (saliencyMap.max() - saliencyMap.min())
+        S = saliencyMap.flatten(order='F')
+        F = fixationMap.flatten(order='F')
+        Oth = otherMap.flatten(order='F')
+        Sth = S[F > 0]  # sal map values at fixation locations
+        Nfixations = len(Sth)
+        # for each fixation, sample Nsplits values from the sal map at locations specified by otherMap
+        ind = np.nonzero(Oth)[0]  # find fixation locations on other images
+        Nfixations_oth = min(Nfixations, len(ind))
+        randfix = np.empty((Nfixations_oth, Nsplits))
+        randfix[:] = np.nan
+        for i in range(Nsplits):
+            randind = ind[np.random.permutation(len(ind))]  # randomize choice of fixation locations
+            randfix[:, i] = S[
+                randind[:Nfixations_oth]]  # sal map values at random fixation locations of other random images
+        # calculate AUC per random split (set of random locations)
+        auc = np.empty(Nsplits)
+        auc[:] = np.nan
+        def Matlab_like_gen(start, stop, step, precision):
+            r = start
+            while round(r, precision) <= stop:
+                yield round(r, precision)
+                r += step
+        for s in range(Nsplits):
+            curfix = randfix[:, s]
+            i0 = Matlab_like_gen(0, max(np.maximum(Sth, curfix)), stepSize, 5)
+            allthreshes = [x for x in i0]
+            allthreshes.reverse()
+            tp = np.zeros((len(allthreshes) + 2))
+            fp = np.zeros((len(allthreshes) + 2))
+            tp[0], tp[-1] = 0, 1
+            fp[0], fp[-1] = 0, 1
+            for i in range(len(allthreshes)):
+                thresh = allthreshes[i]
+                tp[i + 1] = (Sth >= thresh).sum() / Nfixations
+                fp[i + 1] = (curfix >= thresh).sum() / Nfixations_oth
+            auc[s] = np.trapz(tp, x=fp)
+        score = np.mean(auc)  # mean across random splits
+        if toPlot:
+            import matplotlib.pyplot as plt
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 2, 1)
+            ax.matshow(saliencyMap, cmap='gray')
+            ax.set_title('SaliencyMap with fixations to be predicted')
+            [y, x] = np.nonzero(fixationMap)
+            s = np.shape(saliencyMap)
+            plt.axis((-.5, s[1] - .5, s[0] - .5, -.5))
+            plt.plot(x, y, 'ro')
+            ax = fig.add_subplot(1, 2, 2)
+            plt.plot(fp, tp, '.b-')
+            ax.set_title('Area under ROC curve: ' + str(score))
+            plt.axis((0, 1, 0, 1))
+            plt.show()
+        return score
+    def KLdiv(self, saliencyMap, fixationMap):
+        # saliencyMap is the saliency map
+        # fixationMap is the human fixation map
+        # convert to float
+        map1 = saliencyMap.astype(float)
+        map2 = fixationMap.astype(float)
+        # make sure maps have the same shape
+        from skimage.transform import resize
+        map1 = resize(map1, np.shape(map2))
+        # make sure map1 and map2 sum to 1
+        if map1.any():
+            map1 = map1 / map1.sum()
+        if map2.any():
+            map2 = map2 / map2.sum()
+        # compute KL-divergence
+        eps = 10 ** -12
+        score = map2 * np.log(eps + map2 / (map1 + eps))
+        return score.sum()
+
+
+    def NSS(self, saliencyMap, fixationMap):
+        # saliencyMap is the saliency map
+        # fixationMap is the human fixation map (binary matrix)
+        # If there are no fixations to predict, return NaN
+        if not fixationMap.any():
+            print('Error: no fixationMap')
+            score = float('nan')
+            return score
+        # make sure maps have the same shape
+        from skimage.transform import resize
+        map1 = resize(saliencyMap, np.shape(fixationMap))
+        if not map1.max() == 0:
+            map1 = map1.astype(float) / map1.max()
+        # normalize saliency map
+        if not map1.std(ddof=1) == 0:
+            map1 = (map1 - map1.mean()) / map1.std(ddof=1)
+        # mean value at fixation locations
+        score = map1[fixationMap.astype(bool)].mean()
+        return score
+
+
+    def InfoGain(self, saliencyMap, fixationMap, baselineMap):
+        '''saliencyMap is the saliency map
+        fixationMap is the human fixation map (binary matrix)
+        baselineMap is another saliency map (e.g. all fixations from other images)'''
+        map1 = np.resize(saliencyMap, np.shape(fixationMap))
+        mapb = np.resize(baselineMap, np.shape(fixationMap))
+        # normalize and vectorize saliency maps
+        map1 = (map1.flatten(order='F') - np.min(map1)) / (np.max(map1 - np.min(map1)))
+        mapb = (mapb.flatten(order='F') - np.min(mapb)) / (np.max(mapb - np.min(mapb)))
+        # mapb = mapb.flatten(order='F')
+        # turn into distributions
+        map1 /= np.sum(map1)
+        mapb /= np.sum(mapb)
+        fixationMap = fixationMap.flatten(order='F')
+        locs = fixationMap > 0
+        eps = 2.2204e-16
+        score = np.mean(np.log2(eps + map1[locs]) - np.log2(eps + mapb[locs]))
+
+        return score
+
+    def normalize_map(self,s_map):
         # normalize the salience map (as done in MIT code)
         norm_s_map = (s_map - np.min(s_map)) / ((np.max(s_map) - np.min(s_map)) * 1.0)
         return norm_s_map
 
     def saliencyEvaluation(self,scanpathPixel_gt, scanpath_pre,img_height,img_weight):
         # we need transfer region scanpath to pixcel scanpath / transfer scanpath to fixation map
-        eachLength = len(scanpath_pre)
-        scanpathPixel_gt_img = np.zeros((img_height, img_weight))
-        scanpath_pre_img = np.zeros((img_height, img_weight))
-        stepX = img_weight / self.traingingGrid
-        stepY = img_height / self.traingingGrid
-
-        for m in range(eachLength):
-            scanpathPixel_gt_img[scanpathPixel_gt[m][0] - 1, scanpathPixel_gt[m][1] - 1] = 1
-            fixationX = scanpath_pre[m] % self.traingingGrid
-            fixationY = scanpath_pre[m] // self.traingingGrid
-            scanpath_pre_img[(fixationY * stepY):((fixationY+1) * stepY),(fixationX * stepX):((fixationX+1) * stepX)] = 1 / stepX*stepY
+        scanpathPixel_gt_img, scanpath_pre_img = self.scanpath_to_pixel(scanpathPixel_gt, scanpath_pre,img_height,img_weight)
+        scanpath_pre_img = self.normalize_map(scanpath_pre_img)
+        scanpathPixel_gt_img = self.normalize_map(scanpathPixel_gt_img)
         auc = self.AUC_Judd(scanpath_pre_img,scanpathPixel_gt_img)
         nss = self.NSS(scanpath_pre_img,scanpathPixel_gt_img)
         return auc, nss
 
 
-
-
 if __name__ == '__main__':
     eval = EvaluationMetric(trainingGrid=-1)
-    eval.scanpath_to_string([27, 26, 25])
+    print(eval.saliencyEvaluation(np.array([[113,200],[160,312],[250,410]]),np.array([21, 26, 25]),768,1024))
+    
