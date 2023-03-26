@@ -175,7 +175,8 @@ class Collator(object):
             firstImgSize = data[0][5]
 
         for data_entry in data:
-            imgSize = data_entry[5]
+            if self.args.saliency_metric == 'True':
+                imgSize = data_entry[5]
             imageName = data_entry[2]
             scanpath = data_entry[4]
             if not self.isTrain:
