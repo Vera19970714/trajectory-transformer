@@ -95,8 +95,8 @@ class TransformerModelMIT1003(pl.LightningModule):
         tgt_out = tgt_pos[1:, :]
         tgt_out_2d = torch.zeros((tgt_input_2d.size())).to(DEVICE)
         tgt_out_2d[:-1] = tgt_input_2d[1:]
-        tgt_out_2d[-1, :, 0] = tgt_out[-1, 0] // self.numOfRegion
-        tgt_out_2d[-1, :, 1] = torch.remainder(tgt_out[-1, 1], self.numOfRegion)
+        tgt_out_2d[-1, :, 0] = tgt_out[-1] // self.numOfRegion
+        tgt_out_2d[-1, :, 1] = torch.remainder(tgt_out[-1], self.numOfRegion)
 
         nonPadIndex = torch.where(tgt_out.flatten() != self.PAD_IDX)  # todo: also include end token
         loss = self.L2_loss(tgt_out_2d.reshape(-1, 2)[nonPadIndex[0]] / (self.numOfRegion - 1),
@@ -198,8 +198,8 @@ class TransformerModelMIT1003(pl.LightningModule):
         tgt_out = tgt_pos[1:, :]
         tgt_out_2d = torch.zeros((tgt_input_2d.size())).to(DEVICE)
         tgt_out_2d[:-1] = tgt_input_2d[1:]
-        tgt_out_2d[-1, :, 0] = tgt_out[-1, 0] // self.numOfRegion
-        tgt_out_2d[-1, :, 1] = torch.remainder(tgt_out[-1, 1], self.numOfRegion)
+        tgt_out_2d[-1, :, 0] = tgt_out[-1] // self.numOfRegion
+        tgt_out_2d[-1, :, 1] = torch.remainder(tgt_out[-1], self.numOfRegion)
 
         nonPadIndex = torch.where(tgt_out.flatten() != self.PAD_IDX ) # todo: also include end token
         loss = self.L2_loss(tgt_out_2d.reshape(-1, 2)[nonPadIndex[0]]/(self.numOfRegion-1), logits.reshape(-1, 2)[nonPadIndex[0]])
@@ -293,14 +293,15 @@ class TransformerModelMIT1003(pl.LightningModule):
                 predicted = predicted_2d[:, 0] * self.numOfRegion + predicted_2d[:, 1]
 
                 #_, predicted = torch.max(logits[-1, :, :], 1)
-                if i < length:
+                '''if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
                                                   tgt_out.reshape(-1).long())
                     loss += self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
-                                         tgt_out.reshape(-1).long())
+                                         tgt_out.reshape(-1).long())'''
                 GAZE[i - 1][0] = predicted
-                LOGITS[i - 1, :] = self.norm(logits[-1, :, :]).reshape(1, -1)
+                #LOGITS[i - 1, :] = self.norm(logits[-1, :, :]).reshape(1, -1)
+                predicted = predicted.long()
                 next_tgt_img_input = torch.cat((tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((tgt_input, predicted.view(-1, 1)), dim=0)
             else:
@@ -317,20 +318,21 @@ class TransformerModelMIT1003(pl.LightningModule):
                 #_, predicted = torch.max(logits[-1, :, :], 1)
                 predicted_2d = torch.round(logits[-1, :, :] * (self.numOfRegion - 1))  # 11, 2, 2
                 predicted = predicted_2d[:, 0] * self.numOfRegion + predicted_2d[:, 1]
-                if i < length:
+                '''if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
                                                   tgt_out.reshape(-1).long())
                     loss += self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
-                                         tgt_out.reshape(-1).long())
+                                         tgt_out.reshape(-1).long())'''
                 GAZE[i - 1][0] = predicted
                 # COMMENT these because the rules have been changed, the output length is always 10
                 #if self.EOS_IDX in GAZE[:, 0] and i >= length:
                 #    break
-                LOGITS[i - 1, :] = self.norm(logits[-1, :, :]).reshape(1, -1)
+                #LOGITS[i - 1, :] = self.norm(logits[-1, :, :]).reshape(1, -1)
+                predicted = predicted.long()
                 next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1, 1)), dim=0)
-        loss = loss / (length - 1)
+        #loss = loss / (length - 1)
         # compare gt_seq with GAZE and compute SED, they should be of same size
         b = gt_seq.size()[1]
         sed = []
