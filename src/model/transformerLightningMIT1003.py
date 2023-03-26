@@ -42,7 +42,8 @@ class TransformerModelMIT1003(pl.LightningModule):
         self.max_length_total = 19
         torch.manual_seed(0)
         SRC_VOCAB_SIZE = self.package_size + 3
-        TGT_VOCAB_SIZE = self.package_size + 3
+        # changed to 2, to output coordinates
+        TGT_VOCAB_SIZE = 2 # self.package_size + 3
         self.PAD_IDX = self.package_size
         self.BOS_IDX = self.package_size + 1
         self.EOS_IDX = self.package_size + 2
@@ -65,6 +66,7 @@ class TransformerModelMIT1003(pl.LightningModule):
             self.loggerS = SummaryWriter(f'./lightning_logs/{args.log_dir}')
         self.total_step = 0
         self.metrics = EvaluationMetric(trainingGrid=args.grid_partition)
+        self.L2_loss = torch.nn.MSELoss()
 
     def log_gradients_in_model(self, step):
         for tag, value in self.model.named_parameters():
@@ -131,8 +133,8 @@ class TransformerModelMIT1003(pl.LightningModule):
         src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 2)).to(DEVICE).float()
         src_pos_2d[:, :, 0] = src_pos // self.numOfRegion
         src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.numOfRegion)
-        src_pos_2d[0, :, 0] = -1
-        src_pos_2d[0, :, 1] = -1
+        src_pos_2d[0, :, 0] = (self.numOfRegion-1)/2
+        src_pos_2d[0, :, 1] = (self.numOfRegion-1)/2
         return src_pos_2d, tgt_input_2d
 
     def generate2DInputCenterMode(self, tgt_input, src_pos):
@@ -172,15 +174,31 @@ class TransformerModelMIT1003(pl.LightningModule):
         src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
             src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData2d(src_pos, src_img, tgt_pos,
                                                                                       tgt_img)
-
+        # todo: didnt normalize 2d values!!
         logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img,
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-        # logits: 11, 1, 31, tgt_out: 11, 1
+        # logits: 11, 1 bs, 31, tgt_out: 11, 1 bs
+
+        # change from distribution to coordinates
+        # compare with tgt_input_2d: 11, 2, 2, logits should be: 11, 2, 2
+        # todo: check padding index
+        # todo: tgt_input_2d recalculated
         tgt_out = tgt_pos[1:, :]
+        nonPadIndex = torch.where(tgt_out != self.PAD_IDX)
+        test = tgt_input_2d[nonPadIndex[0], nonPadIndex[1]]
+        loss = self.L2_loss(tgt_input_2d/(self.numOfRegion-1)[nonPadIndex[0], nonPadIndex[1]], logits[nonPadIndex[0], nonPadIndex[1]])
+        predicted_2d = np.around(logits.detach().cpu().numpy()*(self.numOfRegion-1)) # 11, 2, 2
+        predicted = predicted_2d[:,:,0]*self.numOfRegion+predicted_2d[:,:,1] #todo:check correct
+        # todo: should start from the second one
+        # todo: push to another branch
+        # todo: image norm? pretrained
+        # todo: normalize the input,
+
+        '''tgt_out = tgt_pos[1:, :] # 11, 2
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
 
-        _, predicted = torch.max(logits, 2)
+        _, predicted = torch.max(logits, 2)'''
         #print(predicted.view(1, -1))
 
         # calculate SED and SBTDE
@@ -193,7 +211,8 @@ class TransformerModelMIT1003(pl.LightningModule):
             returnSED = True
             for index in range(b):
                 scanpath_gt = tgt_out[:self.metrics.minLen, index].detach().cpu().numpy()
-                scanpath_pre = predicted[:self.metrics.minLen, index].detach().cpu().numpy()
+                #scanpath_pre = predicted[:self.metrics.minLen, index].detach().cpu().numpy()
+                scanpath_pre = predicted[:self.metrics.minLen, index]
                 sed_i, sbtde_i = self.metrics.get_sed_and_sbtde(scanpath_gt, scanpath_pre)
                 sed.append(sed_i)
                 sbtde.append(sbtde_i)

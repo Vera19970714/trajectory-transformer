@@ -36,7 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('-output_path', type=str, default='../dataset/checkEvaluation/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=10)
-    parser.add_argument('-saliency_metric', type=str, default='True')
+    parser.add_argument('-saliency_metric', type=str, default='False')
     
     # model settings and hyperparameters
     parser.add_argument('-model', default='TransformerMIT1003', type=str) #choices: BaseModel,TransformerMIT1003,Transformer
