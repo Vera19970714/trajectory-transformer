@@ -61,7 +61,8 @@ class MIT1003Dataset(Dataset):
                     self.subject.append(item['sub'])
                     self.scanpath.append(item['scanpathInPatch'])
                     self.scanpathPixel.append(item['scanpath'])
-                    self.imageSize.append(item['imageSize'])
+                    if self.args.saliency_metric == 'True':
+                        self.imageSize.append(item['imageSize'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
                     i += 1
@@ -71,7 +72,8 @@ class MIT1003Dataset(Dataset):
                     self.subject.append(item['sub'])
                     self.scanpath.append(item['scanpathInPatch'])
                     self.scanpathPixel.append(item['scanpath'])
-                    self.imageSize.append(item['imageSize'])
+                    if self.args.saliency_metric == 'True':
+                        self.imageSize.append(item['imageSize'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
                     i += 1
@@ -84,7 +86,11 @@ class MIT1003Dataset(Dataset):
         print(F'total_len = {self.data_total_length}')
 
     def __getitem__(self, index):
-        return self.subject[index], self.scanpath[index], self.imageName[index], self.subject[index],self.scanpathPixel[index],self.imageSize[index] #, self.patchIndex[index]
+        if self.args.saliency_metric == 'True':
+            return self.subject[index], self.scanpath[index], self.imageName[index], self.subject[index],self.scanpathPixel[index],self.imageSize[index] #, self.patchIndex[index]
+        else:
+            return self.subject[index], self.scanpath[index], self.imageName[index], self.subject[index], \
+                   self.scanpathPixel[index]
 
     def __len__(self):
         return self.data_total_length
