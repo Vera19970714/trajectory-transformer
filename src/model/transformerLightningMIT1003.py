@@ -91,8 +91,21 @@ class TransformerModelMIT1003(pl.LightningModule):
         logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img,
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+
         tgt_out = tgt_pos[1:, :]
-        loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
+        tgt_out_2d = torch.zeros((tgt_input_2d.size()))
+        tgt_out_2d[:-1] = tgt_input_2d[1:]
+        tgt_out_2d[-1, :, 0] = tgt_out[-1, 0] // self.numOfRegion
+        tgt_out_2d[-1, :, 1] = torch.remainder(tgt_out[-1, 1], self.numOfRegion)
+
+        nonPadIndex = torch.where(tgt_out.flatten() != self.PAD_IDX)  # todo: also include end token
+        loss = self.L2_loss(tgt_out_2d.reshape(-1, 2)[nonPadIndex[0]] / (self.numOfRegion - 1),
+                            logits.reshape(-1, 2)[nonPadIndex[0]])
+        #predicted_2d = np.around(logits.detach().cpu().numpy() * (self.numOfRegion - 1))  # 11, 2, 2
+        #predicted = predicted_2d[:, :, 0] * self.numOfRegion + predicted_2d[:, :, 1]
+
+        #tgt_out = tgt_pos[1:, :]
+        #loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         # self.log_gradients_in_model(self.total_step)
         self.total_step += 1
         if self.enableLogging == 'True':
@@ -182,17 +195,16 @@ class TransformerModelMIT1003(pl.LightningModule):
 
         # change from distribution to coordinates
         # compare with tgt_input_2d: 11, 2, 2, logits should be: 11, 2, 2
-        # todo: check padding index
-        # todo: tgt_input_2d recalculated
         tgt_out = tgt_pos[1:, :]
-        nonPadIndex = torch.where(tgt_out != self.PAD_IDX)
-        test = tgt_input_2d[nonPadIndex[0], nonPadIndex[1]]
-        loss = self.L2_loss(tgt_input_2d/(self.numOfRegion-1)[nonPadIndex[0], nonPadIndex[1]], logits[nonPadIndex[0], nonPadIndex[1]])
+        tgt_out_2d = torch.zeros((tgt_input_2d.size()))
+        tgt_out_2d[:-1] = tgt_input_2d[1:]
+        tgt_out_2d[-1, :, 0] = tgt_out[-1, 0] // self.numOfRegion
+        tgt_out_2d[-1, :, 1] = torch.remainder(tgt_out[-1, 1], self.numOfRegion)
+
+        nonPadIndex = torch.where(tgt_out.flatten() != self.PAD_IDX ) # todo: also include end token
+        loss = self.L2_loss(tgt_out_2d.reshape(-1, 2)[nonPadIndex[0]]/(self.numOfRegion-1), logits.reshape(-1, 2)[nonPadIndex[0]])
         predicted_2d = np.around(logits.detach().cpu().numpy()*(self.numOfRegion-1)) # 11, 2, 2
-        predicted = predicted_2d[:,:,0]*self.numOfRegion+predicted_2d[:,:,1] #todo:check correct
-        # todo: should start from the second one
-        # todo: push to another branch
-        # todo: image norm? pretrained
+        predicted = predicted_2d[:,:,0]*self.numOfRegion+predicted_2d[:,:,1]
         # todo: normalize the input,
 
         '''tgt_out = tgt_pos[1:, :] # 11, 2
@@ -276,7 +288,11 @@ class TransformerModelMIT1003(pl.LightningModule):
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-                _, predicted = torch.max(logits[-1, :, :], 1)
+
+                predicted_2d = np.around(logits[-1, :, :].detach().cpu().numpy() * (self.numOfRegion - 1))  # 11, 2, 2
+                predicted = predicted_2d[:, 0] * self.numOfRegion + predicted_2d[:, 1]
+
+                #_, predicted = torch.max(logits[-1, :, :], 1)
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -298,7 +314,9 @@ class TransformerModelMIT1003(pl.LightningModule):
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-                _, predicted = torch.max(logits[-1, :, :], 1)
+                #_, predicted = torch.max(logits[-1, :, :], 1)
+                predicted_2d = np.around(logits[-1, :, :].detach().cpu().numpy() * (self.numOfRegion - 1))  # 11, 2, 2
+                predicted = predicted_2d[:, 0] * self.numOfRegion + predicted_2d[:, 1]
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
