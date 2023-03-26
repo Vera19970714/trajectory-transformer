@@ -93,7 +93,7 @@ class TransformerModelMIT1003(pl.LightningModule):
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
 
         tgt_out = tgt_pos[1:, :]
-        tgt_out_2d = torch.zeros((tgt_input_2d.size()))
+        tgt_out_2d = torch.zeros((tgt_input_2d.size())).to(DEVICE)
         tgt_out_2d[:-1] = tgt_input_2d[1:]
         tgt_out_2d[-1, :, 0] = tgt_out[-1, 0] // self.numOfRegion
         tgt_out_2d[-1, :, 1] = torch.remainder(tgt_out[-1, 1], self.numOfRegion)
@@ -196,7 +196,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         # change from distribution to coordinates
         # compare with tgt_input_2d: 11, 2, 2, logits should be: 11, 2, 2
         tgt_out = tgt_pos[1:, :]
-        tgt_out_2d = torch.zeros((tgt_input_2d.size()))
+        tgt_out_2d = torch.zeros((tgt_input_2d.size())).to(DEVICE)
         tgt_out_2d[:-1] = tgt_input_2d[1:]
         tgt_out_2d[-1, :, 0] = tgt_out[-1, 0] // self.numOfRegion
         tgt_out_2d[-1, :, 1] = torch.remainder(tgt_out[-1, 1], self.numOfRegion)
@@ -271,9 +271,9 @@ class TransformerModelMIT1003(pl.LightningModule):
         tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)
         loss = 0
-        LOSS = torch.zeros((length - 1, 1)) - 1
-        GAZE = torch.zeros((self.max_length, 1)) - 1
-        LOGITS = torch.zeros((self.max_length, self.package_size+self.numofextraindex))
+        LOSS = torch.zeros((length - 1, 1)).to(DEVICE) - 1
+        GAZE = torch.zeros((self.max_length, 1)).to(DEVICE) - 1
+        LOGITS = torch.zeros((self.max_length, self.package_size+self.numofextraindex)).to(DEVICE)
         blank = torch.zeros((1, self.numofextraindex, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
         new_src_img = torch.cat((src_img, blank), dim=1)  # 31,300,186,3
         for i in range(1, self.max_length + 1):
