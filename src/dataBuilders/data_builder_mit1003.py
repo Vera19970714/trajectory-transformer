@@ -170,7 +170,8 @@ class Collator(object):
         tgt_img = []
 
         firstImageName = data[0][2]
-        firstImgSize = data[0][5]
+        if self.args.saliency_metric == 'True':
+            firstImgSize = data[0][5]
 
         for data_entry in data:
             imgSize = data_entry[5]
@@ -178,7 +179,8 @@ class Collator(object):
             scanpath = data_entry[4]
             if not self.isTrain:
                 assert firstImageName == imageName
-                assert firstImgSize == imgSize
+                if self.args.saliency_metric == 'True':
+                    assert firstImgSize == imgSize
             question_img_feature = self.imageData[imageName]
             gaze_seq = data_entry[1]
             gaze_seq = torch.from_numpy(gaze_seq).squeeze(0)
@@ -214,12 +216,16 @@ class Collator(object):
         #tgt_img = torch.stack(tgt_img)
         #src_img = torch.stack(src_img)
         # output: src_pos (16, b), src_img(b, 16, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
-        firstImgSize = torch.from_numpy(np.array(firstImgSize))
+        if self.args.saliency_metric == 'True':
+            firstImgSize = torch.from_numpy(np.array(firstImgSize))
 
         if self.isTrain:
             return package_target, src_img, package_seq, tgt_img
         else:  # extra image name for SPP evaluation
-            return firstImageName, firstImgSize, package_target, src_img, package_seq, tgt_img, scanpath_seq
+            if self.args.saliency_metric == 'True':
+                return firstImageName, firstImgSize, package_target, src_img, package_seq, tgt_img, scanpath_seq
+            else:
+                return firstImageName, package_target, src_img, package_seq, tgt_img, scanpath_seq
 
 
 if __name__ == '__main__':
