@@ -289,7 +289,7 @@ class TransformerModelMIT1003(pl.LightningModule):
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
 
-                predicted_2d = np.around(logits[-1, :, :].detach().cpu().numpy() * (self.numOfRegion - 1))  # 11, 2, 2
+                predicted_2d = torch.round(logits[-1, :, :] * (self.numOfRegion - 1))  # 11, 2, 2
                 predicted = predicted_2d[:, 0] * self.numOfRegion + predicted_2d[:, 1]
 
                 #_, predicted = torch.max(logits[-1, :, :], 1)
@@ -315,7 +315,7 @@ class TransformerModelMIT1003(pl.LightningModule):
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 #_, predicted = torch.max(logits[-1, :, :], 1)
-                predicted_2d = np.around(logits[-1, :, :].detach().cpu().numpy() * (self.numOfRegion - 1))  # 11, 2, 2
+                predicted_2d = torch.round(logits[-1, :, :] * (self.numOfRegion - 1))  # 11, 2, 2
                 predicted = predicted_2d[:, 0] * self.numOfRegion + predicted_2d[:, 1]
                 if i < length:
                     tgt_out = tgt_pos[i, :]
