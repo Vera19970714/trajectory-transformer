@@ -77,11 +77,11 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
         src_img, tgt_pos = batch
         src_img = src_img.to(DEVICE)
         tgt_pos.to(DEVICE)
-        tgt_pos = tgt_pos[:-1, :]
+        tgt_input = tgt_pos[:-1, :]
 
-        tgt_mask, tgt_padding_mask = self.processData(tgt_pos)
+        tgt_mask, tgt_padding_mask = self.processData(tgt_input)
 
-        logits = self.model(src_img, tgt_pos.long(),
+        logits = self.model(src_img, tgt_input.long(),
                             tgt_mask, tgt_padding_mask)
 
         tgt_out = tgt_pos[1:, :]
@@ -106,11 +106,11 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
         src_img, tgt_pos = batch
         src_img = src_img.to(DEVICE)
         tgt_pos.to(DEVICE)
-        tgt_pos = tgt_pos[:-1, :]
+        tgt_input = tgt_pos[:-1, :]
 
-        tgt_mask, tgt_padding_mask = self.processData(tgt_pos)
+        tgt_mask, tgt_padding_mask = self.processData(tgt_input)
 
-        logits = self.model(src_img, tgt_pos.long(),
+        logits = self.model(src_img, tgt_input.long(),
                             tgt_mask, tgt_padding_mask)
 
         # logits: 11, 1, 31, tgt_out: 11, 1

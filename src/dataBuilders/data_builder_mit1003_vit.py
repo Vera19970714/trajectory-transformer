@@ -5,7 +5,6 @@ import pandas as pd
 import pickle
 from torch.nn.utils.rnn import pad_sequence
 import numpy as np
-import cv2
 from transformers import ViTFeatureExtractor
 from PIL import Image
 
