@@ -37,11 +37,9 @@ class MIT1003Dataset(Dataset):
         self.imageSize = []
         self.imageName = []
         self.patchIndex = []
-        self.images = []
 
         self.imageRootPath = args.data_folder_path + 'ALLSTIMULI/'
         self.args = args
-        self.feature_extractor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-224-in21k')
 
         i=0
         for item in subjectData:
@@ -55,9 +53,6 @@ class MIT1003Dataset(Dataset):
                     self.imageSize.append(item['imageSize'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
-                    img = Image.open(self.imageRootPath + item['imagePath'])
-                    img = self.feature_extractor(img)['pixel_values'][0]
-                    self.images.append(img)
                     i += 1
             else:
                 #if item['sub'] == subject:  # only include the subject
@@ -68,9 +63,6 @@ class MIT1003Dataset(Dataset):
                     self.imageSize.append(item['imageSize'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
-                    img = Image.open(self.imageRootPath + item['imagePath'])
-                    img = self.feature_extractor(img)['pixel_values'][0]
-                    self.images.append(img)
                     i += 1
 
             if i > 10:
@@ -81,7 +73,7 @@ class MIT1003Dataset(Dataset):
         print(F'total_len = {self.data_total_length}')
 
     def __getitem__(self, index):
-        return self.subject[index], self.scanpath[index], self.imageName[index], self.subject[index],self.scanpathPixel[index],self.imageSize[index], self.images[index]
+        return self.subject[index], self.scanpath[index], self.imageName[index], self.subject[index],self.scanpathPixel[index],self.imageSize[index]
 
     def __len__(self):
         return self.data_total_length
@@ -163,8 +155,9 @@ class Collator(object):
             imgSize = data_entry[5]
             imageName = data_entry[2]
             scanpath = data_entry[4]
-            image = torch.from_numpy(data_entry[6])
+            image = torch.from_numpy(self.imageData[imageName])
             src_img.append(image)
+
             if not self.isTrain:
                 assert firstImageName == imageName
                 assert firstImgSize == imgSize
