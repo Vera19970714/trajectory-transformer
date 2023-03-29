@@ -5,6 +5,9 @@ import pandas as pd
 import pickle
 from torch.nn.utils.rnn import pad_sequence
 import numpy as np
+import cv2
+from transformers import ViTFeatureExtractor
+from PIL import Image
 
 class MIT1003Dataset(Dataset):
     def __init__(self, args, isTrain):
@@ -18,16 +21,6 @@ class MIT1003Dataset(Dataset):
         subjectData = raw_data[:-1]
         self.imageData = raw_data[-1]
 
-        # calculate how many kinds of image sizes
-        '''allSizes = {}
-        for element in list(self.imageData):
-            feature = self.imageData[element]
-            name = str(feature.shape[1])+','+str(feature.shape[2])
-            allSizes[name] = 0
-        print(allSizes)
-        print(len(allSizes))
-        quit()'''
-
         indexTxtFilePath = data_folder_path + 'crossValidationIndex.txt'
         indexTxtFile = open(indexTxtFilePath, "r")
         indexTxt = indexTxtFile.read()
@@ -37,11 +30,6 @@ class MIT1003Dataset(Dataset):
         assert len(self.imageData) == int(indexTxtList[0])
         foldImage = list(self.imageData)[int(indexTxtList[self.fold]):int(indexTxtList[self.fold+1])]
 
-        # not used
-        '''indexs = np.unravel_index(np.arange(N * N), (N, N))  # size: 16, 2
-        indexs = np.concatenate((indexs[0].reshape(1, -1), indexs[1].reshape(1, -1)), axis=0)
-        self.indices = indexs'''
-
         #self.data_length = len(subjectData)
         #print(F'len = {self.data_length}')
         self.subject = []
@@ -50,7 +38,11 @@ class MIT1003Dataset(Dataset):
         self.imageSize = []
         self.imageName = []
         self.patchIndex = []
+        self.images = []
+
+        self.imageRootPath = args.data_folder_path + 'ALLSTIMULI/'
         self.args = args
+        self.feature_extractor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-224-in21k')
 
         i=0
         for item in subjectData:
@@ -64,6 +56,9 @@ class MIT1003Dataset(Dataset):
                     self.imageSize.append(item['imageSize'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
+                    img = Image.open(self.imageRootPath + item['imagePath'])
+                    img = self.feature_extractor(img)['pixel_values'][0]
+                    self.images.append(img)
                     i += 1
             else:
                 #if item['sub'] == subject:  # only include the subject
@@ -74,6 +69,9 @@ class MIT1003Dataset(Dataset):
                     self.imageSize.append(item['imageSize'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
+                    img = Image.open(self.imageRootPath + item['imagePath'])
+                    img = self.feature_extractor(img)['pixel_values'][0]
+                    self.images.append(img)
                     i += 1
 
             if i > 10:
@@ -84,7 +82,7 @@ class MIT1003Dataset(Dataset):
         print(F'total_len = {self.data_total_length}')
 
     def __getitem__(self, index):
-        return self.subject[index], self.scanpath[index], self.imageName[index], self.subject[index],self.scanpathPixel[index],self.imageSize[index] #, self.patchIndex[index]
+        return self.subject[index], self.scanpath[index], self.imageName[index], self.subject[index],self.scanpathPixel[index],self.imageSize[index], self.images[index]
 
     def __len__(self):
         return self.data_total_length
@@ -96,7 +94,7 @@ class MIT1003Dataset(Dataset):
         return self.imageData
 
 
-class MIT1003DataModule(pl.LightningDataModule):
+class MIT1003DataModule_VIT(pl.LightningDataModule):
     def __init__(self, args):
         super().__init__()
         train_set = MIT1003Dataset(args, True)
@@ -155,13 +153,9 @@ class Collator(object):
         self.isTrain = isTrain
 
     def __call__(self, data):
-        package_target = []
         package_seq = []
         scanpath_seq = []
-        question_img = []
-
         src_img = []
-        tgt_img = []
 
         firstImageName = data[0][2]
         firstImgSize = data[0][5]
@@ -170,50 +164,30 @@ class Collator(object):
             imgSize = data_entry[5]
             imageName = data_entry[2]
             scanpath = data_entry[4]
+            image = torch.from_numpy(data_entry[6])
+            src_img.append(image)
             if not self.isTrain:
                 assert firstImageName == imageName
                 assert firstImgSize == imgSize
-            question_img_feature = self.imageData[imageName]
             gaze_seq = data_entry[1]
             gaze_seq = torch.from_numpy(gaze_seq).squeeze(0)
-
-            gaze_seq = torch.cat((torch.tensor([self.BOS_IDX]),
-                              gaze_seq,
-                              torch.tensor([self.EOS_IDX])))
-            scanpath = torch.from_numpy(np.array(scanpath)).squeeze(0)
+            gaze_seq = torch.cat((torch.tensor([self.BOS_IDX]), gaze_seq, torch.tensor([self.EOS_IDX])))
             package_seq.append(gaze_seq)
+            scanpath = torch.from_numpy(np.array(scanpath)).squeeze(0)
             scanpath_seq.append(scanpath)
-            target = torch.arange(self.package_size)
-            package_target.append(target)
-            question_img_feature = np.stack(question_img_feature)
-            question_img_feature = torch.from_numpy(question_img_feature)
-            # CHANGED to ones
-            blank = torch.ones((self.total_extra_index, question_img_feature.size()[1], question_img_feature.size()[2], 3))
-            question_img.append(torch.cat((question_img_feature, blank), dim=0))  # 5,300,186,3
 
         package_seq = pad_sequence(package_seq, padding_value=self.PAD_IDX, batch_first=False)
-        package_target = torch.stack(package_target).T
         scanpath_seq = pad_sequence(scanpath_seq, padding_value=self.PAD_IDX, batch_first=False)
-        #question_img = torch.stack(question_img)
 
-        batch_size = len(question_img)
-        for i in range(batch_size):
-            indexes_src = package_target[:, i]
-            imgs = question_img[i]  # 31, w, h, 3
-            src_img_ = imgs[indexes_src]
-            src_img.append(src_img_)
-            tgt_img_ = imgs[package_seq[:, i]]
-            tgt_img.append(tgt_img_)
         # tgt_img and src_img are lists due to variant size
-        #tgt_img = torch.stack(tgt_img)
-        #src_img = torch.stack(src_img)
-        # output: src_pos (16, b), src_img(b, 16, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
         firstImgSize = torch.from_numpy(np.array(firstImgSize))
+        src_img = torch.stack(src_img)
 
+        # output: src_img(b, w, h, 3), tgt_pos(max_len, b)
         if self.isTrain:
-            return package_target, src_img, package_seq, tgt_img
+           return src_img, package_seq
         else:  # extra image name for SPP evaluation
-            return firstImageName, firstImgSize, package_target, src_img, package_seq, tgt_img, scanpath_seq
+           return firstImageName, firstImgSize, src_img, package_seq, scanpath_seq
 
 
 if __name__ == '__main__':

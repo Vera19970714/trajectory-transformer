@@ -7,9 +7,11 @@ from pytorch_lightning import loggers as pl_loggers
 from dataBuilders.data_builder import SearchDataModule
 from dataBuilders.data_builder_base import BaseSearchDataModule
 from dataBuilders.data_builder_mit1003 import MIT1003DataModule
+from dataBuilders.data_builder_mit1003_vit import MIT1003DataModule_VIT
 from model.transformerLightning import TransformerModel
 from benchmark.base_lightning import BaseModel
 from model.transformerLightningMIT1003 import TransformerModelMIT1003
+from model.transformerLightningMIT1003_vit import TransformerModelMIT1003_VIT
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -36,10 +38,11 @@ if __name__ == '__main__':
     parser.add_argument('-output_path', type=str, default='../dataset/checkEvaluation/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=10)
-    parser.add_argument('-saliency_metric', type=str, default='True')
+    parser.add_argument('-saliency_metric', type=str, default='False')
     
     # model settings and hyperparameters
-    parser.add_argument('-model', default='TransformerMIT1003', type=str) #choices: BaseModel,TransformerMIT1003,Transformer
+    # choices: BaseModel,TransformerMIT1003,Transformer, TransformerMIT1003_vit
+    parser.add_argument('-model', default='TransformerMIT1003_vit', type=str)
     parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=20, type=int)
     parser.add_argument('-scheduler_lambda2', default=0.95, type=float)
@@ -98,6 +101,9 @@ if __name__ == '__main__':
     elif args.model == 'TransformerMIT1003':
         model = TransformerModelMIT1003(args)
         search_data = MIT1003DataModule(args)
+    elif args.model == 'TransformerMIT1003_vit':
+        model = TransformerModelMIT1003_VIT(args)
+        search_data = MIT1003DataModule_VIT(args)
     else:
         print('Invalid model')
     
