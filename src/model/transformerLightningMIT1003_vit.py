@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import pandas as pd
 import numpy as np
 from evaluation.evaluation_mit1003 import EvaluationMetric
+from model.utilis import Sampler
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -38,6 +39,7 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
 
         self.max_length = 10
         self.max_length_total = 19
+        self.topp = 0.97
         torch.manual_seed(0)
         SRC_VOCAB_SIZE = self.package_size + 3
         TGT_VOCAB_SIZE = self.package_size + 3
@@ -51,6 +53,7 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
         NUM_ENCODER_LAYERS = 4
         NUM_DECODER_LAYERS = 4
         inputDim = 2
+
         self.model = Seq2SeqTransformer4MIT1003_VIT(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
                                                 NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, inputDim, FFN_HID_DIM).to(
             DEVICE).float()
@@ -64,7 +67,7 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
             self.loggerS = SummaryWriter(f'./lightning_logs/{args.log_dir}')
         self.total_step = 0
         self.metrics = EvaluationMetric(trainingGrid=args.grid_partition)
-
+        self.sampler = Sampler()
     def log_gradients_in_model(self, step):
         for tag, value in self.model.named_parameters():
             # print('-'*10)
@@ -380,6 +383,74 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
             else:
                 GAZE_ALL.append(GAZE[:, i])
         return loss, GAZE_ALL
+    def test_topp(self, src_img, tgt_pos):
+        # If target sequence length less than 10, then skip this function
+        gt_seq = tgt_pos[1:, :]
+        tgt_seq_len = gt_seq.size()[0]
+        if tgt_seq_len < self.metrics.minLen:
+            return -1, -1
+        gt_seq = gt_seq[:self.metrics.minLen, :]
+        tgt_input = tgt_pos[:-1, :]
+        length = tgt_pos.size(0)
+        iter = self.args.stochastic_iteration
+        meanSed = 0
+        meanSbtde = 0
+
+        for n in range(iter):
+            GAZE = torch.zeros((self.max_length, 1)) - 1
+            for i in range(1, self.max_length + 1):
+                if i == 1:
+                    tgt_input = tgt_pos[:i, :]
+                    tgt_mask, tgt_padding_mask = self.processData(tgt_input)
+                    logits = self.model(src_img, tgt_input.long(),
+                                        tgt_mask, tgt_padding_mask)
+                    logits_new = self.sampler.top_k_top_p_decoder(logits[-1, :, :].view(1,-1), top_p=self.topp)
+                    logits_new = F.softmax(logits_new.view(-1), dim=0)
+                    predicted = torch.multinomial(logits_new, 1, replacement=True)
+                    GAZE[i - 1][0] = predicted
+                    '''if i < length:
+                        tgt_out = tgt_pos[i, :]
+                        LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
+                                                      tgt_out.reshape(-1).long())
+                        loss += self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
+                                             tgt_out.reshape(-1).long())'''
+                    next_tgt_input = torch.cat((tgt_input, predicted.view(-1, 1)), dim=0)
+                else:
+                    tgt_input = next_tgt_input
+                    tgt_mask, tgt_padding_mask = self.processData(tgt_input)
+                    logits = self.model(src_img, tgt_input.long(),
+                                        tgt_mask, tgt_padding_mask)
+                    logits_new = self.sampler.top_k_top_p_decoder(logits[-1, :, :].view(1,-1), top_p=self.topp)
+                    logits_new = F.softmax(logits_new.view(-1), dim=0)
+                    predicted = torch.multinomial(logits_new, 1, replacement=True)
+                    GAZE[i - 1][0] = predicted
+                    '''if i < length:
+                        tgt_out = tgt_pos[i, :]
+                        LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
+                                                      tgt_out.reshape(-1).long())
+                        loss += self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
+                                             tgt_out.reshape(-1).long())'''
+                    # COMMENT these because the rules have been changed, the output length is always 10
+                    # if self.EOS_IDX in GAZE[:, 0] and i >= length:
+                    #    break
+                    next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1, 1)), dim=0)
+            #loss = loss / (length - 1)
+            # compare gt_seq with GAZE and compute SED, they should be of same size
+            b = gt_seq.size()[1]
+            sed = []
+            sbtde = []
+            for index in range(b):
+                scanpath_gt = gt_seq[:self.metrics.minLen, index].detach().cpu().numpy()
+                scanpath_pre = GAZE[:self.metrics.minLen, index].detach().cpu().numpy()
+                sed_i, sbtde_i = self.metrics.get_sed_and_sbtde(scanpath_gt, scanpath_pre)
+                sed.append(sed_i)
+                sbtde.append(sbtde_i)
+            sed = np.mean(sed)
+            sbtde = np.mean(sbtde)
+            meanSed += sed
+            meanSbtde += sbtde
+        return meanSed / iter,meanSbtde / iter
+
 
     def test_gt(self, src_pos, src_img, tgt_pos, tgt_img):
         '''
@@ -411,7 +482,7 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         imageName, imgSize, src_img, tgt_pos, scanpath = batch
         # src_img and tgt_img always have batch size 1
-        src_img = torch.stack(src_img)
+        # src_img = torch.stack(src_img)
         scanpath = torch.squeeze(scanpath)
         src_img = src_img.to(DEVICE)
         tgt_pos.to(DEVICE)
@@ -419,6 +490,7 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
         imgSize = imgSize.to(DEVICE)
         # loss_max, LOSS, GAZE, LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         sed, sbtde = self.test_max(src_img, tgt_pos)
+        sed_topp, sbtde_topp = self.test_topp(src_img, tgt_pos)
         if self.args.saliency_metric == 'True':
             #auc, nss = self.test_saliency_max(imgSize, src_pos, src_img, tgt_pos, tgt_img, scanpath)
             # TODO: these functions havent changed regard to free viewing datasets
@@ -438,7 +510,9 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
                 # self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
                 self.log('testing_loss_sed', sed, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
                 self.log('testing_loss_sbtde', sbtde, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-            return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_image': imageName}
+                self.log('testing_loss_sed_topp', sed_topp, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+                self.log('testing_loss_sbtde_topp', sbtde_topp, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+            return {'testing_sed': sed, 'testing_sbtde': sbtde,'testing_sed_topp': sed_topp, 'testing_sbtde_topp': sbtde_topp, 'testing_image': imageName}
         # DISABLE this for now
         '''if self.args.write_output == 'True':
             return {'loss_max': loss_max, 'LOSS': LOSS, 'GAZE': GAZE, 'LOGITS': LOGITS, 'GAZE_tf': GAZE_tf,
@@ -495,6 +569,11 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
             loss_sbtde = []
             testResult_sed = []
             testResult_sbtde = []
+            loss_sed_topp = []
+            loss_sbtde_topp = []
+            testResult_sed_topp = []
+            testResult_sbtde_topp = []
+
             if self.args.saliency_metric == 'True':
                 loss_auc = []
                 loss_nss = []
@@ -502,62 +581,95 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
                     if x['testing_sed'] != -1:
                         loss_sed.append(x['testing_sed'])
                         loss_sbtde.append(x['testing_sbtde'])
+                        loss_sed_topp.append(x['testing_sed_topp'])
+                        loss_sbtde_topp.append(x['testing_sbtde_topp'])
                         loss_auc.append(x['testing_auc'])
                         loss_nss.append(x['testing_nss'])
                         testResult_sed.append((x['testing_image'], x['testing_sed']))
                         testResult_sbtde.append((x['testing_image'], x['testing_sbtde']))
+                        testResult_sed_topp.append((x['testing_image'], x['testing_sed_topp']))
+                        testResult_sbtde_topp.append((x['testing_image'], x['testing_sbtde_topp']))
+
                 if len(loss_sed) != 0:
                     avg_loss_sed = np.mean(loss_sed)
                     avg_loss_sbtde = np.mean(loss_sbtde)
+                    avg_loss_sed_topp = np.mean(loss_sed_topp)
+                    avg_loss_sbtde_topp = np.mean(loss_sbtde_topp)
                     avg_loss_auc = np.mean(loss_auc)
                     avg_loss_nss = np.mean(loss_nss)
                     sppSED, sppSBTDE = self.metrics.get_sppSed_and_sppSbtde(testResult_sed, testResult_sbtde)
+                    sppSED_topp, sppSBTDE_topp = self.metrics.get_sppSed_and_sppSbtde(testResult_sed_topp, testResult_sbtde_topp)
                     sppSED = np.mean(sppSED)
                     sppSBTDE = np.mean(sppSBTDE)
-                    print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde, ', AUC: ',
-                          avg_loss_auc, ', NSS: ', avg_loss_nss, ', spp SED: ', sppSED, ', spp SBTDE: ', sppSBTDE)
+                    sppSED_topp = np.mean(sppSED_topp)
+                    sppSBTDE_topp = np.mean(sppSBTDE_topp)
+                    print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde,', SED_topp: ', avg_loss_sed_topp,', SBTDE_topp: ', avg_loss_sbtde_topp,', AUC: ', avg_loss_auc,', NSS: ', avg_loss_nss, ', spp SED: ', sppSED, ', spp SBTDE: ', sppSBTDE, ', spp SED topp: ', sppSED_topp, ', spp SBTDE topp: ', sppSBTDE_topp)
                     if self.enableLogging == 'True':
-                        self.log('testing_evaluation_meanSED', avg_loss_sed, on_step=False, on_epoch=True,
+                        self.log('testing_evaluation_meanSED', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
+                                    sync_dist=True)
+                        self.log('testing_evaluation_meanSBTDE', avg_loss_sbtde, on_step=False, on_epoch=True, prog_bar=True,
+                                    sync_dist=True)
+                        self.log('testing_evaluation_meanSED_topp', avg_loss_sed_topp, on_step=False, on_epoch=True,
                                  prog_bar=True,
                                  sync_dist=True)
-                        self.log('testing_evaluation_meanSBTDE', avg_loss_sbtde, on_step=False, on_epoch=True,
+                        self.log('testing_evaluation_meanSBTDE_topp', avg_loss_sbtde_topp, on_step=False, on_epoch=True,
                                  prog_bar=True,
                                  sync_dist=True)
                         self.log('testing_evaluation_meanAUC', avg_loss_auc, on_step=False, on_epoch=True,
-                                 prog_bar=True,
-                                 sync_dist=True)
+                                    prog_bar=True,
+                                    sync_dist=True)
                         self.log('testing_evaluation_meanNSS', avg_loss_nss, on_step=False, on_epoch=True,
-                                 prog_bar=True,
-                                 sync_dist=True)
+                                    prog_bar=True,
+                                    sync_dist=True)
                         self.log('testing_evaluation_sppSED', sppSED, on_step=False, on_epoch=True, prog_bar=True,
-                                 sync_dist=True)
+                                    sync_dist=True)
                         self.log('testing_evaluation_sppSBTDE', sppSBTDE, on_step=False, on_epoch=True, prog_bar=True,
+                                    sync_dist=True)
+                        self.log('testing_evaluation_sppSED_topp', sppSED_topp, on_step=False, on_epoch=True, prog_bar=True,
+                                 sync_dist=True)
+                        self.log('testing_evaluation_sppSBTDE_topp', sppSBTDE_topp, on_step=False, on_epoch=True, prog_bar=True,
                                  sync_dist=True)
             else:
                 for x in test_step_outputs:
                     if x['testing_sed'] != -1:
                         loss_sed.append(x['testing_sed'])
                         loss_sbtde.append(x['testing_sbtde'])
+                        loss_sed_topp.append(x['testing_sed_topp'])
+                        loss_sbtde_topp.append(x['testing_sbtde_topp'])
                         testResult_sed.append((x['testing_image'], x['testing_sed']))
                         testResult_sbtde.append((x['testing_image'], x['testing_sbtde']))
+                        testResult_sed_topp.append((x['testing_image'], x['testing_sed_topp']))
+                        testResult_sbtde_topp.append((x['testing_image'], x['testing_sbtde_topp']))
                 if len(loss_sed) != 0:
                     avg_loss_sed = np.mean(loss_sed)
                     avg_loss_sbtde = np.mean(loss_sbtde)
+                    avg_loss_sed_topp = np.mean(loss_sed_topp)
+                    avg_loss_sbtde_topp = np.mean(loss_sbtde_topp)
                     sppSED, sppSBTDE = self.metrics.get_sppSed_and_sppSbtde(testResult_sed, testResult_sbtde)
+                    sppSED_topp, sppSBTDE_topp = self.metrics.get_sppSed_and_sppSbtde(testResult_sed_topp, testResult_sbtde_topp)
                     sppSED = np.mean(sppSED)
                     sppSBTDE = np.mean(sppSBTDE)
-                    print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde, ', spp SED: ',
-                          sppSED, ', spp SBTDE: ', sppSBTDE)
+                    sppSED_topp = np.mean(sppSED_topp)
+                    sppSBTDE_topp = np.mean(sppSBTDE_topp)
+                    print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde, ', SED_topp: ', avg_loss_sed_topp, ', SBTDE_topp: ', avg_loss_sbtde_topp, ', spp SED: ', sppSED, ', spp SBTDE: ', sppSBTDE, ', spp SED topp: ', sppSED_topp, ', spp SBTDE topp: ', sppSBTDE_topp)
                     if self.enableLogging == 'True':
-                        self.log('testing_evaluation_meanSED', avg_loss_sed, on_step=False, on_epoch=True,
+                        self.log('testing_evaluation_meanSED', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
+                                    sync_dist=True)
+                        self.log('testing_evaluation_meanSBTDE', avg_loss_sbtde, on_step=False, on_epoch=True, prog_bar=True,
+                                    sync_dist=True)
+                        self.log('testing_evaluation_meanSED_topp', avg_loss_sed_topp, on_step=False, on_epoch=True,
                                  prog_bar=True,
                                  sync_dist=True)
-                        self.log('testing_evaluation_meanSBTDE', avg_loss_sbtde, on_step=False, on_epoch=True,
+                        self.log('testing_evaluation_meanSBTDE_topp', avg_loss_sbtde_topp, on_step=False, on_epoch=True,
                                  prog_bar=True,
                                  sync_dist=True)
                         self.log('testing_evaluation_sppSED', sppSED, on_step=False, on_epoch=True, prog_bar=True,
-                                 sync_dist=True)
+                                    sync_dist=True)
                         self.log('testing_evaluation_sppSBTDE', sppSBTDE, on_step=False, on_epoch=True, prog_bar=True,
+                                    sync_dist=True)
+                        self.log('testing_evaluation_sppSED_topp', sppSED_topp, on_step=False, on_epoch=True, prog_bar=True,
+                                 sync_dist=True)
+                        self.log('testing_evaluation_sppSBTDE_topp', sppSBTDE_topp, on_step=False, on_epoch=True, prog_bar=True,
                                  sync_dist=True)
 
     def configure_optimizers(self):
