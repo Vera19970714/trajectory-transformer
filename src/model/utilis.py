@@ -71,5 +71,4 @@ if __name__ == '__main__':
     print("****use greedy decoder****")
     print(Sampler.greedy_decoder(data))
 
-    print("****use topk sampling decoder****")
-    print(Sampler.top_k_top_p_filtering(data2,top_p=0.8))
+    
