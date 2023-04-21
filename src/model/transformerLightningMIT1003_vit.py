@@ -558,8 +558,9 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
         imgSize = imgSize.to(DEVICE)
         # loss_max, LOSS, GAZE, LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         sed, sbtde = self.test_max(src_img, tgt_pos)
-        sed_beam, sbtde_beam = self.test_beam(src_img, tgt_pos)
-        sed_topp, sbtde_topp = self.test_topp(src_img, tgt_pos)
+        if self.args.isGreedyOutput == 'False':
+            sed_beam, sbtde_beam = self.test_beam(src_img, tgt_pos)
+            sed_topp, sbtde_topp = self.test_topp(src_img, tgt_pos)
         if self.args.saliency_metric == 'True':
             #auc, nss = self.test_saliency_max(imgSize, src_pos, src_img, tgt_pos, tgt_img, scanpath)
             # TODO: these functions havent changed regard to free viewing datasets
