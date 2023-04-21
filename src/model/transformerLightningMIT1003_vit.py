@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from evaluation.evaluation_mit1003 import EvaluationMetric
 from model.utilis import Sampler
+import copy
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -199,12 +200,14 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
                 GAZE[i - 1][0] = predicted
                 LOGITS[i - 1, :] = self.norm(logits[-1, :, :]).reshape(1, -1)
                 next_tgt_input = torch.cat((tgt_input, predicted.view(-1, 1)), dim=0)
+                
             else:
                 tgt_input = next_tgt_input
                 tgt_mask, tgt_padding_mask = self.processData(tgt_input)
                 logits = self.model(src_img, tgt_input.long(),
                                     tgt_mask, tgt_padding_mask)
                 _, predicted = torch.max(logits[-1, :, :], 1)
+                
                 '''if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -230,8 +233,6 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
             sbtde.append(sbtde_i)
         sed = np.mean(sed)
         sbtde = np.mean(sbtde)
-        print(sed)
-        print(sbtde)
         return sed, sbtde
         # COMMENT these because the rules have been changed, the output length is always 10
         '''if self.EOS_IDX in GAZE:
@@ -407,11 +408,11 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
                 logits_new = F.softmax(logits[-1, :, :], dim=-1)
                 logits_size = logits_new.size(-1)
                 top_k_scores, top_k_words = logits_new.topk(self.beam_num, dim=1, largest=True, sorted=True)
-
                 GAZE[i - 1][:] = top_k_words.view(1,-1)
                 Top_K_Scores[i - 1][:] = top_k_scores
                 # we always have top3 choices in beam search 
                 next_tgt_input = torch.stack((torch.cat((tgt_input, top_k_words[:,0].view(-1, 1)), dim=0),torch.cat((tgt_input, top_k_words[:,1].view(-1, 1)), dim=0),torch.cat((tgt_input, top_k_words[:,2].view(-1, 1)), dim=0)),dim=0)
+                
             else:
                 logits_all = torch.zeros((self.beam_num,logits_size))
                 for j in range(self.beam_num):
@@ -422,17 +423,20 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
                     logits_new = Top_K_Scores[i - 2][j]*F.softmax(logits[-1, :, :], dim=-1)
                     logits_all[j][:] = logits_new.view(-1)
                 top_k_scores, top_k_words = logits_all.view(1,-1).topk(self.beam_num, dim=1, largest=True, sorted=True)
+                top_k_index = top_k_words//logits_size
                 top_k_words = top_k_words%logits_size
+                GAZE_copy = copy.deepcopy(GAZE)
+                for m in range(self.beam_num):
+                    GAZE[:i - 1,m] = GAZE_copy[:i - 1,top_k_index.view(-1)[m]]
                 GAZE[i - 1][:] = top_k_words.view(1,-1)
+                GAZE = GAZE.to(DEVICE)
                 Top_K_Scores[i - 1][:] = top_k_scores
-                top_k_words = top_k_words.to(DEVICE)
-                next_tgt_input = torch.stack((torch.cat((next_tgt_input[0], top_k_words[:,0].view(-1, 1)), dim=0),torch.cat((next_tgt_input[1], top_k_words[:,1].view(-1, 1)), dim=0),torch.cat((next_tgt_input[2], top_k_words[:,2].view(-1, 1)), dim=0)),dim=0)
+                next_tgt_input = torch.stack((torch.cat((tgt_pos[0, :].view(-1,1), GAZE[:i,0].view(-1,1)), dim=0),torch.cat((tgt_pos[0, :].view(-1,1),GAZE[:i,1].view(-1,1)), dim=0),torch.cat((tgt_pos[0, :].view(-1,1), GAZE[:i,2].view(-1,1)), dim=0)),dim=0)
         # compare gt_seq with GAZE and compute SED, they should be of same size
-        
         sed = []
         sbtde = []
         scanpath_gt = gt_seq[:self.metrics.minLen, :].detach().cpu().numpy()
-        for index in range(self.beam_num):
+        for index in range(1):
             scanpath_pre = GAZE[:self.metrics.minLen, index].detach().cpu().numpy()
             sed_i, sbtde_i = self.metrics.get_sed_and_sbtde(scanpath_gt, scanpath_pre)
             sed.append(sed_i)
@@ -452,10 +456,10 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
         tgt_input = tgt_pos[:-1, :]
         length = tgt_pos.size(0)
         iter = self.args.stochastic_iteration
-        meanSed = 0
-        meanSbtde = 0
+        meanSed = []
+        meanSbtde = []
 
-        for n in range(iter):
+        for n in range(1):
             GAZE = torch.zeros((self.max_length, 1)) - 1
             for i in range(1, self.max_length + 1):
                 if i == 1:
@@ -464,9 +468,8 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
                     logits = self.model(src_img, tgt_input.long(),
                                         tgt_mask, tgt_padding_mask)
                     logits_new = self.sampler.top_k_top_p_decoder(logits[-1, :, :].view(1,-1), top_p=self.topp)
-                    logits_new = F.softmax(logits_new.view(-1), dim=0)
+                    logits_new = F.softmax(logits_new.view(-1), dim=-1)
                     predicted = torch.multinomial(logits_new, 1, replacement=True)
-                    
                     GAZE[i - 1][0] = predicted
                     '''if i < length:
                         tgt_out = tgt_pos[i, :]
@@ -481,9 +484,10 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
                     logits = self.model(src_img, tgt_input.long(),
                                         tgt_mask, tgt_padding_mask)
                     logits_new = self.sampler.top_k_top_p_decoder(logits[-1, :, :].view(1,-1), top_p=self.topp)
-                    logits_new = F.softmax(logits_new.view(-1), dim=0)
+                    logits_new = F.softmax(logits_new.view(-1), dim=-1)
                     predicted = torch.multinomial(logits_new, 1, replacement=True)
                     GAZE[i - 1][0] = predicted
+
                     '''if i < length:
                         tgt_out = tgt_pos[i, :]
                         LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -508,9 +512,11 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
             
             sed = np.mean(sed)
             sbtde = np.mean(sbtde)
-            meanSed += sed
-            meanSbtde += sbtde
-        return meanSed / iter,meanSbtde / iter
+            meanSed.append(sed)
+            meanSbtde.append(sbtde)
+        meanSed = np.mean(meanSed)
+        meanSbtde = np.mean(meanSbtde)
+        return meanSed, meanSbtde
 
 
     def test_gt(self, src_pos, src_img, tgt_pos, tgt_img):
@@ -541,6 +547,7 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
         return loss, predicted[:-1], tgt_out[:-1], LOGITS_tf[:-1]
 
     def test_step(self, batch, batch_idx):
+       
         imageName, imgSize, src_img, tgt_pos, scanpath = batch
         # src_img and tgt_img always have batch size 1
         # src_img = torch.stack(src_img)
