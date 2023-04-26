@@ -10,31 +10,35 @@ from PIL import Image
 def make_square(im, min_size=256, fill_color=(0, 0, 0, 0)):
     x, y = im.size
     size = max(min_size, x, y)
-    new_im = Image.new('RGBA', (size, size), fill_color)
+    new_im = Image.new('RGB', (size, size), fill_color)
     new_im.paste(im, (int((size - x) / 2), int((size - y) / 2)))
     return new_im
 
-def processRawData(padding, gazePath, stimuliPath, saveFilePath, N=4):
+def processRawData(padding, useVITFeature, gazePath, stimuliPath, saveFilePath, N=4):
     gazesExcel = pd.read_excel(gazePath)
     oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageSize': None,
                 'patchIndex': None, 'scanpathInPatch': []}
     processed_dataset = []
-    #negativeValue = False
     totalPoints = 0
     negativePoints = 0
     dataEntry = 0
     numOfRows = len(gazesExcel)
     allImages = {}
     onePointSeq = 0
-    feature_extractor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-224-in21k')
-    #for i, row in tqdm(gazesExcel.iterrows()):
+    if useVITFeature:
+        feature_extractor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-224-in21k')
+        resizeFactor = 1
+    else:
+        # NOTE: hardcode to 2 in order to compare with customize VIT
+        resizeFactor = 2
+
     for i in tqdm(range(numOfRows)):
         row = gazesExcel.loc[i]
         subject = row['Sub']
         task = row['Task']
         index = row['T']
-        x_coor = row['X']  #/ resizeFactor  # shape[1]
-        y_coor = row['Y']  #/ resizeFactor  # shape[0]
+        x_coor = row['X'] / resizeFactor  # shape[1]
+        y_coor = row['Y'] / resizeFactor  # shape[0]
 
         # save the current entry and start a new one
         if index == 1 and i != 0: #and not negativeValue:
@@ -59,11 +63,20 @@ def processRawData(padding, gazePath, stimuliPath, saveFilePath, N=4):
 
             # process image feature
             image1 = Image.open(imagePath)
-            if padding:
-                image1 = make_square(image1)
-            image_to_save = feature_extractor(image1)['pixel_values'][0]
+
+            if useVITFeature:
+                if padding:
+                    image1 = make_square(image1)
+                image_to_save = feature_extractor(image1)['pixel_values'][0]
 
             image = cv2.imread(imagePath)
+            if not useVITFeature:
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                image = cv2.resize(image, (int(image.shape[1] / resizeFactor), int(image.shape[0] / resizeFactor)))
+                image = cv2.normalize(image, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX,
+                                      dtype=cv2.CV_32F)
+                image_to_save = image
+
             imageH = image.shape[0]
             imageW = image.shape[1]
             oneEntry['imageSize'] = [imageH, imageW]
@@ -225,7 +238,9 @@ if __name__ == '__main__':
     '''processRawData_joint(gazePath='../dataset/MIT1003/MIT1003.xlsx',
                    saveFilePath='../dataset/MIT1003/processedData_joint',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/')'''
-    processRawData(padding=True, gazePath='../dataset/MIT1003/MIT1003.xlsx',
-                         saveFilePath='../dataset/MIT1003/processedData_padding',
+    processRawData(padding=True, useVITFeature=True, gazePath='../dataset/MIT1003/MIT1003.xlsx',
+                         saveFilePath='../dataset/MIT1003/processedData_pad',
                          stimuliPath='../dataset/MIT1003/ALLSTIMULI/')
     # COMMENT: padding can pad all the images to square
+    # useVITFeature: whether to use VIT pretrained feature extractor, if use no pretrained version pls set to False
+    # padding is NOT used if useVITFeature=False

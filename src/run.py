@@ -26,9 +26,11 @@ if __name__ == '__main__':
     # parameters ONLY for MIT1003
     parser.add_argument('-data_folder_path', default='../dataset/MIT1003/', type=str)
     parser.add_argument('-processed_data_name', default='processedData_vit_N4', type=str)
+    # todo: remember to change this with processed data name:
+    parser.add_argument('-grid_partition', default='4', type=int)
+
     # NOTE: this mode is not used currently
     parser.add_argument('-architecture_mode', default='heatmap', type=str) #choice: heatmap, scanpath, joint
-    parser.add_argument('-grid_partition', default='4', type=int)
     #parser.add_argument('-subject', default='emb', type=str)
     #allSubjects = ['CNG', 'ajs', 'emb', 'ems', 'ff', 'hp', 'jcw', 'jw', 'kae', 'krl', 'po', 'tmj', 'tu', 'ya', 'zb']
     parser.add_argument('-fold', default='1', type=int)  # ten fold cross validation: 1 to 10

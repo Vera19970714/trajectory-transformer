@@ -1,7 +1,7 @@
 from torch import Tensor
 import torch
 import torch.nn as nn
-from torch.nn import Transformer
+from torch.nn import Transformer, TransformerDecoderLayer, TransformerDecoder
 import math
 import torch.nn.functional as F
 from .transformerLightning import PositionalEncoding, VisualPositionalEncoding, TokenEmbedding
@@ -84,12 +84,16 @@ class Seq2SeqTransformer4MIT1003_VIT(nn.Module):
                  dim_feedforward: int,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer4MIT1003_VIT, self).__init__()
-        self.transformer = Transformer(d_model=emb_size,
+        '''self.transformer = Transformer(d_model=emb_size,
                                        nhead=nhead,
                                        num_encoder_layers=num_encoder_layers,
                                        num_decoder_layers=num_decoder_layers,
                                        dim_feedforward=dim_feedforward,
-                                       dropout=dropout)
+                                       dropout=dropout)'''
+        decoder_layer = nn.TransformerDecoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
+                                                         dropout=dropout)
+        self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_decoder_layers)
+
         self.generator = nn.Linear(emb_size, tgt_vocab_size).float()
         self.positional_encoding = PositionalEncoding(
             emb_size, dropout=dropout)
@@ -115,8 +119,10 @@ class Seq2SeqTransformer4MIT1003_VIT(nn.Module):
         tgt = self.embedding(trg)  #* math.sqrt(self.dim_model)
         tgt_emb = self.positional_encoding(tgt) # len, b, 512
 
-        outs = self.transformer(src_emb, tgt_emb, None, tgt_mask, None,
-                                None, tgt_padding_mask, None)
+        '''outs = self.transformer(src_emb, tgt_emb, None, tgt_mask, None,
+                                None, tgt_padding_mask, None)'''
+        outs = self.transformer_decoder(memory=src_emb, tgt=tgt_emb, tgt_mask=tgt_mask, memory_mask=None,
+                                tgt_key_padding_mask=tgt_padding_mask, memory_key_padding_mask=None)
         return self.generator(outs)
 
 def generate_square_subsequent_mask(sz):
