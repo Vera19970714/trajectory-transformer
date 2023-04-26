@@ -125,6 +125,7 @@ class Seq2SeqTransformer4MIT1003_VIT(nn.Module):
                                 tgt_key_padding_mask=tgt_padding_mask, memory_key_padding_mask=None)
         return self.generator(outs)
 
+
 def generate_square_subsequent_mask(sz):
     mask = (torch.triu(torch.ones((sz, sz), device=DEVICE)) == 1).transpose(0, 1)
     mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))

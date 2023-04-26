@@ -54,8 +54,29 @@ class TransformerModelMIT1003(pl.LightningModule):
         NUM_ENCODER_LAYERS = 4
         NUM_DECODER_LAYERS = 4
         inputDim = 2
+
+        '''if args.feature_extractor == 'CNN':
+            isCNNExtractor = True
+        elif args.feature_extractor == 'LP':
+            isCNNExtractor = False
+        else:
+            print('Wrong value of args.feature_extractor')'''
+        if args.decoder_input == 'index':
+            isDecoderOutputFea = False
+        elif args.decoder_input == 'plus_feature':
+            isDecoderOutputFea = True
+        else:
+            print('Wrong value of args.decoder_input')
+        if args.global_token == 'True':
+            isGlobalToken = True
+        elif args.global_token == 'False':
+            isGlobalToken = False
+        else:
+            print('Wrong value of args.decoder_input')
+
         self.model = Seq2SeqTransformer4MIT1003(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
-                                        NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, inputDim, FFN_HID_DIM).to(DEVICE).float()
+                                        NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, inputDim, FFN_HID_DIM,
+                                                isDecoderOutputFea, isGlobalToken).to(DEVICE).float()
         for p in self.model.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
