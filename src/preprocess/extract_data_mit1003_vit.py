@@ -7,7 +7,14 @@ import math
 from transformers import ViTFeatureExtractor
 from PIL import Image
 
-def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
+def make_square(im, min_size=256, fill_color=(0, 0, 0, 0)):
+    x, y = im.size
+    size = max(min_size, x, y)
+    new_im = Image.new('RGBA', (size, size), fill_color)
+    new_im.paste(im, (int((size - x) / 2), int((size - y) / 2)))
+    return new_im
+
+def processRawData(padding, gazePath, stimuliPath, saveFilePath, N=4):
     gazesExcel = pd.read_excel(gazePath)
     oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageSize': None,
                 'patchIndex': None, 'scanpathInPatch': []}
@@ -26,8 +33,8 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
         subject = row['Sub']
         task = row['Task']
         index = row['T']
-        x_coor = row['X'] / resizeFactor  # shape[1]
-        y_coor = row['Y'] / resizeFactor  # shape[0]
+        x_coor = row['X']  #/ resizeFactor  # shape[1]
+        y_coor = row['Y']  #/ resizeFactor  # shape[0]
 
         # save the current entry and start a new one
         if index == 1 and i != 0: #and not negativeValue:
@@ -45,16 +52,6 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
             oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageSize': None,
                         'patchIndex': None, 'scanpathInPatch': []}
 
-        # check for negative values
-        '''if index == 1:
-            negativeValue = False
-        if negativeValue:
-            continue
-        if x_coor < 0 or y_coor < 0:
-            negativeValue = True
-            oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageFeature': None}
-            continue'''
-
         imagePath = stimuliPath + task #+ '.jpeg'
         if index == 1:
             oneEntry['sub'] = subject
@@ -62,6 +59,8 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
 
             # process image feature
             image1 = Image.open(imagePath)
+            if padding:
+                image1 = make_square(image1)
             image_to_save = feature_extractor(image1)['pixel_values'][0]
 
             image = cv2.imread(imagePath)
@@ -223,6 +222,10 @@ def processRawData_joint(gazePath, stimuliPath, saveFilePath, N=4):
 if __name__ == '__main__':
     #processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx', saveFilePath='../dataset/MIT1003/processedData')
     #processRawData()
-    processRawData_joint(gazePath='../dataset/MIT1003/MIT1003.xlsx',
+    '''processRawData_joint(gazePath='../dataset/MIT1003/MIT1003.xlsx',
                    saveFilePath='../dataset/MIT1003/processedData_joint',
-                   stimuliPath='../dataset/MIT1003/ALLSTIMULI/')
+                   stimuliPath='../dataset/MIT1003/ALLSTIMULI/')'''
+    processRawData(padding=True, gazePath='../dataset/MIT1003/MIT1003.xlsx',
+                         saveFilePath='../dataset/MIT1003/processedData_padding',
+                         stimuliPath='../dataset/MIT1003/ALLSTIMULI/')
+    # COMMENT: padding can pad all the images to square
