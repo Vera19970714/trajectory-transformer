@@ -67,13 +67,15 @@ class TransformerModelMIT1003(pl.LightningModule):
             isDecoderOutputFea = True
         else:
             print('Wrong value of args.decoder_input')
+            quit()
         if args.global_token == 'True':
             isGlobalToken = True
         elif args.global_token == 'False':
             isGlobalToken = False
         else:
             print('Wrong value of args.decoder_input')
-
+            quit()
+        self.isGlobalToken = isGlobalToken
         self.model = Seq2SeqTransformer4MIT1003(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
                                         NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, inputDim, FFN_HID_DIM,
                                                 isDecoderOutputFea, isGlobalToken).to(DEVICE).float()
@@ -135,7 +137,8 @@ class TransformerModelMIT1003(pl.LightningModule):
 
         tgt_input = tgt_pos[:-1, :]
         #tgt_img = tgt_img[:, :-1, :, :, :]
-        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
+        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX,
+                                                                             self.isGlobalToken)
         if self.args.grid_partition != -1:
             src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
         else:
@@ -158,7 +161,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         src_pos_2d[0, :, 1] = -1
         return src_pos_2d, tgt_input_2d
 
-    def generate2DInputCenterMode(self, tgt_input, src_pos):
+    '''def generate2DInputCenterMode(self, tgt_input, src_pos):
         tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 2)).to(DEVICE).float()
         for i in range(tgt_input.size()[0]):
             for j in range(tgt_input.size()[1]):
@@ -181,7 +184,7 @@ class TransformerModelMIT1003(pl.LightningModule):
                     src_pos_2d[i][j][0] = -1
                     src_pos_2d[i][j][1] = -1
 
-        return src_pos_2d, tgt_input_2d
+        return src_pos_2d, tgt_input_2d'''
 
 
     def validation_step(self, batch, batch_idx):
@@ -272,7 +275,8 @@ class TransformerModelMIT1003(pl.LightningModule):
             if i == 1:
                 tgt_input = tgt_pos[:i, :]
                 tgt_img_input = tgt_img[:, :i, :, :, :]
-                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
+                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX,
+                                                                                     self.isGlobalToken)
                 if self.args.grid_partition != -1:
                     src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
                 else:
@@ -294,7 +298,8 @@ class TransformerModelMIT1003(pl.LightningModule):
             else:
                 tgt_input = next_tgt_input
                 tgt_img_input = next_tgt_img_input
-                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
+                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX,
+                                                                                     self.isGlobalToken)
                 if self.args.grid_partition != -1:
                     src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
                 else:
@@ -356,7 +361,8 @@ class TransformerModelMIT1003(pl.LightningModule):
             if i == 1:
                 tgt_input = tgt_pos[:i, :]
                 tgt_img_input = tgt_img[:, :i, :, :, :]
-                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
+                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX,
+                                                                                     self.isGlobalToken)
                 if self.args.grid_partition != -1:
                     src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
                 else:
@@ -378,7 +384,8 @@ class TransformerModelMIT1003(pl.LightningModule):
             else:
                 tgt_input = next_tgt_input
                 tgt_img_input = next_tgt_img_input
-                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
+                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX,
+                                                                                     self.isGlobalToken)
                 if self.args.grid_partition != -1:
                     src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
                 else:
@@ -416,7 +423,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         # return loss, LOSS, GAZE, LOGITS
 
     
-    def test_expect(self, src_pos, src_img, tgt_pos, tgt_img):
+    '''def test_expect(self, src_pos, src_img, tgt_pos, tgt_img):
         # TODO: remain unchanged, need to change based on new free viewing dataset
         tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
@@ -482,17 +489,17 @@ class TransformerModelMIT1003(pl.LightningModule):
                 GAZE_ALL.append(GAZE[:j, i])
             else:
                 GAZE_ALL.append(GAZE[:, i])
-        return loss, GAZE_ALL
+        return loss, GAZE_ALL'''
 
-    def test_gt(self, src_pos, src_img, tgt_pos, tgt_img):
-        '''
+    '''def test_gt(self, src_pos, src_img, tgt_pos, tgt_img):
+        
         NOT USED IN THE ACTUALLY EVALUATION
         :param src_pos:
         :param src_img:
         :param tgt_pos:
         :param tgt_img:
         :return:
-        '''
+        
         tgt_input = tgt_pos[:-1, :]
         tgt_img_input = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0) - 1
@@ -509,7 +516,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         _, predicted = torch.max(logits, 2)
         LOGITS_tf = soft(logits).squeeze(1)
         print(predicted.view(-1))
-        return loss, predicted[:-1], tgt_out[:-1], LOGITS_tf[:-1]
+        return loss, predicted[:-1], tgt_out[:-1], LOGITS_tf[:-1]'''
 
     def test_step(self, batch, batch_idx):
         imageName, imgSize, src_pos, src_img, tgt_pos, tgt_img, scanpath = batch

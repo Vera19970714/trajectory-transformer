@@ -153,7 +153,6 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
         else:
             tgt_emb = self.LinearEmbedding_decoder(trg)
         tgt_emb = self.positional_encoding(tgt_emb)
-        # todo: change src mask
         outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
                                 src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
         return self.generator(outs)
