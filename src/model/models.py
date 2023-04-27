@@ -157,7 +157,8 @@ def create_mask(src, tgt, PAD_IDX, isGlobalToken=False):
 
     src_padding_mask = (src == PAD_IDX).transpose(0, 1)
     if isGlobalToken:
-        token_pad = torch.tensor([[False], [False]]) #2,1
+        token_pad = torch.tensor([[False]]).view(1, 1)
+        token_pad = token_pad.repeat(src_padding_mask.size()[0], 1)
         src_padding_mask = torch.cat((token_pad, src_padding_mask), dim=1)
     tgt_padding_mask = (tgt == PAD_IDX).transpose(0, 1)
     return src_mask, tgt_mask, src_padding_mask, tgt_padding_mask
