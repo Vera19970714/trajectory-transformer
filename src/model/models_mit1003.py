@@ -102,7 +102,7 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
         self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))
         self.isDecoderOutputFea = isDecoderOutputFea
         self.isGlobalToken = isGlobalToken
-        self.laynorm = nn.LayerNorm(emb_size),
+        self.laynorm = nn.LayerNorm(emb_size)
         if not self.isDecoderOutputFea:
             self.LinearEmbedding_decoder = nn.Linear(input_dimension, emb_size)
         if self.isGlobalToken:
