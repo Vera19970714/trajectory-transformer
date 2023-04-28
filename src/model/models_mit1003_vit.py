@@ -100,7 +100,7 @@ class Seq2SeqTransformer4MIT1003_VIT(nn.Module):
 
         #self.vit = ViTModel.from_pretrained('google/vit-base-patch16-224-in21k')
 
-        configuration = ViTConfig(patch_size=14) #14, 56
+        configuration = ViTConfig(patch_size=16) #16, 56
         self.vit = ViTModel(configuration)
 
         self.embedding = nn.Embedding(tgt_vocab_size, emb_size)
