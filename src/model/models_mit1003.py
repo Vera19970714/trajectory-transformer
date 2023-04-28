@@ -41,19 +41,28 @@ class SPPLayer(nn.Module):
             tensor = pool(padded_input)
             tensor = torch.flatten(tensor, start_dim=1, end_dim=-1)
             pooling_layers.append(tensor)
-        x = torch.cat(pooling_layers, dim=-1)
+        x = torch.cat(pooling_layers, dim=-1) #32,128,512
         return x
 
 class CNNEmbedding(nn.Module):
     def __init__(self, outputSize, isCNNExtractor):
         super(CNNEmbedding, self).__init__()
-        self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
-        #self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
-        #self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU())
-        self.fc = nn.Linear(1360, outputSize)
-        self.sppLayer = SPPLayer()
-        # nn.init.kaiming_normal_(self.fc.weight, mode='fan_in',
-        #                        nonlinearity='leaky_relu')
+        #self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
+
+        # to add more CNN layer
+        self.cnn1 = nn.Sequential(
+            nn.Conv2d(3, 16, (5, 5), padding='same'),
+            nn.ReLU(),
+            #nn.MaxPool2d(5),
+            nn.Conv2d(16, 32, (3, 3), padding='same'),
+            nn.ReLU(),
+        ) # spp level4: 2720, level3:672
+
+        #self.fc = nn.Linear(1360, outputSize)
+        #self.sppLayer = SPPLayer()
+
+        self.fc = nn.Linear(672, outputSize)
+        self.sppLayer = SPPLayer(num_levels=3, pool_type='avg')
 
         self.isCNNExtractor = isCNNExtractor
 

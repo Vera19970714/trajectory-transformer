@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     # parameters ONLY for MIT1003
     parser.add_argument('-data_folder_path', default='../dataset/MIT1003/', type=str)
-    parser.add_argument('-processed_data_name', default='processedData_vit_N4', type=str)
+    parser.add_argument('-processed_data_name', default='processedData', type=str)
     # todo: remember to change this with processed data name:
     parser.add_argument('-grid_partition', default='4', type=int)
 
@@ -47,10 +47,10 @@ if __name__ == '__main__':
     
     # model settings and hyperparameters
     # choices: BaseModel,TransformerMIT1003,Transformer, TransformerMIT1003_vit
-    parser.add_argument('-model', default='TransformerMIT1003_vit', type=str)
+    parser.add_argument('-model', default='TransformerMIT1003', type=str)
     # architecture related choices: only for TransformerMIT1003
     parser.add_argument('-feature_extractor', default='CNN', type=str) # NOT USED # choice: CNN, LP
-    parser.add_argument('-decoder_input', default='index', type=str) # choice: index, plus_feature
+    parser.add_argument('-decoder_input', default='plus_feature', type=str) # choice: index, plus_feature
     parser.add_argument('-global_token', default='True', type=str) # choice: False, True
 
     parser.add_argument('-learning_rate', default=1e-4, type=float)
