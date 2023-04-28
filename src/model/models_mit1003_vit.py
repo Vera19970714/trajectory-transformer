@@ -100,10 +100,15 @@ class Seq2SeqTransformer4MIT1003_VIT(nn.Module):
 
         #self.vit = ViTModel.from_pretrained('google/vit-base-patch16-224-in21k')
 
-        configuration = ViTConfig(patch_size=16) #16, 56
+        self.patch_number = 16
+        patch_size = int(224 / self.patch_number)
+        configuration = ViTConfig(patch_size=patch_size) #16, 56
         self.vit = ViTModel(configuration)
 
         self.embedding = nn.Embedding(tgt_vocab_size, emb_size)
+
+        # changed for 16*16->4*4
+        self.maxpool4patch = nn.MaxPool2d((4, 4), (4, 4))
 
 
     def getCNNFeature(self, src_img: Tensor):
@@ -120,12 +125,20 @@ class Seq2SeqTransformer4MIT1003_VIT(nn.Module):
         src_emb = outputs.last_hidden_state  # b, 197, 768
         src_emb = src_emb.permute(1,0,2) # 197, b, 768
 
+        # changed for 16*16->4*4
+        b = src_emb.size()[1]
+        src_emb_patch = src_emb[1:].view(self.patch_number, self.patch_number, b, 768) # 16,16,2,768
+        src_emb_patch = src_emb_patch.permute(2,3,0,1)
+        new_src_emb_patch = self.maxpool4patch(src_emb_patch) #2,768,4,4
+        new_src_emb_patch = new_src_emb_patch.permute(2,3,0,1).view(16, b, 768) # 4,4,2,768->16,2,768
+        new_src_emb_patch = torch.cat((src_emb[0:1], new_src_emb_patch), dim=0)
+
         tgt = self.embedding(trg)  #* math.sqrt(self.dim_model)
         tgt_emb = self.positional_encoding(tgt) # len, b, 512
 
         '''outs = self.transformer(src_emb, tgt_emb, None, tgt_mask, None,
                                 None, tgt_padding_mask, None)'''
-        outs = self.transformer_decoder(memory=src_emb, tgt=tgt_emb, tgt_mask=tgt_mask, memory_mask=None,
+        outs = self.transformer_decoder(memory=new_src_emb_patch, tgt=tgt_emb, tgt_mask=tgt_mask, memory_mask=None,
                                 tgt_key_padding_mask=tgt_padding_mask, memory_key_padding_mask=None)
         return self.generator(outs)
 
