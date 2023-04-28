@@ -5,7 +5,7 @@ from torch.nn import Transformer, TransformerDecoderLayer, TransformerDecoder
 import math
 import torch.nn.functional as F
 from .transformerLightning import PositionalEncoding, VisualPositionalEncoding, TokenEmbedding
-from transformers import ViTFeatureExtractor, ViTModel
+from transformers import ViTFeatureExtractor, ViTModel, ViTConfig
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -98,7 +98,11 @@ class Seq2SeqTransformer4MIT1003_VIT(nn.Module):
         self.positional_encoding = PositionalEncoding(
             emb_size, dropout=dropout)
 
-        self.vit = ViTModel.from_pretrained('google/vit-base-patch16-224-in21k')
+        #self.vit = ViTModel.from_pretrained('google/vit-base-patch16-224-in21k')
+
+        configuration = ViTConfig(patch_size=14) #14, 56
+        self.vit = ViTModel(configuration)
+
         self.embedding = nn.Embedding(tgt_vocab_size, emb_size)
 
 

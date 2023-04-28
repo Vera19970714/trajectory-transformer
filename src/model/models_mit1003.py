@@ -45,15 +45,17 @@ class SPPLayer(nn.Module):
         return x
 
 class CNNEmbedding(nn.Module):
-    def __init__(self, outputSize):
+    def __init__(self, outputSize, isCNNExtractor):
         super(CNNEmbedding, self).__init__()
         self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
         #self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
-        self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU())
+        #self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU())
         self.fc = nn.Linear(1360, outputSize)
         self.sppLayer = SPPLayer()
         # nn.init.kaiming_normal_(self.fc.weight, mode='fan_in',
         #                        nonlinearity='leaky_relu')
+
+        self.isCNNExtractor = isCNNExtractor
 
     def forward(self, x: Tensor):
         b, l = len(x), x[0].size()[0]
@@ -81,7 +83,7 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
                  tgt_vocab_size: int,
                  input_dimension: int,
                  dim_feedforward: int,
-                 isDecoderOutputFea=True, isGlobalToken=False,
+                 isCNNExtractor=True, isDecoderOutputFea=True, isGlobalToken=False,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer4MIT1003, self).__init__()
         self.transformer = Transformer(d_model=emb_size,
@@ -98,7 +100,7 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
         self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
 
         #if isCNNExtractor:
-        self.cnn_embedding = CNNEmbedding(int(emb_size/2))
+        self.cnn_embedding = CNNEmbedding(int(emb_size/2), isCNNExtractor)
         self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))
         self.isDecoderOutputFea = isDecoderOutputFea
         self.isGlobalToken = isGlobalToken
