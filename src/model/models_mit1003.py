@@ -47,22 +47,22 @@ class SPPLayer(nn.Module):
 class CNNEmbedding(nn.Module):
     def __init__(self, outputSize, isCNNExtractor):
         super(CNNEmbedding, self).__init__()
-        self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
+        #self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
 
         # to add more CNN layer
-        '''self.cnn1 = nn.Sequential(
+        self.cnn1 = nn.Sequential(
             nn.Conv2d(3, 16, (5, 5), padding='same'),
             nn.ReLU(),
             #nn.MaxPool2d(5),
             nn.Conv2d(16, 32, (3, 3), padding='same'),
             nn.ReLU(),
-        )''' # spp level4: 2720, level3:672
+        ) # spp level4: 2720, level3:672
 
-        self.fc = nn.Linear(1360, outputSize)
-        self.sppLayer = SPPLayer()
+        #self.fc = nn.Linear(1360, outputSize)
+        #self.sppLayer = SPPLayer()
 
-        #self.fc = nn.Linear(672, outputSize)
-        #self.sppLayer = SPPLayer(num_levels=3, pool_type='avg')
+        self.fc = nn.Linear(672, outputSize)
+        self.sppLayer = SPPLayer(num_levels=3, pool_type='avg')
 
         self.isCNNExtractor = isCNNExtractor
 
@@ -109,9 +109,8 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
         self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
 
         #if isCNNExtractor:
-        # todo: changed
-        #self.cnn_embedding = CNNEmbedding(int(emb_size/2), isCNNExtractor)
-        self.cnn_embedding = CNNEmbedding(emb_size, isCNNExtractor)
+        self.cnn_embedding = CNNEmbedding(int(emb_size/2), isCNNExtractor)
+        #self.cnn_embedding = CNNEmbedding(emb_size, isCNNExtractor)
 
         self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))
         self.isDecoderOutputFea = isDecoderOutputFea
@@ -140,10 +139,9 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
         src_cnn_emb = self.cnn_embedding(src_img).transpose(0, 1) #28, 4, 256
         #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
 
-        # todo: changed
-        #src_pos_emb = self.LinearEmbedding(src)
-        #src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
-        src_emb = src_cnn_emb
+        src_pos_emb = self.LinearEmbedding(src)
+        src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
+        #src_emb = src_cnn_emb
 
         if self.isGlobalToken:
             bs = src_emb.size()[1]
