@@ -115,7 +115,7 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
         self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))
         self.isDecoderOutputFea = isDecoderOutputFea
         self.isGlobalToken = isGlobalToken
-        self.laynorm = nn.LayerNorm(emb_size)
+        #self.laynorm = nn.LayerNorm(emb_size)
         if not self.isDecoderOutputFea:
             self.LinearEmbedding_decoder = nn.Linear(input_dimension, emb_size)
         if self.isGlobalToken:
@@ -149,7 +149,7 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
             src_emb = torch.cat((cls_tokens, src_emb), dim=0)
         src_emb = self.visual_positional_encoding(src_emb) #28,4,512
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well
-        src_emb = self.laynorm(src_emb)
+        #src_emb = self.laynorm(src_emb)
         if self.isDecoderOutputFea:
             tgt_cnn_emb = self.cnn_embedding(tgt_img).transpose(0, 1)  # 28, 4, 256
             #tgt_pos_emb = self.tgt_tok_emb(trg)  # 28, 4, 256
@@ -157,7 +157,7 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
             tgt_emb = torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
         else:
             tgt_emb = self.LinearEmbedding_decoder(trg)
-        tgt_emb = self.laynorm(tgt_emb)
+        #tgt_emb = self.laynorm(tgt_emb)
         tgt_emb = self.positional_encoding(tgt_emb)
 
         outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
