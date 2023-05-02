@@ -47,22 +47,22 @@ class SPPLayer(nn.Module):
 class CNNEmbedding(nn.Module):
     def __init__(self, outputSize, isCNNExtractor):
         super(CNNEmbedding, self).__init__()
-        #self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
+        self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
 
         # to add more CNN layer
-        self.cnn1 = nn.Sequential(
+        '''self.cnn1 = nn.Sequential(
             nn.Conv2d(3, 16, (5, 5), padding='same'),
             nn.ReLU(),
             #nn.MaxPool2d(5),
             nn.Conv2d(16, 32, (3, 3), padding='same'),
             nn.ReLU()
-        ) # spp level4: 2720, level3:672
+        )''' # spp level4: 2720, level3:672
 
-        #self.fc = nn.Linear(1360, outputSize)
-        #self.sppLayer = SPPLayer()
+        self.fc = nn.Linear(1360, outputSize)
+        self.sppLayer = SPPLayer()
 
-        self.fc = nn.Linear(672, outputSize)
-        self.sppLayer = SPPLayer(num_levels=3, pool_type='avg')
+        #self.fc = nn.Linear(672, outputSize)
+        #self.sppLayer = SPPLayer(num_levels=3, pool_type='avg')
 
         self.isCNNExtractor = isCNNExtractor
 
