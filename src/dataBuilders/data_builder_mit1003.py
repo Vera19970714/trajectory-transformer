@@ -178,8 +178,8 @@ class Collator(object):
             gaze_seq = torch.from_numpy(gaze_seq).squeeze(0)
 
             gaze_seq = torch.cat((torch.tensor([self.BOS_IDX]),
-                              gaze_seq,
-                              torch.tensor([self.EOS_IDX])))
+                              gaze_seq)) #,
+                              #torch.tensor([self.EOS_IDX])))
             scanpath = torch.from_numpy(np.array(scanpath)).squeeze(0)
             package_seq.append(gaze_seq)
             scanpath_seq.append(scanpath)

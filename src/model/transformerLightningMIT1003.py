@@ -149,16 +149,20 @@ class TransformerModelMIT1003(pl.LightningModule):
 
     def generate2DInput(self, tgt_input, src_pos):
         tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 2)).to(DEVICE).float()
-        tgt_input_2d[:, :, 0] = tgt_input // self.numOfRegion
-        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, self.numOfRegion)
-        tgt_input_2d[0, :, 0] = (self.numOfRegion-1)/2
-        tgt_input_2d[0, :, 1] = (self.numOfRegion-1)/2
+        tgt_input_2d[:, :, 0] = tgt_input // self.numOfRegion / (self.numOfRegion-1) # todo: all changed to divide by 4
+        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, self.numOfRegion) / (self.numOfRegion-1)
+        tgt_input_2d[0, :, 0] = (self.numOfRegion-1)/2 / (self.numOfRegion-1)
+        tgt_input_2d[0, :, 1] = (self.numOfRegion-1)/2 / (self.numOfRegion-1)
 
         src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 2)).to(DEVICE).float()
-        src_pos_2d[:, :, 0] = src_pos // self.numOfRegion
-        src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.numOfRegion)
-        src_pos_2d[0, :, 0] = -1
-        src_pos_2d[0, :, 1] = -1
+        src_pos_2d[:, :, 0] = src_pos // self.numOfRegion / (self.numOfRegion-1)
+        src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.numOfRegion) / (self.numOfRegion-1)
+        # todo: changed
+        #src_pos_2d[0, :, 0] = -1
+        #src_pos_2d[0, :, 1] = -1
+        src_pos_2d[0, :, 0] = (self.numOfRegion - 1) / 2 / (self.numOfRegion-1)
+        src_pos_2d[0, :, 1] = (self.numOfRegion - 1) / 2 / (self.numOfRegion-1)
+
         return src_pos_2d, tgt_input_2d
 
     '''def generate2DInputCenterMode(self, tgt_input, src_pos):
@@ -342,7 +346,7 @@ class TransformerModelMIT1003(pl.LightningModule):
             LOGITS = LOGITS[:endIndex]
         return loss, LOSS, GAZE, LOGITS'''
 
-    def test_saliency_max(self, imgSize, src_pos, src_img, tgt_pos, tgt_img, scanpath):
+    '''def test_saliency_max(self, imgSize, src_pos, src_img, tgt_pos, tgt_img, scanpath):
         # If target sequence length less than 10, then skip this function
         gt_seq = tgt_pos[1:, :]
         tgt_seq_len = gt_seq.size()[0]
@@ -420,7 +424,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         auc,nss = self.metrics.saliencyEvaluation(scanpath.detach().cpu().numpy(),GAZE.detach().cpu().numpy(),imgSize[0],imgSize[1])
         return auc, nss
         # COMMENT these because the rules have been changed, the output length is always 10
-        # return loss, LOSS, GAZE, LOGITS
+        # return loss, LOSS, GAZE, LOGITS'''
 
     
     '''def test_expect(self, src_pos, src_img, tgt_pos, tgt_img):
@@ -533,6 +537,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         #loss_max, LOSS, GAZE, LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         sed, sbtde = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         if self.args.saliency_metric == 'True':
+            # NOT TESTED
             auc, nss = self.test_saliency_max(imgSize, src_pos, src_img, tgt_pos, tgt_img,scanpath)
         # TODO: these functions havent changed regard to free viewing datasets
         #loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)

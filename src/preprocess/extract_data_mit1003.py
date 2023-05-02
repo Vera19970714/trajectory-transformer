@@ -4,6 +4,44 @@ import pandas as pd
 import cv2
 from tqdm import tqdm
 import math
+import matplotlib.pyplot as plt
+
+def drawResolutionDistribution(gazePath, stimuliPath):
+    gazesExcel = pd.read_excel(gazePath)
+    oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageSize': None,
+                'patchIndex': None, 'scanpathInPatch': []}
+    numOfRows = len(gazesExcel)
+    h=[]
+    w=[]
+    for i in tqdm(range(numOfRows)):
+        row = gazesExcel.loc[i]
+        subject = row['Sub']
+        task = row['Task']
+        index = row['T']
+
+        # save the current entry and start a new one
+        if index == 1 and i != 0:
+            oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageSize': None,
+                        'patchIndex': None, 'scanpathInPatch': []}
+
+        imagePath = stimuliPath + task #+ '.jpeg'
+        if index == 1:
+            oneEntry['sub'] = subject
+            oneEntry['imagePath'] = task #imagePath
+
+            # process image feature
+            image = cv2.imread(imagePath)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            imageH = image.shape[0]
+            imageW = image.shape[1]
+            h.append(imageH)
+            w.append(imageW)
+    plt.scatter(h, w, alpha=0.01)
+    plt.xlabel('height')
+    plt.ylabel('width')
+    plt.show()
+
+
 
 def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
     gazesExcel = pd.read_excel(gazePath)
@@ -290,7 +328,8 @@ if __name__ == '__main__':
                              saveFilePath='../dataset/Toronto/processedData_N4_centerMode',
                              centerModeFilePath='../dataset/MIT1003/centerModeIndex.txt',
                              resizeFactor=2)'''
-    processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
+    '''processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
                    saveFilePath='../dataset/MIT1003/processedData',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
-                   resizeFactor=2, N=4)
+                   resizeFactor=2, N=4)'''
+    drawResolutionDistribution(gazePath='../dataset/MIT1003/MIT1003.xlsx', stimuliPath='../dataset/MIT1003/ALLSTIMULI/')

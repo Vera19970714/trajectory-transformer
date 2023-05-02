@@ -55,7 +55,7 @@ class CNNEmbedding(nn.Module):
             nn.ReLU(),
             #nn.MaxPool2d(5),
             nn.Conv2d(16, 32, (3, 3), padding='same'),
-            nn.ReLU(),
+            nn.ReLU()
         ) # spp level4: 2720, level3:672
 
         #self.fc = nn.Linear(1360, outputSize)
