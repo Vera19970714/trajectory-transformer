@@ -51,7 +51,7 @@ if __name__ == '__main__':
     # architecture related choices: only for TransformerMIT1003
     parser.add_argument('-feature_extractor', default='CNN', type=str) # NOT USED # choice: CNN, LP
     parser.add_argument('-decoder_input', default='plus_feature', type=str) # choice: index, plus_feature
-    parser.add_argument('-global_token', default='True', type=str) # choice: False, True
+    parser.add_argument('-global_token', default='False', type=str) # choice: False, True
 
     parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=20, type=int)

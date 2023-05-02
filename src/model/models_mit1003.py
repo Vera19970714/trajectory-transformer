@@ -109,7 +109,10 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
         self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
 
         #if isCNNExtractor:
-        self.cnn_embedding = CNNEmbedding(int(emb_size/2), isCNNExtractor)
+        # todo: changed
+        #self.cnn_embedding = CNNEmbedding(int(emb_size/2), isCNNExtractor)
+        self.cnn_embedding = CNNEmbedding(emb_size, isCNNExtractor)
+
         self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))
         self.isDecoderOutputFea = isDecoderOutputFea
         self.isGlobalToken = isGlobalToken
@@ -136,8 +139,11 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
                 memory_key_padding_mask: Tensor):
         src_cnn_emb = self.cnn_embedding(src_img).transpose(0, 1) #28, 4, 256
         #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
-        src_pos_emb = self.LinearEmbedding(src)
-        src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
+
+        # todo: changed
+        #src_pos_emb = self.LinearEmbedding(src)
+        #src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
+        src_emb = src_cnn_emb
 
         if self.isGlobalToken:
             bs = src_emb.size()[1]
