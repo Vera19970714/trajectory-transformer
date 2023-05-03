@@ -43,7 +43,8 @@ def drawResolutionDistribution(gazePath, stimuliPath):
 
 
 
-def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_path=None, N=4):
+def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_path=None, number_of_patch=8):
+    N=4 # always 4
     gazesExcel = pd.read_excel(gazePath)
     oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageSize': None,
                 'patchIndex': None, 'scanpathInPatch': []}
@@ -111,19 +112,20 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_path=N
             imageW = image.shape[1]
             oneEntry['imageSize'] = [imageH, imageW]
 
-
             # padding, make it dividable by N
-            margin1 = N * (math.ceil(image.shape[0] / N)) - image.shape[0]
-            margin2 = N * (math.ceil(image.shape[1] / N)) - image.shape[1]
+            margin1 = number_of_patch * (math.ceil(image.shape[0] / number_of_patch)) - image.shape[0]
+            margin2 = number_of_patch * (math.ceil(image.shape[1] / number_of_patch)) - image.shape[1]
             top = int(margin1 / 2)
             bottom = margin1 - top
             left = int(margin2 / 2)
             right = margin2 - left
             image = cv2.copyMakeBorder(image, top, bottom, left, right, cv2.BORDER_CONSTANT, None, 0)
-            assert image.shape[0] % N == 0
-            assert image.shape[1] % N == 0
-            patchH = int(image.shape[0] / N)
-            patchW = int(image.shape[1] / N)
+            assert image.shape[0] % number_of_patch == 0
+            assert image.shape[1] % number_of_patch == 0
+            patchH = int(image.shape[0] / number_of_patch)
+            patchW = int(image.shape[1] / number_of_patch)
+            patchH_N = int(image.shape[0] / N)
+            patchW_N = int(image.shape[1] / N)
             patches = np.stack(np.split(image, patchH, axis=0))  # 96, 4, 512, 3
             patches = np.stack(np.split(patches, patchW, axis=2))  # 128, 96, 4, 4, 3
             patches = patches.reshape(patchW, patchH, -1, numOfChannel).transpose(2,1,0,3)  # 16, 96, 128, 3
@@ -140,10 +142,10 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_path=N
             assert oneEntry['imageSize'] == [imageH, imageW]
         if x_coor > 0 and y_coor > 0 and x_coor < imageW and y_coor < imageH:
             oneEntry['scanpath'].append([y_coor, x_coor])
-            assert math.floor(y_coor / patchH) < N
-            assert math.floor(x_coor / patchW) < N
+            assert math.floor(y_coor / patchH_N) < N
+            assert math.floor(x_coor / patchW_N) < N
 
-            before = np.array([math.floor(y_coor / patchH), math.floor(x_coor / patchW)])
+            before = np.array([math.floor(y_coor / patchH_N), math.floor(x_coor / patchW_N)])
             pos = np.ravel_multi_index(before, (N, N))
             oneEntry['scanpathInPatch'].append(pos)
         else:
@@ -344,4 +346,4 @@ if __name__ == '__main__':
     processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
                    saveFilePath='../dataset/MIT1003/processedData_3_sod',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
-                   resizeFactor=3, SOD_path='../dataset/MIT1003/mask_0/')
+                   resizeFactor=3, SOD_path='../dataset/MIT1003/mask_0/', number_of_patch=8)

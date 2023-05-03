@@ -102,8 +102,10 @@ class MIT1003DataModule(pl.LightningDataModule):
         train_set = MIT1003Dataset(args, True)
         val_set = MIT1003Dataset(args, False)
         test_set = MIT1003Dataset(args, False)
-        collate_fn_train = Collator(train_set.getImageData(), True, args.grid_partition)
-        collate_fn_test = Collator(train_set.getImageData(), False, args.grid_partition)
+        collate_fn_train = Collator(train_set.getImageData(), True, args.grid_partition,
+                                    args.number_of_patches)
+        collate_fn_test = Collator(train_set.getImageData(), False, args.grid_partition,
+                                   args.number_of_patches)
 
         self.train_loader = DataLoader(dataset=train_set,
                                        batch_size=args.batch_size,
@@ -141,18 +143,21 @@ class MIT1003DataModule(pl.LightningDataModule):
 
 
 class Collator(object):
-    def __init__(self, imageData, isTrain, partitionGrid):
+    def __init__(self, imageData, isTrain, partitionGrid, number_of_patches):
         super().__init__()
-        if partitionGrid != -1:
+        '''if partitionGrid != -1:
             self.package_size = int(partitionGrid * partitionGrid)
         else:
-            self.package_size = 28
-        self.PAD_IDX = self.package_size
+            self.package_size = 28'''
+        number_of_grids = int(partitionGrid * partitionGrid)
+        self.package_size = int(number_of_patches * number_of_patches)
+        self.PAD_IDX = number_of_grids
         self.BOS_IDX = self.PAD_IDX+1
         self.EOS_IDX = self.PAD_IDX+2
         self.total_extra_index = 3
         self.imageData = imageData
         self.isTrain = isTrain
+
 
     def __call__(self, data):
         package_target = []
