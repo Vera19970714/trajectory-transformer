@@ -287,7 +287,7 @@ class TransformerModelMIT1003(pl.LightningModule):
                 else:
                     src_pos_2d, tgt_input_2d = self.generate2DInputCenterMode(tgt_input, src_pos)
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
-                                    src_img, tgt_img_input,
+                                    src_img.float(), tgt_img_input.float(),
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 _, predicted = torch.max(logits[-1, :, :], 1)
                 if i < length:
@@ -310,7 +310,7 @@ class TransformerModelMIT1003(pl.LightningModule):
                 else:
                     src_pos_2d, tgt_input_2d = self.generate2DInputCenterMode(tgt_input, src_pos)
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
-                                    src_img, tgt_img_input,
+                                    src_img.float(), tgt_img_input.float(),
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 _, predicted = torch.max(logits[-1, :, :], 1)
                 if i < length:
