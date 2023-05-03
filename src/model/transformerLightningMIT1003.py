@@ -274,7 +274,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         LOSS = torch.zeros((length - 1, 1)) - 1
         GAZE = torch.zeros((self.max_length, 1)) - 1
         LOGITS = torch.zeros((self.max_length, self.package_size+self.numofextraindex))
-        blank = torch.zeros((1, self.numofextraindex, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
+        blank = torch.zeros((1, self.numofextraindex, src_img.size()[2], src_img.size()[3], src_img.size()[4])).to(DEVICE)
         new_src_img = torch.cat((src_img, blank), dim=1)  # 31,300,186,3
         for i in range(1, self.max_length + 1):
             if i == 1:
