@@ -178,8 +178,7 @@ class Collator(object):
             gaze_seq = torch.from_numpy(gaze_seq).squeeze(0)
 
             gaze_seq = torch.cat((torch.tensor([self.BOS_IDX]),
-                              gaze_seq)) #,
-                              #torch.tensor([self.EOS_IDX])))
+                              gaze_seq, torch.tensor([self.EOS_IDX])))
             scanpath = torch.from_numpy(np.array(scanpath)).squeeze(0)
             package_seq.append(gaze_seq)
             scanpath_seq.append(scanpath)
@@ -188,8 +187,8 @@ class Collator(object):
             question_img_feature = np.stack(question_img_feature)
             question_img_feature = torch.from_numpy(question_img_feature)
             # CHANGED to ones
-            blank = torch.ones((self.total_extra_index, question_img_feature.size()[1], question_img_feature.size()[2], 3))
-            question_img.append(torch.cat((question_img_feature, blank), dim=0))  # 5,300,186,3
+            blank = torch.ones((self.total_extra_index, question_img_feature.size()[1], question_img_feature.size()[2], question_img_feature.size()[3]))
+            question_img.append(torch.cat((question_img_feature, blank), dim=0).float())  # 5,300,186,3
 
         package_seq = pad_sequence(package_seq, padding_value=self.PAD_IDX, batch_first=False)
         package_target = torch.stack(package_target).T

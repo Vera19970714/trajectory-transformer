@@ -45,9 +45,12 @@ class SPPLayer(nn.Module):
         return x
 
 class CNNEmbedding(nn.Module):
-    def __init__(self, outputSize, isCNNExtractor):
+    def __init__(self, outputSize, isCNNExtractor, add_salient_OD):
         super(CNNEmbedding, self).__init__()
-        self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
+        channel = 3
+        if add_salient_OD:
+            channel += 1
+        self.cnn1 = nn.Sequential(nn.Conv2d(channel, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
 
         # to add more CNN layer
         '''self.cnn1 = nn.Sequential(
@@ -92,7 +95,8 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
                  tgt_vocab_size: int,
                  input_dimension: int,
                  dim_feedforward: int,
-                 isCNNExtractor=True, isDecoderOutputFea=True, isGlobalToken=False,
+                 isCNNExtractor=True, isDecoderOutputFea=True, isGlobalToken=True,
+                 add_salient_OD=False,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer4MIT1003, self).__init__()
         self.transformer = Transformer(d_model=emb_size,
@@ -109,7 +113,7 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
         self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
 
         #if isCNNExtractor:
-        self.cnn_embedding = CNNEmbedding(int(emb_size/2), isCNNExtractor)
+        self.cnn_embedding = CNNEmbedding(int(emb_size/2), isCNNExtractor, add_salient_OD).float()
         #self.cnn_embedding = CNNEmbedding(emb_size, isCNNExtractor)
 
         self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))

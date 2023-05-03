@@ -12,7 +12,7 @@ from model.utilis import Sampler
 
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+torch.set_default_dtype(torch.float64)
 
 class TransformerModelMIT1003(pl.LightningModule):
     def __init__(self, args):
@@ -54,6 +54,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         NUM_ENCODER_LAYERS = 4
         NUM_DECODER_LAYERS = 4
         inputDim = 2
+        add_salient_OD = args.add_salient_OD
 
         if args.feature_extractor == 'CNN':
             isCNNExtractor = True
@@ -78,7 +79,8 @@ class TransformerModelMIT1003(pl.LightningModule):
         self.isGlobalToken = isGlobalToken
         self.model = Seq2SeqTransformer4MIT1003(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
                                         NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, inputDim, FFN_HID_DIM,
-                                                isCNNExtractor, isDecoderOutputFea, isGlobalToken).to(DEVICE).float()
+                                                isCNNExtractor, isDecoderOutputFea, isGlobalToken,
+                                                add_salient_OD).to(DEVICE).float()
         for p in self.model.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
@@ -149,19 +151,18 @@ class TransformerModelMIT1003(pl.LightningModule):
 
     def generate2DInput(self, tgt_input, src_pos):
         tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 2)).to(DEVICE).float()
-        tgt_input_2d[:, :, 0] = tgt_input // self.numOfRegion / (self.numOfRegion-1) # todo: all changed to divide by 4
-        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, self.numOfRegion) / (self.numOfRegion-1)
-        tgt_input_2d[0, :, 0] = (self.numOfRegion-1)/2 / (self.numOfRegion-1)
-        tgt_input_2d[0, :, 1] = (self.numOfRegion-1)/2 / (self.numOfRegion-1)
+        tgt_input_2d[:, :, 0] = tgt_input // self.numOfRegion #/ (self.numOfRegion-1) # todo: all changed to divide by 4
+        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, self.numOfRegion) #/ (self.numOfRegion-1)
+        tgt_input_2d[0, :, 0] = (self.numOfRegion-1)/2 #/ (self.numOfRegion-1)
+        tgt_input_2d[0, :, 1] = (self.numOfRegion-1)/2 #/ (self.numOfRegion-1)
 
         src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 2)).to(DEVICE).float()
-        src_pos_2d[:, :, 0] = src_pos // self.numOfRegion / (self.numOfRegion-1)
-        src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.numOfRegion) / (self.numOfRegion-1)
-        # todo: changed
-        #src_pos_2d[0, :, 0] = -1
-        #src_pos_2d[0, :, 1] = -1
-        src_pos_2d[0, :, 0] = (self.numOfRegion - 1) / 2 / (self.numOfRegion-1)
-        src_pos_2d[0, :, 1] = (self.numOfRegion - 1) / 2 / (self.numOfRegion-1)
+        src_pos_2d[:, :, 0] = src_pos // self.numOfRegion #/ (self.numOfRegion-1)
+        src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.numOfRegion) #/ (self.numOfRegion-1)
+        src_pos_2d[0, :, 0] = -1
+        src_pos_2d[0, :, 1] = -1
+        #src_pos_2d[0, :, 0] = (self.numOfRegion - 1) / 2 / (self.numOfRegion-1)
+        #src_pos_2d[0, :, 1] = (self.numOfRegion - 1) / 2 / (self.numOfRegion-1)
 
         return src_pos_2d, tgt_input_2d
 

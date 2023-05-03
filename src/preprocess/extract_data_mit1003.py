@@ -43,7 +43,7 @@ def drawResolutionDistribution(gazePath, stimuliPath):
 
 
 
-def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
+def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_path=None, N=4):
     gazesExcel = pd.read_excel(gazePath)
     oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageSize': None,
                 'patchIndex': None, 'scanpathInPatch': []}
@@ -55,6 +55,7 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
     numOfRows = len(gazesExcel)
     allImages = {}
     onePointSeq = 0
+    numOfChannel = 4 if SOD_path is not None else 3
     #for i, row in tqdm(gazesExcel.iterrows()):
     for i in tqdm(range(numOfRows)):
         row = gazesExcel.loc[i]
@@ -98,12 +99,19 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
             # process image feature
             image = cv2.imread(imagePath)
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            if SOD_path is not None:
+                sod_image_path = SOD_path + task[:-4] + 'png'
+                sod = cv2.imread(sod_image_path, 0) #np.zeros((image.shape[0], image.shape[1], 1))
+                sod = np.expand_dims(sod, axis=-1)
+                image = np.concatenate((image, sod), axis=2)
             image = cv2.resize(image, (int(image.shape[1]/resizeFactor), int(image.shape[0]/resizeFactor)))
             image = cv2.normalize(image, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX,
                                                dtype=cv2.CV_32F)
             imageH = image.shape[0]
             imageW = image.shape[1]
             oneEntry['imageSize'] = [imageH, imageW]
+
+
             # padding, make it dividable by N
             margin1 = N * (math.ceil(image.shape[0] / N)) - image.shape[0]
             margin2 = N * (math.ceil(image.shape[1] / N)) - image.shape[1]
@@ -118,7 +126,7 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, N=4):
             patchW = int(image.shape[1] / N)
             patches = np.stack(np.split(image, patchH, axis=0))  # 96, 4, 512, 3
             patches = np.stack(np.split(patches, patchW, axis=2))  # 128, 96, 4, 4, 3
-            patches = patches.reshape(patchW, patchH, -1, 3).transpose(2,1,0,3)  # 16, 96, 128, 3
+            patches = patches.reshape(patchW, patchH, -1, numOfChannel).transpose(2,1,0,3)  # 16, 96, 128, 3
             # indexs are always the same
             '''indexs = np.unravel_index(np.arange(N*N), (N, N))  # size: 16, 2
             indexs = np.concatenate((indexs[0].reshape(1, -1), indexs[1].reshape(1, -1)), axis=0)
@@ -332,4 +340,8 @@ if __name__ == '__main__':
                    saveFilePath='../dataset/MIT1003/processedData',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
                    resizeFactor=2, N=4)'''
-    drawResolutionDistribution(gazePath='../dataset/MIT1003/MIT1003.xlsx', stimuliPath='../dataset/MIT1003/ALLSTIMULI/')
+    #drawResolutionDistribution(gazePath='../dataset/MIT1003/MIT1003.xlsx', stimuliPath='../dataset/MIT1003/ALLSTIMULI/')
+    processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
+                   saveFilePath='../dataset/MIT1003/processedData_3_sod',
+                   stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
+                   resizeFactor=3, SOD_path='../dataset/MIT1003/mask_0/')
