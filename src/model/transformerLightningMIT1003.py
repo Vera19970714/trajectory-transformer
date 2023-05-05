@@ -524,20 +524,20 @@ class TransformerModelMIT1003(pl.LightningModule):
         return loss, predicted[:-1], tgt_out[:-1], LOGITS_tf[:-1]'''
 
     def test_step(self, batch, batch_idx):
-        imageName, imgSize, src_pos, src_img, tgt_pos, tgt_img, scanpath = batch
+        imageName, imgSize, src_pos, src_img, tgt_pos, tgt_img = batch
         # src_img and tgt_img always have batch size 1
         src_img = torch.stack(src_img)
         tgt_img = torch.stack(tgt_img)
-        scanpath = torch.squeeze(scanpath)
+        #scanpath = torch.squeeze(scanpath)
         src_pos.to(DEVICE)
         src_img = src_img.to(DEVICE)
         tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
-        scanpath = scanpath.to(DEVICE)
+        #scanpath = scanpath.to(DEVICE)
         imgSize = imgSize.to(DEVICE)
         #loss_max, LOSS, GAZE, LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         sed, sbtde = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
-        if self.args.saliency_metric == 'True':
+        '''if self.args.saliency_metric == 'True':
             # NOT TESTED
             auc, nss = self.test_saliency_max(imgSize, src_pos, src_img, tgt_pos, tgt_img,scanpath)
         # TODO: these functions havent changed regard to free viewing datasets
@@ -552,14 +552,14 @@ class TransformerModelMIT1003(pl.LightningModule):
                 self.log('testing_loss_auc', auc, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
                 self.log('testing_loss_nss', nss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
             return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_auc': auc,'testing_nss': nss, 'testing_image': imageName}
-        else:
-            if self.enableLogging == 'True' and sed != -1 and sbtde != -1:
-                #self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-                self.log('testing_loss_sed', sed, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-                self.log('testing_loss_sbtde', sbtde, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-                # self.log('testing_loss_sed_topk', meanSed_topk, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-                # self.log('testing_loss_sbtde_topk', meanSbtde_topk, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-            return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_image': imageName}
+        else:'''
+        if self.enableLogging == 'True' and sed != -1 and sbtde != -1:
+            #self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log('testing_loss_sed', sed, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log('testing_loss_sbtde', sbtde, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+            # self.log('testing_loss_sed_topk', meanSed_topk, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+            # self.log('testing_loss_sbtde_topk', meanSbtde_topk, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+        return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_image': imageName}
         # DISABLE this for now
         '''if self.args.write_output == 'True':
             return {'loss_max': loss_max, 'LOSS': LOSS, 'GAZE': GAZE, 'LOGITS': LOGITS, 'GAZE_tf': GAZE_tf,
