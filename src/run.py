@@ -27,7 +27,7 @@ if __name__ == '__main__':
     parser.add_argument('-data_folder_path', default='../dataset/MIT1003/', type=str)
     parser.add_argument('-processed_data_name', default='processedData_3_sod', type=str)
     parser.add_argument('-grid_partition', default='4', type=int) # DONT change this N==4
-    parser.add_argument('-number_of_patches', default='8', type=int)
+    parser.add_argument('-number_of_patches', default='8', type=int) #decoder_input MUST be index if this is not 4
 
     # NOTE: this mode is not used currently
     parser.add_argument('-architecture_mode', default='heatmap', type=str) #choice: heatmap, scanpath, joint
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     parser.add_argument('-model', default='TransformerMIT1003', type=str)
     # architecture related choices: only for TransformerMIT1003
     parser.add_argument('-feature_extractor', default='CNN', type=str) # NOT USED # choice: CNN, LP
-    parser.add_argument('-decoder_input', default='plus_feature', type=str) # choice: index, plus_feature
+    parser.add_argument('-decoder_input', default='index', type=str) # choice: index, plus_feature
     parser.add_argument('-global_token', default='True', type=str) # choice: False, True
     parser.add_argument('-add_salient_OD', default='True', type=str)
 
