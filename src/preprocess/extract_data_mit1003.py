@@ -161,13 +161,12 @@ def indexDistribution(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_pat
     plt.show()
 
 
-def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_path=None, number_of_patch=8):
+def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, number_of_patch, SOD_path=None):
     N=4 # always 4
     gazesExcel = pd.read_excel(gazePath)
-    oneEntry = {'sub': None, 'imagePath': None, 'imageSize': None,
-                'patchIndex': None, 'scanpathInPatch': []}
+    oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [],
+                'patchIndex': None, 'scanpathInPatch': [], 'heatmap': None}
     processed_dataset = []
-    #negativeValue = False
     totalPoints = 0
     negativePoints = 0
     dataEntry = 0
@@ -175,30 +174,31 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_path=N
     allImages = {}
     onePointSeq = 0
     numOfChannel = 4 if SOD_path is not None else 3
-    #for i, row in tqdm(gazesExcel.iterrows()):
     for i in tqdm(range(numOfRows)):
         row = gazesExcel.loc[i]
         subject = row['Sub']
         task = row['Task']
         index = row['T']
-        x_coor = row['X'] #/ resizeFactor  # shape[1]
-        y_coor = row['Y'] #/ resizeFactor  # shape[0]
+        x_coor = row['X']  # shape[1]
+        y_coor = row['Y']  # shape[0]
 
         # save the current entry and start a new one
-        if index == 1 and i != 0: #and not negativeValue:
+        if index == 1 and i != 0:
             assert oneEntry['sub'] is not None
             assert oneEntry['imagePath'] is not None
-            assert oneEntry['imageSize'] is not None
-            #assert oneEntry['imageFeature'] is not None
 
             if len(oneEntry['scanpathInPatch']) <= 1:
                 onePointSeq += 1
             else:
                 oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
+                indices = oneEntry['scanpath']
+                for ind in indices:
+                    heatmap[ind[0], ind[1]] = 1
+                oneEntry['heatmap'] = heatmap
                 processed_dataset.append(oneEntry)
             dataEntry += 1
-            oneEntry = {'sub': None, 'imagePath': None, 'imageSize': None,
-                        'patchIndex': None, 'scanpathInPatch': []}
+            oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [],
+                        'patchIndex': None, 'scanpathInPatch': [], 'heatmap': None}
 
         imagePath = stimuliPath + task #+ '.jpeg'
         if index == 1:
@@ -207,6 +207,7 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_path=N
 
             # process image feature
             image = cv2.imread(imagePath)
+            heatmap = np.zeros((image.shape[0], image.shape[1]))
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             imageH_original = image.shape[0]
             imageW_original = image.shape[1]
@@ -218,9 +219,6 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_path=N
             image = cv2.resize(image, (int(image.shape[1]/resizeFactor), int(image.shape[0]/resizeFactor)))
             image = cv2.normalize(image, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX,
                                                dtype=cv2.CV_32F)
-            imageH = image.shape[0]
-            imageW = image.shape[1]
-            oneEntry['imageSize'] = [imageH, imageW]
 
             # padding, make it dividable by N
             margin1 = number_of_patch * (math.ceil(image.shape[0] / number_of_patch)) - image.shape[0]
@@ -242,8 +240,8 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_path=N
         else:
             assert oneEntry['imagePath'] == task
             assert oneEntry['sub'] == subject
-            assert oneEntry['imageSize'] == [imageH, imageW]
         if x_coor > 0 and y_coor > 0 and x_coor < imageW_original and y_coor < imageH_original:
+            oneEntry['scanpath'].append([y_coor, x_coor])
             before = np.array([math.floor(y_coor / imageH_original * N), math.floor(x_coor / imageW_original * N)])
             pos = np.ravel_multi_index(before, (N, N))
             oneEntry['scanpathInPatch'].append(pos)
@@ -251,14 +249,16 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_path=N
             negativePoints += 1
         totalPoints += 1
 
-    #if not negativeValue:
     assert oneEntry['sub'] is not None
     assert oneEntry['imagePath'] is not None
-    assert oneEntry['imageSize'] is not None
     oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
     if len(oneEntry['scanpathInPatch']) == 1:
         onePointSeq += 1
     else:
+        indices = oneEntry['scanpath']
+        for ind in indices:
+            heatmap[ind[0], ind[1]] = 1
+        oneEntry['heatmap'] = heatmap
         processed_dataset.append(oneEntry)
     dataEntry += 1
 
@@ -425,26 +425,8 @@ def processRawDataCenterMode(resizeFactor, gazePath, stimuliPath, saveFilePath,
 
 if __name__ == '__main__':
     # Resize Factor: 2 for MIT1003, 1 for Toronto
-    #processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx', saveFilePath='../dataset/MIT1003/processedData')
-    #processRawData()
-    '''processRawDataCenterMode(gazePath='../dataset/MIT1003/MIT1003.xlsx',
-                   stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
-                   saveFilePath='../dataset/MIT1003/processedData_N4_centerMode',
-                   centerModeFilePath='../dataset/MIT1003/centerModeIndex.txt',
-                             resizeFactor=2)'''
-    '''processRawDataCenterMode(gazePath='../dataset/Toronto/Toronto.xlsx',
-                             stimuliPath='../dataset/Toronto/Images/',
-                             saveFilePath='../dataset/Toronto/processedData_N4_centerMode',
-                             centerModeFilePath='../dataset/MIT1003/centerModeIndex.txt',
-                             resizeFactor=2)'''
-    '''processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
-                   saveFilePath='../dataset/MIT1003/processedData',
-                   stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
-                   resizeFactor=2, N=4)'''
     #drawResolutionDistribution(gazePath='../dataset/MIT1003/MIT1003.xlsx', stimuliPath='../dataset/MIT1003/ALLSTIMULI/')
-
-    # NOTE: indexDistribution for plotting, processRawData for file saving, they are same function
-    indexDistribution(gazePath='../dataset/MIT1003/MIT1003.xlsx',
+    processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
                    saveFilePath='../dataset/MIT1003/processedData_3_sod',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
                    resizeFactor=3, SOD_path='../dataset/MIT1003/mask_0/', number_of_patch=8)
