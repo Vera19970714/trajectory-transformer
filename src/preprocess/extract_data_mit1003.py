@@ -161,17 +161,19 @@ def indexDistribution(resizeFactor, gazePath, stimuliPath, saveFilePath, SOD_pat
     plt.show()
 
 
-def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, number_of_patch, SOD_path=None):
+def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, number_of_patch, SOD_path=None, addHeatmap=False):
     N=4 # always 4
     gazesExcel = pd.read_excel(gazePath)
     oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [],
-                'patchIndex': None, 'scanpathInPatch': [], 'heatmap': None}
+                'patchIndex': None, 'scanpathInPatch': []}
     processed_dataset = []
     totalPoints = 0
     negativePoints = 0
     dataEntry = 0
     numOfRows = len(gazesExcel)
     allImages = {}
+    if addHeatmap:
+        allImages['heatmaps'] = {}
     onePointSeq = 0
     numOfChannel = 4 if SOD_path is not None else 3
     for i in tqdm(range(numOfRows)):
@@ -191,14 +193,16 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, number_of_
                 onePointSeq += 1
             else:
                 oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
-                indices = oneEntry['scanpath']
-                for ind in indices:
-                    heatmap[ind[0], ind[1]] = 1
-                oneEntry['heatmap'] = heatmap
+                if addHeatmap:
+                    if oneEntry['imagePath'] not in allImages['heatmaps']:
+                        indices = oneEntry['scanpath']
+                        for ind in indices:
+                            heatmap[ind[0], ind[1]] = 1
+                        allImages['heatmaps'][oneEntry['imagePath']] = heatmap
                 processed_dataset.append(oneEntry)
             dataEntry += 1
             oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [],
-                        'patchIndex': None, 'scanpathInPatch': [], 'heatmap': None}
+                        'patchIndex': None, 'scanpathInPatch': []}
 
         imagePath = stimuliPath + task #+ '.jpeg'
         if index == 1:
@@ -255,10 +259,12 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, number_of_
     if len(oneEntry['scanpathInPatch']) == 1:
         onePointSeq += 1
     else:
-        indices = oneEntry['scanpath']
-        for ind in indices:
-            heatmap[ind[0], ind[1]] = 1
-        oneEntry['heatmap'] = heatmap
+        if addHeatmap:
+            if oneEntry['imagePath'] not in allImages['heatmaps']:
+                indices = oneEntry['scanpath']
+                for ind in indices:
+                    heatmap[ind[0], ind[1]] = 1
+                allImages['heatmaps'][oneEntry['imagePath']] = heatmap
         processed_dataset.append(oneEntry)
     dataEntry += 1
 
@@ -424,9 +430,9 @@ def processRawDataCenterMode(resizeFactor, gazePath, stimuliPath, saveFilePath,
     print('# one-point/zero-point gaze seq:', onePointSeq)
 
 if __name__ == '__main__':
-    # Resize Factor: 2 for MIT1003, 1 for Toronto
     #drawResolutionDistribution(gazePath='../dataset/MIT1003/MIT1003.xlsx', stimuliPath='../dataset/MIT1003/ALLSTIMULI/')
     processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
                    saveFilePath='../dataset/MIT1003/processedData_3_sod',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
-                   resizeFactor=3, SOD_path='../dataset/MIT1003/mask_0/', number_of_patch=8)
+                   resizeFactor=3, SOD_path='../dataset/MIT1003/mask_0/', number_of_patch=8,
+                   addHeatmap=True)

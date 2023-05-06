@@ -113,6 +113,7 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
         self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
 
         #if isCNNExtractor:
+        self.add_salient_OD = add_salient_OD
         self.cnn_embedding = CNNEmbedding(int(emb_size/2), isCNNExtractor, add_salient_OD).float()
         #self.cnn_embedding = CNNEmbedding(emb_size, isCNNExtractor)
 
@@ -140,6 +141,7 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
                 src_padding_mask: Tensor,
                 tgt_padding_mask: Tensor,
                 memory_key_padding_mask: Tensor):
+
         src_cnn_emb = self.cnn_embedding(src_img).transpose(0, 1) #28, 4, 256
         #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
 

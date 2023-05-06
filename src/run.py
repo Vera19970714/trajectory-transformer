@@ -8,10 +8,12 @@ from dataBuilders.data_builder import SearchDataModule
 from dataBuilders.data_builder_base import BaseSearchDataModule
 from dataBuilders.data_builder_mit1003 import MIT1003DataModule
 from dataBuilders.data_builder_mit1003_vit import MIT1003DataModule_VIT
+from dataBuilders.data_builder_mit1003_joint import MIT1003DataModule_JOINT
 from model.transformerLightning import TransformerModel
 from benchmark.base_lightning import BaseModel
 from model.transformerLightningMIT1003 import TransformerModelMIT1003
 from model.transformerLightningMIT1003_vit import TransformerModelMIT1003_VIT
+from model.transformerLightningMIT1003_joint import TransformerModelMIT1003_Joint
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -29,8 +31,6 @@ if __name__ == '__main__':
     parser.add_argument('-grid_partition', default='4', type=int) # DONT change this N==4
     parser.add_argument('-number_of_patches', default='8', type=int) #decoder_input MUST be index if this is not 4
 
-    # NOTE: this mode is not used currently
-    parser.add_argument('-architecture_mode', default='heatmap', type=str) #choice: heatmap, scanpath, joint
     #parser.add_argument('-subject', default='emb', type=str)
     #allSubjects = ['CNG', 'ajs', 'emb', 'ems', 'ff', 'hp', 'jcw', 'jw', 'kae', 'krl', 'po', 'tmj', 'tu', 'ya', 'zb']
     parser.add_argument('-fold', default='1', type=int)  # ten fold cross validation: 1 to 10
@@ -46,13 +46,14 @@ if __name__ == '__main__':
     parser.add_argument('-isGreedyOutput', type=str, default='True')
     
     # model settings and hyperparameters
-    # choices: BaseModel,TransformerMIT1003,Transformer, TransformerMIT1003_vit
+    # choices: BaseModel,TransformerMIT1003,Transformer, TransformerMIT1003_vit, TransformerMIT1003_joint
     parser.add_argument('-model', default='TransformerMIT1003', type=str)
-    # architecture related choices: only for TransformerMIT1003
+    parser.add_argument('-architecture_mode', default='scanpath', type=str)  # choice: heatmap, scanpath, joint
+    # architecture related choices: only for TransformerMIT1003 and joint
     parser.add_argument('-feature_extractor', default='CNN', type=str) # NOT USED # choice: CNN, LP
     parser.add_argument('-decoder_input', default='index', type=str) # choice: index, plus_feature
     parser.add_argument('-global_token', default='True', type=str) # choice: False, True
-    parser.add_argument('-add_salient_OD', default='True', type=str)
+    parser.add_argument('-add_salient_OD', default='False', type=str)
 
     parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=20, type=int)
@@ -115,6 +116,9 @@ if __name__ == '__main__':
     elif args.model == 'TransformerMIT1003_vit':
         model = TransformerModelMIT1003_VIT(args)
         search_data = MIT1003DataModule_VIT(args)
+    elif args.model == 'TransformerMIT1003_joint':
+        model = TransformerModelMIT1003_Joint(args)
+        search_data = MIT1003DataModule_JOINT(args)
     else:
         print('Invalid model')
     

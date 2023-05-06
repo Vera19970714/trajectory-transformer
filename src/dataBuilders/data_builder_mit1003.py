@@ -34,7 +34,7 @@ class MIT1003Dataset(Dataset):
         indexTxtList = indexTxt.split("\n")
         indexTxtFile.close()
 
-        assert len(self.imageData) == int(indexTxtList[0])
+        #assert len(self.imageData) == int(indexTxtList[0])
         foldImage = list(self.imageData)[int(indexTxtList[self.fold]):int(indexTxtList[self.fold+1])]
 
         # not used
@@ -47,7 +47,7 @@ class MIT1003Dataset(Dataset):
         self.subject = []
         self.scanpath = []
         #self.scanpathPixel = []
-        self.imageSize = []
+        #self.imageSize = []
         self.imageName = []
         self.patchIndex = []
         self.args = args
@@ -61,7 +61,7 @@ class MIT1003Dataset(Dataset):
                     self.subject.append(item['sub'])
                     self.scanpath.append(item['scanpathInPatch'])
                     #self.scanpathPixel.append(item['scanpath'])
-                    self.imageSize.append(item['imageSize'])
+                    #self.imageSize.append(item['imageSize'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
                     i += 1
@@ -71,7 +71,7 @@ class MIT1003Dataset(Dataset):
                     self.subject.append(item['sub'])
                     self.scanpath.append(item['scanpathInPatch'])
                     #self.scanpathPixel.append(item['scanpath'])
-                    self.imageSize.append(item['imageSize'])
+                    #self.imageSize.append(item['imageSize'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
                     i += 1
@@ -84,7 +84,7 @@ class MIT1003Dataset(Dataset):
         print(F'total_len = {self.data_total_length}')
 
     def __getitem__(self, index):
-        return self.subject[index], self.scanpath[index], self.imageName[index], self.subject[index], self.imageSize[index] #, self.patchIndex[index]
+        return self.subject[index], self.scanpath[index], self.imageName[index], self.subject[index] #, self.imageSize[index] #, self.patchIndex[index]
 
     def __len__(self):
         return self.data_total_length
@@ -103,9 +103,9 @@ class MIT1003DataModule(pl.LightningDataModule):
         val_set = MIT1003Dataset(args, False)
         test_set = MIT1003Dataset(args, False)
         collate_fn_train = Collator(train_set.getImageData(), True, args.grid_partition,
-                                    args.number_of_patches)
+                                    args.number_of_patches, args.add_salient_OD)
         collate_fn_test = Collator(train_set.getImageData(), False, args.grid_partition,
-                                   args.number_of_patches)
+                                   args.number_of_patches, args.add_salient_OD)
 
         self.train_loader = DataLoader(dataset=train_set,
                                        batch_size=args.batch_size,
@@ -143,7 +143,7 @@ class MIT1003DataModule(pl.LightningDataModule):
 
 
 class Collator(object):
-    def __init__(self, imageData, isTrain, partitionGrid, number_of_patches):
+    def __init__(self, imageData, isTrain, partitionGrid, number_of_patches, add_salient_OD):
         super().__init__()
         '''if partitionGrid != -1:
             self.package_size = int(partitionGrid * partitionGrid)
@@ -157,6 +157,7 @@ class Collator(object):
         self.total_extra_index = 3
         self.imageData = imageData
         self.isTrain = isTrain
+        self.add_salient_OD = add_salient_OD
 
 
     def __call__(self, data):
@@ -169,15 +170,15 @@ class Collator(object):
         tgt_img = []
 
         firstImageName = data[0][2]
-        firstImgSize = data[0][4]
+        #firstImgSize = data[0][4]
 
         for data_entry in data:
-            imgSize = data_entry[4]
+            #imgSize = data_entry[4]
             imageName = data_entry[2]
             #scanpath = data_entry[4]
             if not self.isTrain:
                 assert firstImageName == imageName
-                assert firstImgSize == imgSize
+                #assert firstImgSize == imgSize
             question_img_feature = self.imageData[imageName]
             gaze_seq = data_entry[1]
             gaze_seq = torch.from_numpy(gaze_seq).squeeze(0)
@@ -193,7 +194,10 @@ class Collator(object):
             question_img_feature = torch.from_numpy(question_img_feature)
             # CHANGED to ones
             blank = torch.ones((self.total_extra_index, question_img_feature.size()[1], question_img_feature.size()[2], question_img_feature.size()[3]))
-            question_img.append(torch.cat((question_img_feature, blank), dim=0).float())  # 5,300,186,3
+            m = torch.cat((question_img_feature, blank), dim=0).float()
+            if self.add_salient_OD:
+                m = m[:, :, :, :3]
+            question_img.append(m)  # 5,300,186,3
 
         package_seq = pad_sequence(package_seq, padding_value=self.PAD_IDX, batch_first=False)
         package_target = torch.stack(package_target).T
@@ -212,12 +216,12 @@ class Collator(object):
         #tgt_img = torch.stack(tgt_img)
         #src_img = torch.stack(src_img)
         # output: src_pos (16, b), src_img(b, 16, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
-        firstImgSize = torch.from_numpy(np.array(firstImgSize))
+        #firstImgSize = torch.from_numpy(np.array(firstImgSize))
 
         if self.isTrain:
             return package_target, src_img, package_seq, tgt_img
         else:  # extra image name for SPP evaluation
-            return firstImageName, firstImgSize, package_target, src_img, package_seq, tgt_img
+            return firstImageName, package_target, src_img, package_seq, tgt_img
 
 
 if __name__ == '__main__':

@@ -55,6 +55,10 @@ class TransformerModelMIT1003(pl.LightningModule):
         NUM_DECODER_LAYERS = 4
         inputDim = 2
         add_salient_OD = args.add_salient_OD
+        if args.add_salient_OD == 'True':
+            add_salient_OD = True
+        elif args.add_salient_OD == 'False':
+            add_salient_OD = False
 
         if args.feature_extractor == 'CNN':
             isCNNExtractor = True
@@ -524,7 +528,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         return loss, predicted[:-1], tgt_out[:-1], LOGITS_tf[:-1]'''
 
     def test_step(self, batch, batch_idx):
-        imageName, imgSize, src_pos, src_img, tgt_pos, tgt_img = batch
+        imageName, src_pos, src_img, tgt_pos, tgt_img = batch
         # src_img and tgt_img always have batch size 1
         src_img = torch.stack(src_img)
         tgt_img = torch.stack(tgt_img)
@@ -534,7 +538,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
         #scanpath = scanpath.to(DEVICE)
-        imgSize = imgSize.to(DEVICE)
+        #imgSize = imgSize.to(DEVICE)
         #loss_max, LOSS, GAZE, LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         sed, sbtde = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         '''if self.args.saliency_metric == 'True':
