@@ -268,7 +268,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         # If target sequence length less than 10, then skip this function
         gt_seq = tgt_pos[1:, :]
         tgt_seq_len = gt_seq.size()[0]
-        if tgt_seq_len < self.metrics.minLen:
+        if tgt_seq_len - 1 < self.metrics.minLen:
             return -1, -1, -1, -1
         gt_seq = gt_seq[:self.metrics.minLen, :]
         tgt_input = tgt_pos[:-1, :]

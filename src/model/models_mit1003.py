@@ -97,7 +97,7 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
                  dim_feedforward: int,
                  isCNNExtractor=True, isDecoderOutputFea=True, isGlobalToken=True,
                  add_salient_OD=False,
-                 dropout: float = 0.1):
+                 dropout: float = 0.3):
         super(Seq2SeqTransformer4MIT1003, self).__init__()
         self.transformer = Transformer(d_model=emb_size,
                                        nhead=nhead,
