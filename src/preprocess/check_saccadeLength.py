@@ -65,11 +65,11 @@ for imageName, src_pos, src_img, tgt_pos, tgt_img in test_loader:
         gtY = gt // grid
         delta_gtX = [abs(gtX[i+1]-gtX[i]) for i in range(len(gtX)-1)]
         delta_gtY = [abs(gtY[i + 1] - gtY[i]) for i in range(len(gtY)-1)]
-        if imageH_original<imageW_original:
+        if imageH_original==768 and imageW_original==1024:
             horizontalSaccadeX.extend(delta_gtX)
             horizontalSaccadeY.extend(delta_gtY)
             horizontalNum += 1
-        elif imageH_original>imageW_original:
+        elif imageH_original==1024 and imageW_original==768:
             verticalSaccadeX.extend(delta_gtX)
             verticalSaccadeY.extend(delta_gtY)
             verticalNum += 1

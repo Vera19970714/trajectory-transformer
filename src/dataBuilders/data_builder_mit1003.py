@@ -76,8 +76,8 @@ class MIT1003Dataset(Dataset):
                     #self.patchIndex.append(self.indices)
                     i += 1
 
-            if i > 10:
-               break
+            #if i > 10:
+            #   break
 
         self.data_total_length = len(self.subject)
 
@@ -195,7 +195,7 @@ class Collator(object):
             # CHANGED to ones
             blank = torch.ones((self.total_extra_index, question_img_feature.size()[1], question_img_feature.size()[2], question_img_feature.size()[3]))
             m = torch.cat((question_img_feature, blank), dim=0).float()
-            if self.add_salient_OD:
+            if not self.add_salient_OD:
                 m = m[:, :, :, :3]
             question_img.append(m)  # 5,300,186,3
 
