@@ -269,7 +269,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         gt_seq = tgt_pos[1:, :]
         tgt_seq_len = gt_seq.size()[0]
         if tgt_seq_len < self.metrics.minLen:
-            return -1, -1
+            return -1, -1, -1, -1
         gt_seq = gt_seq[:self.metrics.minLen, :]
         tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
@@ -343,7 +343,7 @@ class TransformerModelMIT1003(pl.LightningModule):
             sbtde.append(sbtde_i)
         sed = np.mean(sed)
         sbtde = np.mean(sbtde)
-        return sed, sbtde
+        return sed, sbtde, gt_seq, GAZE
         # COMMENT these because the rules have been changed, the output length is always 10
         '''if self.EOS_IDX in GAZE:
             endIndex = torch.where(GAZE == self.EOS_IDX)[0][0]
@@ -539,8 +539,7 @@ class TransformerModelMIT1003(pl.LightningModule):
         tgt_img = tgt_img.to(DEVICE)
         #scanpath = scanpath.to(DEVICE)
         #imgSize = imgSize.to(DEVICE)
-        #loss_max, LOSS, GAZE, LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
-        sed, sbtde = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
+        sed, sbtde, gt_seq, predicted_seq = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         '''if self.args.saliency_metric == 'True':
             # NOT TESTED
             auc, nss = self.test_saliency_max(imgSize, src_pos, src_img, tgt_pos, tgt_img,scanpath)
@@ -557,128 +556,65 @@ class TransformerModelMIT1003(pl.LightningModule):
                 self.log('testing_loss_nss', nss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
             return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_auc': auc,'testing_nss': nss, 'testing_image': imageName}
         else:'''
-        if self.enableLogging == 'True' and sed != -1 and sbtde != -1:
-            #self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-            self.log('testing_loss_sed', sed, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-            self.log('testing_loss_sbtde', sbtde, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-            # self.log('testing_loss_sed_topk', meanSed_topk, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-            # self.log('testing_loss_sbtde_topk', meanSbtde_topk, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_image': imageName}
-        # DISABLE this for now
-        '''if self.args.write_output == 'True':
-            return {'loss_max': loss_max, 'LOSS': LOSS, 'GAZE': GAZE, 'LOGITS': LOGITS, 'GAZE_tf': GAZE_tf,
-                    'GAZE_gt': GAZE_gt, 'LOGITS_tf': LOGITS_tf, 'GAZE_expect': GAZE_expect}
-        else:
-            return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt}'''
+        if sed != -1 and sbtde != -1:
+            if self.enableLogging == 'True':
+                #self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+                self.log('testing_loss_sed', sed, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+                self.log('testing_loss_sbtde', sbtde, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+                # self.log('testing_loss_sed_topk', meanSed_topk, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+                # self.log('testing_loss_sbtde_topk', meanSbtde_topk, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+            if self.args.write_output == 'True':
+                return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_image': imageName, 'gt_gaze': gt_seq, 'pred_gaze': predicted_seq}
+            else:
+                return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_image': imageName}
 
     def test_epoch_end(self, test_step_outputs):
         if self.args.write_output == 'True':
-            all_loss, all_gaze, all_gaze_tf, all_gaze_gt, all_logits, all_logits_tf, all_gaze_expect = \
-                pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+            all_gaze, all_gaze_gt = pd.DataFrame(), pd.DataFrame()
             for output in test_step_outputs:
-                # losses = output['LOSS'].cpu().detach().numpy().T
-                # all_loss = pd.concat([all_loss, pd.DataFrame(losses)],axis=0)
-                gazes = output['GAZE'].cpu().detach().numpy().T
+                gazes = output['pred_gaze'].cpu().detach().numpy().T.tolist()
+                gazes[0].append(output['testing_image'])
                 all_gaze = pd.concat([all_gaze, pd.DataFrame(gazes)], axis=0)
-                # logits = output['LOGITS'].cpu().detach().view(1, -1).numpy()
-                # all_logits = pd.concat([all_logits, pd.DataFrame(logits)],axis=0)
-                gazes_tf = output['GAZE_tf'].cpu().detach().numpy().T
-                all_gaze_tf = pd.concat([all_gaze_tf, pd.DataFrame(gazes_tf)], axis=0)
-                gazes_gt = output['GAZE_gt'].cpu().detach().numpy().T
+                gazes_gt = output['gt_gaze'].cpu().detach().numpy().T.tolist()
+                gazes_gt[0].append(output['testing_image'])
                 all_gaze_gt = pd.concat([all_gaze_gt, pd.DataFrame(gazes_gt)], axis=0)
-                # logits_tf = output['LOGITS_tf'].cpu().detach().view(1, -1).numpy()
-                # all_logits_tf = pd.concat([all_logits_tf, pd.DataFrame(logits_tf)],axis=0)
-                for i in range(self.args.stochastic_iteration):
+                '''for i in range(self.args.stochastic_iteration):
                     gazes_expect = output['GAZE_expect'][i].cpu().detach().view(1, -1).numpy()
-                    all_gaze_expect = pd.concat([all_gaze_expect, pd.DataFrame(gazes_expect)], axis=0)
+                    all_gaze_expect = pd.concat([all_gaze_expect, pd.DataFrame(gazes_expect)], axis=0)'''
 
-            # all_loss.reset_index().drop(['index'],axis=1)
             all_gaze.reset_index().drop(['index'], axis=1)
-            # all_logits.reset_index().drop(['index'],axis=1)
-            all_gaze_tf.reset_index().drop(['index'], axis=1)
             all_gaze_gt.reset_index().drop(['index'], axis=1)
-            # all_logits_tf.reset_index().drop(['index'],axis=1)
-            all_gaze_expect.reset_index().drop(['index'], axis=1)
-            # all_loss.to_csv('../dataset/checkEvaluation/loss_max.csv', index=False)
             all_gaze.to_csv(self.args.output_path + '/gaze_max' + self.args.output_postfix + '.csv', index=False)
-            # all_logits.to_csv('../dataset/checkEvaluation/logits_max.csv', index=False)
-            all_gaze_tf.to_csv(self.args.output_path + '/gaze_tf' + self.args.output_postfix + '.csv', index=False)
             all_gaze_gt.to_csv(self.args.output_path + '/gaze_gt' + self.args.output_postfix + '.csv', index=False)
-            # all_logits_tf.to_csv('../dataset/checkEvaluation/logits_tf.csv', index=False)
-            all_gaze_expect.to_csv(self.args.output_path + '/gaze_expect' + self.args.output_postfix + '.csv',
-                                   index=False)
-        else:
-            '''max_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
-            expect_loss = torch.stack([x['loss_expect'].cpu().detach() for x in test_step_outputs]).mean()
-            gt_loss = torch.stack([x['loss_gt'].cpu().detach() for x in test_step_outputs]).mean()
-            if self.enableLogging == 'True':
-                self.log('test_loss_max_each_epoch', max_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-                self.log('test_loss_expect_each_epoch', expect_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-                self.log('test_loss_gt_each_epoch', gt_loss, on_epoch=True, prog_bar=True, sync_dist=True)'''
-            # have been changed based on the new evaluation SED
-            loss_sed = []
-            loss_sbtde = []
-            testResult_sed = []
-            testResult_sbtde = []
-            if self.args.saliency_metric == 'True':
-                loss_auc = []
-                loss_nss = []
-                for x in test_step_outputs:
-                    if x['testing_sed'] != -1:
-                        loss_sed.append(x['testing_sed'])
-                        loss_sbtde.append(x['testing_sbtde'])
-                        loss_auc.append(x['testing_auc'])
-                        loss_nss.append(x['testing_nss'])
-                        testResult_sed.append((x['testing_image'], x['testing_sed']))
-                        testResult_sbtde.append((x['testing_image'], x['testing_sbtde']))
 
-                if len(loss_sed) != 0:
-                    avg_loss_sed = np.mean(loss_sed)
-                    avg_loss_sbtde = np.mean(loss_sbtde)
-                    avg_loss_auc = np.mean(loss_auc)
-                    avg_loss_nss = np.mean(loss_nss)
-                    sppSED, sppSBTDE = self.metrics.get_sppSed_and_sppSbtde(testResult_sed, testResult_sbtde)
-                    sppSED = np.mean(sppSED)
-                    sppSBTDE = np.mean(sppSBTDE)
-                    print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde, ', AUC: ', avg_loss_auc,', NSS: ', avg_loss_nss, ', spp SED: ', sppSED, ', spp SBTDE: ', sppSBTDE)
-                    if self.enableLogging == 'True':
-                        self.log('testing_evaluation_meanSED', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
-                                    sync_dist=True)
-                        self.log('testing_evaluation_meanSBTDE', avg_loss_sbtde, on_step=False, on_epoch=True, prog_bar=True,
-                                    sync_dist=True)
-                        self.log('testing_evaluation_meanAUC', avg_loss_auc, on_step=False, on_epoch=True,
-                                    prog_bar=True,
-                                    sync_dist=True)
-                        self.log('testing_evaluation_meanNSS', avg_loss_nss, on_step=False, on_epoch=True,
-                                    prog_bar=True,
-                                    sync_dist=True)
-                        self.log('testing_evaluation_sppSED', sppSED, on_step=False, on_epoch=True, prog_bar=True,
-                                    sync_dist=True)
-                        self.log('testing_evaluation_sppSBTDE', sppSBTDE, on_step=False, on_epoch=True, prog_bar=True,
-                                    sync_dist=True)
-            else:
-                for x in test_step_outputs:
-                    if x['testing_sed'] != -1:
-                        loss_sed.append(x['testing_sed'])
-                        loss_sbtde.append(x['testing_sbtde'])
-                        testResult_sed.append((x['testing_image'], x['testing_sed']))
-                        testResult_sbtde.append((x['testing_image'], x['testing_sbtde']))
-                if len(loss_sed) != 0:
-                    avg_loss_sed = np.mean(loss_sed)
-                    avg_loss_sbtde = np.mean(loss_sbtde)
-                    sppSED, sppSBTDE = self.metrics.get_sppSed_and_sppSbtde(testResult_sed, testResult_sbtde)
-                    sppSED = np.mean(sppSED)
-                    sppSBTDE = np.mean(sppSBTDE)
-                    print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde, ', spp SED: ', sppSED, ', spp SBTDE: ', sppSBTDE)
-                    if self.enableLogging == 'True':
-                        self.log('testing_evaluation_meanSED', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
-                                    sync_dist=True)
-                        self.log('testing_evaluation_meanSBTDE', avg_loss_sbtde, on_step=False, on_epoch=True, prog_bar=True,
-                                    sync_dist=True)
-                        self.log('testing_evaluation_sppSED', sppSED, on_step=False, on_epoch=True, prog_bar=True,
-                                    sync_dist=True)
-                        self.log('testing_evaluation_sppSBTDE', sppSBTDE, on_step=False, on_epoch=True, prog_bar=True,
-                                    sync_dist=True)
+        # have been changed based on the new evaluation SED
+        loss_sed = []
+        loss_sbtde = []
+        testResult_sed = []
+        testResult_sbtde = []
+
+        for x in test_step_outputs:
+            if x['testing_sed'] != -1:
+                loss_sed.append(x['testing_sed'])
+                loss_sbtde.append(x['testing_sbtde'])
+                testResult_sed.append((x['testing_image'], x['testing_sed']))
+                testResult_sbtde.append((x['testing_image'], x['testing_sbtde']))
+        if len(loss_sed) != 0:
+            avg_loss_sed = np.mean(loss_sed)
+            avg_loss_sbtde = np.mean(loss_sbtde)
+            sppSED, sppSBTDE = self.metrics.get_sppSed_and_sppSbtde(testResult_sed, testResult_sbtde)
+            sppSED = np.mean(sppSED)
+            sppSBTDE = np.mean(sppSBTDE)
+            print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde, ', spp SED: ', sppSED, ', spp SBTDE: ', sppSBTDE)
+            if self.enableLogging == 'True':
+                self.log('testing_evaluation_meanSED', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
+                            sync_dist=True)
+                self.log('testing_evaluation_meanSBTDE', avg_loss_sbtde, on_step=False, on_epoch=True, prog_bar=True,
+                            sync_dist=True)
+                self.log('testing_evaluation_sppSED', sppSED, on_step=False, on_epoch=True, prog_bar=True,
+                            sync_dist=True)
+                self.log('testing_evaluation_sppSBTDE', sppSBTDE, on_step=False, on_epoch=True, prog_bar=True,
+                            sync_dist=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate, weight_decay=1e-4)

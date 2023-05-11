@@ -431,8 +431,8 @@ def processRawDataCenterMode(resizeFactor, gazePath, stimuliPath, saveFilePath,
 
 if __name__ == '__main__':
     #drawResolutionDistribution(gazePath='../dataset/MIT1003/MIT1003.xlsx', stimuliPath='../dataset/MIT1003/ALLSTIMULI/')
-    processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
-                   saveFilePath='../dataset/MIT1003/processedData_3_sod',
+    indexDistribution(gazePath='../dataset/MIT1003/MIT1003.xlsx',
+                   saveFilePath='../dataset/MIT1003/processedData_d3_sod_p4',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
-                   resizeFactor=3, SOD_path='../dataset/MIT1003/mask_0/', number_of_patch=8,
-                   addHeatmap=True)
+                   resizeFactor=2, SOD_path='../dataset/MIT1003/mask_0/', number_of_patch=4,
+                      )#addHeatmap=False)

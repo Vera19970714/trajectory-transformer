@@ -23,13 +23,13 @@ if __name__ == '__main__':
     parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_train', type=str)
     parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
     parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
-    parser.add_argument('-checkpoint', default=None, type=str)
+    parser.add_argument('-checkpoint', default='../ckpt/d3p4_index_sod/last.ckpt', type=str)
 
     # parameters ONLY for MIT1003
     parser.add_argument('-data_folder_path', default='../dataset/MIT1003/', type=str)
-    parser.add_argument('-processed_data_name', default='processedData_3_sod', type=str)
+    parser.add_argument('-processed_data_name', default='processedData_d3_sod_p4', type=str)
     parser.add_argument('-grid_partition', default='4', type=int) # DONT change this N==4
-    parser.add_argument('-number_of_patches', default='8', type=int) #decoder_input MUST be index if this is not 4
+    parser.add_argument('-number_of_patches', default='4', type=int) #decoder_input MUST be index if this is not 4
 
     #parser.add_argument('-subject', default='emb', type=str)
     #allSubjects = ['CNG', 'ajs', 'emb', 'ems', 'ff', 'hp', 'jcw', 'jw', 'kae', 'krl', 'po', 'tmj', 'tu', 'ya', 'zb']
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('-enable_logging', default='True', type=str)
     parser.add_argument('-log_dir', default='TransformerMIT1003_evaluation', type=str)
     parser.add_argument('-log_name', default='fold_1', type=str)
-    parser.add_argument('-write_output', type=str, default='False')
+    parser.add_argument('-write_output', type=str, default='True')
     parser.add_argument('-output_path', type=str, default='../dataset/checkEvaluation/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=10)
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=5)
 
-    parser.add_argument('-do_train', type=str, default='True')
+    parser.add_argument('-do_train', type=str, default='False')
     parser.add_argument('-do_test', type=str, default='True')
 
     args = parser.parse_args()
