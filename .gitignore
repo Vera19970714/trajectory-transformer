@@ -6,3 +6,5 @@ ckpt/
 src/lightning_logs/
 run.sh
 run_pre.sh
+src/dataBuilders/__pycache__/
+src/model/__pycache__/
