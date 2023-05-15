@@ -238,7 +238,7 @@ if __name__ == '__main__':
     '''processRawData_joint(gazePath='../dataset/MIT1003/MIT1003.xlsx',
                    saveFilePath='../dataset/MIT1003/processedData_joint',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/')'''
-    processRawData(padding=True, useVITFeature=False, gazePath='../dataset/MIT1003/MIT1003.xlsx',
+    processRawData(padding=False, useVITFeature=True, gazePath='../dataset/MIT1003/MIT1003.xlsx',
                          saveFilePath='../dataset/MIT1003/processedData_ori',
                          stimuliPath='../dataset/MIT1003/ALLSTIMULI/')
     # COMMENT: padding can pad all the images to square

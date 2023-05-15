@@ -294,6 +294,8 @@ class TransformerModelMIT1003(pl.LightningModule):
                                     src_img.float(), tgt_img_input.float(),
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 _, predicted = torch.max(logits[-1, :, :], 1)
+                # test random results
+                predicted = torch.randint(16, (1,))
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -317,6 +319,8 @@ class TransformerModelMIT1003(pl.LightningModule):
                                     src_img.float(), tgt_img_input.float(),
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 _, predicted = torch.max(logits[-1, :, :], 1)
+                # test random results
+                predicted = torch.randint(16, (1,))
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
