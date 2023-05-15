@@ -604,11 +604,11 @@ class TransformerModelMIT1003(pl.LightningModule):
                 testResult_sed.append((x['testing_image'], x['testing_sed']))
                 testResult_sbtde.append((x['testing_image'], x['testing_sbtde']))
         if len(loss_sed) != 0:
-            avg_loss_sed = np.mean(loss_sed)
-            avg_loss_sbtde = np.mean(loss_sbtde)
-            sppSED, sppSBTDE = self.metrics.get_sppSed_and_sppSbtde(testResult_sed, testResult_sbtde)
+            SED, SBTDE, sppSED, sppSBTDE = self.metrics.get_Sed_and_Sbtde(testResult_sed, testResult_sbtde)
             sppSED = np.mean(sppSED)
             sppSBTDE = np.mean(sppSBTDE)
+            avg_loss_sed = np.mean(SED)
+            avg_loss_sbtde = np.mean(SBTDE)
             print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde, ', spp SED: ', sppSED, ', spp SBTDE: ', sppSBTDE)
             if self.enableLogging == 'True':
                 self.log('testing_evaluation_meanSED', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,

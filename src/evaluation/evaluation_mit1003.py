@@ -1,3 +1,4 @@
+from statistics import mean
 import numpy as np
 from copy import copy
 import matplotlib.pyplot as plt
@@ -153,7 +154,7 @@ class EvaluationMetric():
              range(1, self.minLen + 1)]).mean()
         return sed_i, sbtde_i
 
-    def get_sppSed_and_sppSbtde(self, all_pre_sppSed_scanpaths,all_pre_sppSbtde_scanpaths):
+    def get_Sed_and_Sbtde(self, all_pre_sppSed_scanpaths,all_pre_sppSbtde_scanpaths):
 
         '''
         :param self:
@@ -169,8 +170,9 @@ class EvaluationMetric():
             sppSbtdeDict[k].append(v)
         sppSED = [min(list(sppSedDict.values())[i]) for i in range(len(sppSedDict))]
         sppSBTDE = [min(list(sppSbtdeDict.values())[i]) for i in range(len(sppSbtdeDict))]
-
-        return sppSED,sppSBTDE
+        SED = [mean(list(sppSedDict.values())[i]) for i in range(len(sppSedDict))]
+        SBTDE = [mean(list(sppSbtdeDict.values())[i]) for i in range(len(sppSbtdeDict))]
+        return SED, SBTDE, sppSED,sppSBTDE
 
 #########################################################################################
 ##############################  saliency metrics  #######################################
