@@ -174,7 +174,7 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, number_of_
     allImages = {}
     if addHeatmap:
         allImages['heatmaps'] = {}
-    onePointSeq = 0
+    tenPointSeq = 0
     numOfChannel = 4 if SOD_path is not None else 3
     for i in tqdm(range(numOfRows)):
         row = gazesExcel.loc[i]
@@ -189,10 +189,11 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, number_of_
             assert oneEntry['sub'] is not None
             assert oneEntry['imagePath'] is not None
 
-            if len(oneEntry['scanpathInPatch']) <= 1:
-                onePointSeq += 1
+            if len(oneEntry['scanpathInPatch']) <= 9:
+                tenPointSeq += 1
             else:
-                oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
+                oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'][:10])
+                oneEntry['scanpath'] = oneEntry['scanpath'][:10]
                 if addHeatmap:
                     if oneEntry['imagePath'] not in allImages['heatmaps']:
                         indices = oneEntry['scanpath']
@@ -267,7 +268,7 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, number_of_
                 allImages['heatmaps'][oneEntry['imagePath']] = heatmap
         processed_dataset.append(oneEntry)
     dataEntry += 1
-
+    
     processed_dataset.append(allImages)
     if saveFilePath is not None:
         with open(saveFilePath, "wb") as fp:  # Pickling
@@ -279,7 +280,7 @@ def processRawData(resizeFactor, gazePath, stimuliPath, saveFilePath, number_of_
     print('# Total data: ', dataEntry)
     avgLen = validPoints / dataEntry
     print('Average length: ', avgLen)
-    print('# one-point/zero-point gaze seq:', onePointSeq)
+    print('# ten-point/zero-point gaze seq:', tenPointSeq)
 
 
 def processRawDataCenterMode(resizeFactor, gazePath, stimuliPath, saveFilePath,
@@ -431,7 +432,7 @@ def processRawDataCenterMode(resizeFactor, gazePath, stimuliPath, saveFilePath,
 
 if __name__ == '__main__':
     #drawResolutionDistribution(gazePath='../dataset/MIT1003/MIT1003.xlsx', stimuliPath='../dataset/MIT1003/ALLSTIMULI/')
-    indexDistribution(gazePath='../dataset/MIT1003/MIT1003.xlsx',
+    processRawData(gazePath='../dataset/MIT1003/MIT1003.xlsx',
                    saveFilePath='../dataset/MIT1003/processedData_d3_sod_p4',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/',
                    resizeFactor=2, SOD_path='../dataset/MIT1003/mask_0/', number_of_patch=4,
