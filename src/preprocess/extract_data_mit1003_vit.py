@@ -24,7 +24,7 @@ def processRawData(padding, useVITFeature, gazePath, stimuliPath, saveFilePath, 
     dataEntry = 0
     numOfRows = len(gazesExcel)
     allImages = {}
-    onePointSeq = 0
+    tenPointSeq = 0
     if useVITFeature:
         feature_extractor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-224-in21k')
         resizeFactor = 1
@@ -37,8 +37,8 @@ def processRawData(padding, useVITFeature, gazePath, stimuliPath, saveFilePath, 
         subject = row['Sub']
         task = row['Task']
         index = row['T']
-        x_coor = row['X'] / resizeFactor  # shape[1]
-        y_coor = row['Y'] / resizeFactor  # shape[0]
+        x_coor = row['X']
+        y_coor = row['Y']
 
         # save the current entry and start a new one
         if index == 1 and i != 0: #and not negativeValue:
@@ -47,10 +47,11 @@ def processRawData(padding, useVITFeature, gazePath, stimuliPath, saveFilePath, 
             assert oneEntry['imageSize'] is not None
             #assert oneEntry['imageFeature'] is not None
 
-            if len(oneEntry['scanpath']) <= 1:
-                onePointSeq += 1
+            if len(oneEntry['scanpath']) <= 9:
+                tenPointSeq += 1
             else:
-                oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'])
+                oneEntry['scanpathInPatch'] = np.stack(oneEntry['scanpathInPatch'][:10])
+                oneEntry['scanpath'] = oneEntry['scanpath'][:10]
                 processed_dataset.append(oneEntry)
             dataEntry += 1
             oneEntry = {'sub': None, 'imagePath': None, 'scanpath': [], 'imageSize': None,
@@ -76,10 +77,9 @@ def processRawData(padding, useVITFeature, gazePath, stimuliPath, saveFilePath, 
                 image = cv2.normalize(image, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX,
                                       dtype=cv2.CV_32F)
                 image_to_save = image
-
-            imageH = image.shape[0]
-            imageW = image.shape[1]
-            oneEntry['imageSize'] = [imageH, imageW]
+            imageH_original = image.shape[0]
+            imageW_original = image.shape[1]
+            oneEntry['imageSize'] = [imageH_original, imageW_original]
             # padding, make it dividable by N
             margin1 = N * (math.ceil(image.shape[0] / N)) - image.shape[0]
             margin2 = N * (math.ceil(image.shape[1] / N)) - image.shape[1]
@@ -97,13 +97,10 @@ def processRawData(padding, useVITFeature, gazePath, stimuliPath, saveFilePath, 
         else:
             assert oneEntry['imagePath'] == task
             assert oneEntry['sub'] == subject
-            assert oneEntry['imageSize'] == [imageH, imageW]
-        if x_coor > 0 and y_coor > 0 and x_coor < imageW and y_coor < imageH:
+            assert oneEntry['imageSize'] == [imageH_original, imageW_original]
+        if x_coor > 0 and y_coor > 0 and x_coor < imageW_original and y_coor < imageH_original:
             oneEntry['scanpath'].append([y_coor, x_coor])
-            assert math.floor(y_coor / patchH) < N
-            assert math.floor(x_coor / patchW) < N
-
-            before = np.array([math.floor(y_coor / patchH), math.floor(x_coor / patchW)])
+            before = np.array([math.floor(y_coor / imageH_original * N), math.floor(x_coor / imageW_original * N)])
             pos = np.ravel_multi_index(before, (N, N))
             oneEntry['scanpathInPatch'].append(pos)
         else:
@@ -132,7 +129,7 @@ def processRawData(padding, useVITFeature, gazePath, stimuliPath, saveFilePath, 
     print('# Total data: ', dataEntry)
     avgLen = validPoints / dataEntry
     print('Average length: ', avgLen)
-    print('# one-point/zero-point gaze seq:', onePointSeq)
+    print('# ten-point/zero-point gaze seq:', tenPointSeq)
 
 
 def processRawData_joint(gazePath, stimuliPath, saveFilePath, N=4):
@@ -238,7 +235,7 @@ if __name__ == '__main__':
     '''processRawData_joint(gazePath='../dataset/MIT1003/MIT1003.xlsx',
                    saveFilePath='../dataset/MIT1003/processedData_joint',
                    stimuliPath='../dataset/MIT1003/ALLSTIMULI/')'''
-    processRawData(padding=False, useVITFeature=True, gazePath='../dataset/MIT1003/MIT1003.xlsx',
+    processRawData(padding=True, useVITFeature=True, gazePath='../dataset/MIT1003/MIT1003.xlsx',
                          saveFilePath='../dataset/MIT1003/processedData_ori',
                          stimuliPath='../dataset/MIT1003/ALLSTIMULI/')
     # COMMENT: padding can pad all the images to square
