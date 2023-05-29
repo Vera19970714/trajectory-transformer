@@ -1,11 +1,14 @@
 from torch import Tensor
 import torch
 import torch.nn as nn
-from torch.nn import Transformer, TransformerDecoderLayer, TransformerDecoder
+from .transformer_utilis import Transformer, TransformerDecoderLayer, TransformerDecoder
 import math
 import torch.nn.functional as F
 from .transformerLightning import PositionalEncoding, VisualPositionalEncoding, TokenEmbedding
 from transformers import ViTFeatureExtractor, ViTModel, ViTConfig
+import cv2
+import numpy as np
+
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -73,7 +76,7 @@ class CNNEmbedding(nn.Module):
 
 # Seq2Seq Network
 class Seq2SeqTransformer4MIT1003_VIT(nn.Module):
-    def __init__(self,
+    def __init__(self,args,
                  num_encoder_layers: int,
                  num_decoder_layers: int,
                  emb_size: int,
@@ -90,16 +93,17 @@ class Seq2SeqTransformer4MIT1003_VIT(nn.Module):
                                        num_decoder_layers=num_decoder_layers,
                                        dim_feedforward=dim_feedforward,
                                        dropout=dropout)'''
-        decoder_layer = nn.TransformerDecoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
+        decoder_layer = TransformerDecoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                          dropout=dropout)
-        self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_decoder_layers)
+
+        self.transformer_decoder = TransformerDecoder(decoder_layer, num_layers=num_decoder_layers)
 
         self.generator = nn.Linear(emb_size, tgt_vocab_size).float()
         self.positional_encoding = PositionalEncoding(
             emb_size, dropout=dropout)
 
         self.vit = ViTModel.from_pretrained('google/vit-base-patch16-224-in21k')
-
+        self.args = args
         '''self.patch_number = 16
         patch_size = int(224 / self.patch_number)
         configuration = ViTConfig(patch_size=patch_size) #16, 56
@@ -121,7 +125,16 @@ class Seq2SeqTransformer4MIT1003_VIT(nn.Module):
                 trg: Tensor,
                 tgt_mask: Tensor,
                 tgt_padding_mask: Tensor):
-        outputs = self.vit(src_img)
+
+        if self.args.get_attention == 'None':
+            outputs = self.vit(src_img)
+        else:
+            outputs = self.vit(src_img, output_attentions=True)
+
+            encoder_atten = torch.stack(outputs.attentions).squeeze(1)
+
+            # Average the attention weights across all heads.
+            encoder_atten = torch.mean(encoder_atten, dim=1)
         src_emb = outputs.last_hidden_state  # b, 197, 768
         src_emb = src_emb.permute(1,0,2) # 197, b, 768
 
@@ -138,9 +151,13 @@ class Seq2SeqTransformer4MIT1003_VIT(nn.Module):
 
         '''outs = self.transformer(src_emb, tgt_emb, None, tgt_mask, None,
                                 None, tgt_padding_mask, None)'''
-        outs = self.transformer_decoder(memory=src_emb, tgt=tgt_emb, tgt_mask=tgt_mask, memory_mask=None,
+        outs, decoder_atten = self.transformer_decoder(memory=src_emb, tgt=tgt_emb, tgt_mask=tgt_mask, memory_mask=None,
                                 tgt_key_padding_mask=tgt_padding_mask, memory_key_padding_mask=None)
-        return self.generator(outs)
+
+        if self.args.get_attention == 'None':
+            return self.generator(outs)
+        else:
+            return self.generator(outs), encoder_atten, decoder_atten.squeeze()
 
 
 def generate_square_subsequent_mask(sz):

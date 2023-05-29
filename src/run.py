@@ -23,7 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_train', type=str)
     parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
     parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
-    parser.add_argument('-checkpoint', default='../ckpt/d3p4_index_sod/last.ckpt', type=str)
+    parser.add_argument('-checkpoint', default='./lightning_logs/TransformerMIT1003_evaluation/fold_1_ori/epoch=12-step=1455.ckpt', type=str)
 
     # parameters ONLY for MIT1003
     parser.add_argument('-data_folder_path', default='../dataset/MIT1003/', type=str)
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('-enable_logging', default='True', type=str)
     parser.add_argument('-log_dir', default='TransformerMIT1003_evaluation', type=str)
     parser.add_argument('-log_name', default='fold_1', type=str)
-    parser.add_argument('-write_output', type=str, default='True')
+    parser.add_argument('-write_output', type=str, default='False')
     parser.add_argument('-output_path', type=str, default='../dataset/checkEvaluation/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=10)
@@ -54,6 +54,8 @@ if __name__ == '__main__':
     parser.add_argument('-decoder_input', default='index', type=str) # choice: index, plus_feature
     parser.add_argument('-global_token', default='True', type=str) # choice: False, True
     parser.add_argument('-add_salient_OD', default='True', type=str)
+    # TODO: remember to set None when training
+    parser.add_argument('-get_attention', default='avg', type=str) #choice: None, avg
 
     parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=20, type=int)
@@ -121,7 +123,7 @@ if __name__ == '__main__':
         search_data = MIT1003DataModule_JOINT(args)
     else:
         print('Invalid model')
-    
+
     if args.checkpoint == 'None':
         args.checkpoint = None
     trainer = Trainer(deterministic=True,

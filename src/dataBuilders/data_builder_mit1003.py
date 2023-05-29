@@ -76,8 +76,8 @@ class MIT1003Dataset(Dataset):
                     #self.patchIndex.append(self.indices)
                     i += 1
 
-            #if i > 5:
-            #   break
+            if i > 29:
+              break
 
         self.data_total_length = len(self.subject)
 
