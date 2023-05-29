@@ -41,7 +41,7 @@ class MIT1003Dataset(Dataset):
         self.imageRootPath = args.data_folder_path + 'ALLSTIMULI/'
         self.args = args
 
-        i=0
+        # i=0
         for item in subjectData:
             imageName = item['imagePath']
             if isTrain:  # exclude the subject
@@ -53,7 +53,7 @@ class MIT1003Dataset(Dataset):
                     self.imageSize.append(item['imageSize'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
-                    i += 1
+                    # i += 1
             else:
                 #if item['sub'] == subject:  # only include the subject
                 if imageName in foldImage:
@@ -63,10 +63,10 @@ class MIT1003Dataset(Dataset):
                     self.imageSize.append(item['imageSize'])
                     self.imageName.append(item['imagePath'])
                     #self.patchIndex.append(self.indices)
-                    i += 1
+                    # i += 1
 
-            if i >= 1:
-               break
+            # if i > 32:
+            #    break
 
         self.data_total_length = len(self.subject)
 

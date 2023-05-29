@@ -1,7 +1,7 @@
 from torch import Tensor
 import torch
 import torch.nn as nn
-from .transformer_utilis import Transformer
+from torch.nn import Transformer
 import math
 import torch.nn.functional as F
 from .transformerLightning import PositionalEncoding, VisualPositionalEncoding, TokenEmbedding
@@ -86,7 +86,7 @@ class CNNEmbedding(nn.Module):
 
 # Seq2Seq Network
 class Seq2SeqTransformer4MIT1003(nn.Module):
-    def __init__(self,args,
+    def __init__(self,
                  num_encoder_layers: int,
                  num_decoder_layers: int,
                  emb_size: int,
@@ -125,7 +125,7 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
             self.LinearEmbedding_decoder = nn.Linear(input_dimension, emb_size)
         if self.isGlobalToken:
             self.globalToken = nn.Parameter(torch.randn(1, 1, emb_size))
-        self.args = args
+
     def getCNNFeature(self, src_img: Tensor):
         with torch.no_grad():
             src_cnn_emb = self.cnn_embedding(src_img).transpose(0, 1)
@@ -166,12 +166,9 @@ class Seq2SeqTransformer4MIT1003(nn.Module):
         #tgt_emb = self.laynorm(tgt_emb)
         tgt_emb = self.positional_encoding(tgt_emb)
 
-        outs, encoder_atten, decoder_atten = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
+        outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
                                 src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
-        if self.args.get_attention == 'None':
-            return self.generator(outs)
-        else:
-            return self.generator(outs), encoder_atten.squeeze(), decoder_atten.squeeze()
+        return self.generator(outs)
 
 if __name__ == '__main__':
     cnn = CNNEmbedding(512)

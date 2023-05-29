@@ -7,12 +7,9 @@ import torch.nn.functional as F
 import pandas as pd
 import numpy as np
 from evaluation.evaluation_mit1003 import EvaluationMetric
-from model.utilis import Sampler, AttentionPlot
+from model.utilis import Sampler
 import copy
-from PIL import Image
-from torchvision import transforms
-import matplotlib.pyplot as plt
-import cv2
+
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -59,7 +56,7 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
         NUM_DECODER_LAYERS = 4
         inputDim = 2
 
-        self.model = Seq2SeqTransformer4MIT1003_VIT(args,NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
+        self.model = Seq2SeqTransformer4MIT1003_VIT(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
                                                 NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, inputDim, FFN_HID_DIM).to(
             DEVICE).float()
         for p in self.model.parameters():
@@ -73,10 +70,6 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
         self.total_step = 0
         self.metrics = EvaluationMetric(trainingGrid=args.grid_partition)
         self.sampler = Sampler()
-        self.attentionPlot = AttentionPlot()
-        self.transform = transforms.Compose([transforms.Resize((224, 224)),
-                                            transforms.ToTensor(),
-                                            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),])
     def log_gradients_in_model(self, step):
         for tag, value in self.model.named_parameters():
             # print('-'*10)
@@ -195,11 +188,7 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
             if i == 1:
                 tgt_input = tgt_pos[:i, :]
                 tgt_mask, tgt_padding_mask = self.processData(tgt_input)
-                if self.args.get_attention == 'None':
-                    logits = self.model(src_img, tgt_input.long(),
-                                        tgt_mask, tgt_padding_mask)
-                else:
-                    logits, encoder_atten, decoder_atten = self.model(src_img, tgt_input.long(),
+                logits = self.model(src_img, tgt_input.long(),
                                     tgt_mask, tgt_padding_mask)
                 _, predicted = torch.max(logits[-1, :, :], 1)
                 '''if i < length:
@@ -211,14 +200,11 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
                 GAZE[i - 1][0] = predicted
                 LOGITS[i - 1, :] = self.norm(logits[-1, :, :]).reshape(1, -1)
                 next_tgt_input = torch.cat((tgt_input, predicted.view(-1, 1)), dim=0)
+                
             else:
                 tgt_input = next_tgt_input
                 tgt_mask, tgt_padding_mask = self.processData(tgt_input)
-                if self.args.get_attention == 'None':
-                    logits = self.model(src_img, tgt_input.long(),
-                                        tgt_mask, tgt_padding_mask)
-                else:
-                    logits, encoder_atten, decoder_atten = self.model(src_img, tgt_input.long(),
+                logits = self.model(src_img, tgt_input.long(),
                                     tgt_mask, tgt_padding_mask)
                 _, predicted = torch.max(logits[-1, :, :], 1)
                 
@@ -247,10 +233,7 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
             sbtde.append(sbtde_i)
         sed = np.mean(sed)
         sbtde = np.mean(sbtde)
-        if self.args.get_attention == 'None':
-            return sed, sbtde, gt_seq, GAZE
-        else:
-            return sed, sbtde, gt_seq, GAZE, encoder_atten, decoder_atten
+        return sed, sbtde, gt_seq, GAZE
         # COMMENT these because the rules have been changed, the output length is always 10
         '''if self.EOS_IDX in GAZE:
             endIndex = torch.where(GAZE == self.EOS_IDX)[0][0]
@@ -572,10 +555,7 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
         tgt_pos.to(DEVICE)
         scanpath = scanpath.to(DEVICE)
         imgSize = imgSize.to(DEVICE)
-        if self.args.get_attention == 'None':
-            sed, sbtde, gt_seq, predicted_seq = self.test_max(src_img, tgt_pos)
-        else:
-            sed, sbtde, gt_seq, predicted_seq,encoder_atten,decoder_atten = self.test_max(src_img, tgt_pos)
+        sed, sbtde, gt_seq, predicted_seq = self.test_max(src_img, tgt_pos)
         '''if self.args.saliency_metric == 'True':
             #auc, nss = self.test_saliency_max(imgSize, src_pos, src_img, tgt_pos, tgt_img, scanpath)
             # TODO: these functions havent changed regard to free viewing datasets
@@ -600,10 +580,7 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
                 return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_image': imageName, 'gt_gaze': gt_seq,
                         'pred_gaze': predicted_seq}
             else:
-                if self.args.get_attention == 'None':
-                    return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_image': imageName}
-                else:
-                    return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_image': imageName,'encoder_attentions':encoder_atten,'decoder_attentions':decoder_atten}
+                return {'testing_sed': sed, 'testing_sbtde': sbtde, 'testing_image': imageName}
 
     def test_epoch_end(self, test_step_outputs):
         if self.args.write_output == 'True':
@@ -632,29 +609,12 @@ class TransformerModelMIT1003_VIT(pl.LightningModule):
                 loss_sbtde.append(x['testing_sbtde'])
                 testResult_sed.append((x['testing_image'], x['testing_sed']))
                 testResult_sbtde.append((x['testing_image'], x['testing_sbtde']))
-                if self.args.get_attention == 'avg':
-                    img_name = x['testing_image']
-                    im = Image.open("./model/ALLSTIMULI/" + img_name)
-                    im = im.resize((224,224))
-                    encoder_atten = x['encoder_attentions']
-                    decoder_atten = x['decoder_attentions']
-                    encoder_result, decoder_result = self.attentionPlot.get_attention_map(im,encoder_atten,decoder_atten)
-
-                    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(16, 16))
-                    ax1.set_title('Original')
-                    ax2.set_title('Attention Map')
-                    _ = ax1.imshow(im)
-                    _ = ax2.imshow(encoder_result)
-                    print("Prediction Label and Attention Map!\n")
-                    plt.savefig('./model/encoder/' + img_name)
-
         if len(loss_sed) != 0:
             SED, SBTDE, sppSED, sppSBTDE = self.metrics.get_Sed_and_Sbtde(testResult_sed, testResult_sbtde)
             sppSED = np.mean(sppSED)
             sppSBTDE = np.mean(sppSBTDE)
             avg_loss_sed = np.mean(SED)
             avg_loss_sbtde = np.mean(SBTDE)
-
             print('Evaluation results || SED: ', avg_loss_sed, ', SBTDE: ', avg_loss_sbtde, ', spp SED: ', sppSED, ', spp SBTDE: ', sppSBTDE)
             if self.enableLogging == 'True':
                 self.log('testing_evaluation_meanSED', avg_loss_sed, on_step=False, on_epoch=True, prog_bar=True,
