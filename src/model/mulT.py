@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+import copy
 
 
 def window_partition(x, window_size=7):
@@ -130,14 +131,15 @@ class WindowAttention(nn.Module):
 
         # Attention
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)  # W_Q, W_K, W_V
+        self.cross_qk = nn.Linear(dim, dim*2,bias=qkv_bias) #W_Q, W_K
+        self.cross_v = nn.Linear(dim,dim,bias=qkv_bias) #W_V
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
-
         trunc_normal_(self.relative_position_bias_table, std=.02)
         self.softmax = nn.Softmax(dim=-1)
 
-    def forward(self, x, mask=None):
+    def forward(self, x,memory,mask=None):
         """
         Args:
             x: input features with shape of (num_windows*B, N, C), N refers to number of patches in a window (M^2)
@@ -146,13 +148,31 @@ class WindowAttention(nn.Module):
         """
         # (batch, M^2, C)
         B_, N, C = x.shape
-
         # (num_windows*B, N, 3C)
-        qkv = self.qkv(x)
 
+        '''qkv = self.qkv(x)
         # (B, N, 3, num_heads, C // num_heads)
         qkv = qkv.reshape(B_, N, 3, self.num_heads, C // self.num_heads)
 
+        # Permute to (3, B_, num_heads, N, C // num_heads)
+        # 
+        # 3: referring to q, k, v (total 3)
+        # B: batch size
+        # num_heads: multi-headed attention
+        # N:  M^2, referring to each token(patch)
+        # C // num_heads: Each head of each of (q,k,v) handles C // num_heads -> match exact dimension for multi-headed attention
+        # 
+        qkv = qkv.permute(2, 0, 3, 1, 4)
+
+        # Decompose to query/key/vector for attention
+        # each of q, k, v has dimension of (B_, num_heads, N, C // num_heads)
+        q, k, v = qkv[0], qkv[1], qkv[2]  # Why not tuple-unpacking?
+        '''
+        cross_qk = self.cross_qk(memory)
+        cross_v = self.cross_v(x)
+        # (B, N, 3, num_heads, C // num_heads)
+        cross_qk = cross_qk.reshape(B_, N, 2, self.num_heads, C // self.num_heads)
+        cross_v = cross_v.reshape(B_, N, 1, self.num_heads, C // self.num_heads)
         # Permute to (3, B_, num_heads, N, C // num_heads)
         '''
         3: referring to q, k, v (total 3)
@@ -161,12 +181,13 @@ class WindowAttention(nn.Module):
         N:  M^2, referring to each token(patch)
         C // num_heads: Each head of each of (q,k,v) handles C // num_heads -> match exact dimension for multi-headed attention
         '''
-        qkv = qkv.permute(2, 0, 3, 1, 4)
+        cross_qk = cross_qk.permute(2, 0, 3, 1, 4)
+        cross_v = cross_v.permute(2, 0, 3, 1, 4)
 
         # Decompose to query/key/vector for attention
         # each of q, k, v has dimension of (B_, num_heads, N, C // num_heads)
-        q, k, v = qkv[0], qkv[1], qkv[2]  # Why not tuple-unpacking?
-
+        q, k = cross_qk[0], cross_qk[1]  # Why not tuple-unpacking?
+        v = cross_v[0]
         q = q * self.scale
 
         # attn becomes (B_, num_heads, N, N) shape
@@ -237,7 +258,7 @@ class SwinTransformerBlock(nn.Module):
     """
 
     def __init__(self, dim, input_resolution, num_heads, window_size=7, shift_size=0,
-                 mlp_ratio=4., qkv_bias=True, qk_scale=None, drop=0., attn_drop=0., drop_path=0.,
+                 mlp_ratio=4., qkv_bias=True, qk_scale=None, drop=0., attn_drop=0., drop_path=0.,isDecoder=False,crossAttention=False,
                  act_layer=nn.GELU, norm_layer=nn.LayerNorm
                  ):
         super().__init__()
@@ -247,6 +268,8 @@ class SwinTransformerBlock(nn.Module):
         self.window_size = window_size
         self.shift_size = shift_size
         self.mlp_ratio = mlp_ratio
+        self.crossAttention = crossAttention
+        self.isDecoder = isDecoder
 
         # If window_size > input_resolution, no partition
         if min(self.input_resolution) <= self.window_size:
@@ -261,6 +284,7 @@ class SwinTransformerBlock(nn.Module):
             dim, window_size=to_2tuple(self.window_size), num_heads=num_heads,
             qkv_bias=qkv_bias, qk_scale=qk_scale, attn_drop=attn_drop, proj_drop=drop
         )
+
 
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
         self.norm2 = norm_layer(dim)
@@ -308,7 +332,7 @@ class SwinTransformerBlock(nn.Module):
 
         self.register_buffer('attn_mask', attn_mask)
 
-    def forward(self, x):
+    def forward(self, x, memory):
         H, W = self.input_resolution
         B, L, C = x.shape
         assert L == H * W, "input feature has wrong size"
@@ -316,19 +340,28 @@ class SwinTransformerBlock(nn.Module):
         shortcut = x  # Residual
         x = self.norm1(x)
         x = x.view(B, H, W, C)  # H, W refer to the number of "patches" for width and height, not "pixels"
-
+        memory = self.norm1(memory)
+        memory = memory.view(B, H, W, C)
         # Cyclic Shift
         if self.shift_size > 0:
             shifted_x = torch.roll(x, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2))
+            shifted_memory = torch.roll(memory, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2))
         else:
             shifted_x = x
+            shifted_memory = memory
 
         # Partition Windows
         x_windows = window_partition(shifted_x, self.window_size)  # (nW*B, M, M, C)
         x_windows = x_windows.view(-1, self.window_size * self.window_size, C)  # (nW*B, window_size*window_size, C)
+        memory_windows = window_partition(shifted_memory, self.window_size)  # (nW*B, M, M, C)
+        memory_windows = memory_windows.view(-1, self.window_size * self.window_size, C)  # (nW*B, window_size*window_size, C)
 
         # W-MSA / SW-MSA
-        attn_windows = self.attn(x_windows, mask=self.attn_mask)  # (nW*B, window_size*window_size, C)
+        attn_windows = self.attn(x_windows, x_windows, mask=self.attn_mask)  # (nW*B, window_size*window_size, C)
+
+        if self.isDecoder:
+            if self.crossAttention:
+                attn_windows = self.attn(x_windows,memory_windows, mask=self.attn_mask)  # (nW*B, window_size*window_size, C)
 
         # Merge Windows
         attn_windows = attn_windows.view(-1, self.window_size, self.window_size, C)
@@ -383,7 +416,6 @@ class PatchMerging(nn.Module):
 
         # Merge by channel -> (B, H/2, W/2, 4C)
         x = torch.cat([x0, x1, x2, x3], -1)
-
         # Flatten H, W
         x = x.view(B, -1, 4 * C)
 
@@ -391,7 +423,51 @@ class PatchMerging(nn.Module):
 
         # Reduction Layer: 4C -> 2C
         x = self.reduction(x)
+        return x
 
+class PatchUPMerging(nn.Module):
+    """ Patch Merging Layer from the paper (downsampling)
+    Args:
+        input_solution (tuple[int]): Resolution of input feature
+        dim (int): Number of input channels. (C)
+        norm_layer (nn.Module, optional): Normalization layer. (Default: nn.LayerNorm)
+    """
+
+    def __init__(self, input_resolution, dim, norm_layer=nn.LayerNorm):
+        super().__init__()
+        self.input_resolution = input_resolution
+        self.dim = dim
+        self.reduction = nn.Linear(dim, 2 * dim, bias=False)
+        self.norm = norm_layer(2 * dim)
+
+    def forward(self, x):
+        """
+        x: (B, H*W, C)
+        """
+        H, W = self.input_resolution
+        B, L, C = x.shape
+
+        # Reduction Layer: 2C -> 4C
+        x = self.reduction(x)
+        x = self.norm(x)
+
+        # Flatten H, W
+        x = x.view(B, H,W,-1)
+
+        # Merge by channel -> (B, H/2, W/2, 4C)
+        x0 = x[:, :, :, :int(0.5*C)]
+        x1 = x[:, :, :, int(0.5*C):C]
+        x2 = x[:, :, :, C:int(1.5*C)]
+        x3 = x[:, :, :, int(1.5*C):2*C]
+
+        # Separate per patch by 2 x
+        x_new = torch.zeros(B, 2*H, 2*W, int(0.5*C))
+        x_new[:, 0::2, 0::2, :] = x0
+        x_new[:, 1::2, 0::2, :] = x1
+        x_new[:, 0::2, 1::2, :] = x2
+        x_new[:, 1::2, 1::2, :] = x3
+
+        x = x_new.view(B, 4*H*W, int(0.5*C))
         return x
 
 
@@ -417,13 +493,13 @@ class BasicLayer(nn.Module):
 
     def __init__(self, dim, input_resolution, depth, num_heads, window_size,
                  mlp_ratio=4., qkv_bias=True, qk_scale=None, drop=0., attn_drop=0.,
-                 drop_path=0., norm_layer=nn.LayerNorm, downsample=None, use_checkpoint=False):
+                 drop_path=0., norm_layer=nn.LayerNorm, downsample=None, use_checkpoint=False, isDecoder=False):
         super().__init__()
         self.dim = dim
         self.input_resolution = input_resolution
         self.depth = depth
         self.use_checkpoint = use_checkpoint
-
+        self.isDecoder = isDecoder
         # Build  Swin-Transformer Blocks
         self.blocks = nn.ModuleList([
             SwinTransformerBlock(dim=dim, input_resolution=input_resolution,
@@ -433,6 +509,8 @@ class BasicLayer(nn.Module):
                                  qkv_bias=qkv_bias, qk_scale=qk_scale,
                                  drop=drop, attn_drop=attn_drop,
                                  drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
+                                 isDecoder=isDecoder,
+                                 crossAttention=True if (i % 2 == 0) else False,
                                  norm_layer=norm_layer
                                  )
             for i in range(depth)
@@ -444,18 +522,28 @@ class BasicLayer(nn.Module):
         else:
             self.downsample = None
 
-    def forward(self, x):
+    def forward(self, x, memory):
         for blk in self.blocks:
             # if self.use_checkpoint:
             #     x = checkpoint.checkpoint(blk, x)
             # else:
             #     x = blk(x)
-            x = blk(x)
+            x = blk(x, memory)
 
         if self.downsample is not None:
+            x_ori = x
             x = self.downsample(x)
 
-        return x
+        if self.isDecoder:
+            return x
+        else:
+            if self.downsample is not None:
+                return x_ori, x
+            else:
+                return x, x
+
+
+
 
 
 class PatchEmbed(nn.Module):
@@ -539,16 +627,15 @@ class SwinTransformer(nn.Module):
         use_checkpoint (bool): Whether to use checkpointing to save memory (Default: False)
     """
 
-    def __init__(self, img_size=224, patch_size=4, in_chans=3, num_classes=1000,
-                 embed_dim=192, depths=[2, 2, 18, 2], num_heads=[3, 6, 12, 24],
+    def __init__(self, img_size=224, patch_size=4, in_chans=3,
+                 embed_dim=192, endepths=[2, 2, 18, 2],dedepths=[2, 2, 2, 2], num_heads=[6, 12, 24, 48],
                  window_size=7, mlp_ratio=4., qkv_bias=True, qk_scale=None,
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
                  norm_layer=nn.LayerNorm, ape=False, patch_norm=True,
                  use_checkpoint=False, **kwargs): #TODO: we can change embedding and depth here to adjust to diff swim: swin-L: 192,{2,2,18,2}, {6,12,24,48}
         super().__init__()
 
-        self.num_classes = num_classes
-        self.num_layers = len(depths)
+        self.num_layers = len(endepths)
         self.embed_dim = embed_dim
         self.ape = ape
         self.patch_norm = patch_norm
@@ -567,11 +654,12 @@ class SwinTransformer(nn.Module):
         self.pos_drop = nn.Dropout(p=drop_rate)
 
         # Stochastic Depth
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]  # stochastic depth decay rule
-
+        endpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(endepths))]  # stochastic depth decay rule
+        dedpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(dedepths))]
         # build layers
-        # todo: save stage output, add decoderlayer, modify window attention
-        self.layers = nn.ModuleList()
+        # todo: save stage output, add decoderlayer, modify window attention(done)
+        self.enlayers = nn.ModuleList()
+        self.delayers = nn.ModuleList()
         for i_layer in range(self.num_layers):
             layer = BasicLayer(
                 dim=int(embed_dim * 2 ** i_layer),
@@ -580,27 +668,52 @@ class SwinTransformer(nn.Module):
                     # After patch-merging layer, patches_resolution(H, W) is halved
                     patches_resolution[1] // (2 ** i_layer),
                 ),
-                depth=depths[i_layer],
+                depth=endepths[i_layer],
                 num_heads=num_heads[i_layer],
                 window_size=window_size,
                 mlp_ratio=self.mlp_ratio,
                 qkv_bias=qkv_bias, qk_scale=qk_scale,
                 drop=drop_rate, attn_drop=attn_drop_rate,
-                drop_path=dpr[sum(depths[:i_layer]):sum(depths[:i_layer + 1])],
+                drop_path=endpr[sum(endepths[:i_layer]):sum(endepths[:i_layer + 1])],
                 norm_layer=norm_layer,
                 downsample=PatchMerging if (i_layer < self.num_layers - 1) else None,
                 # No patch merging at the last stage
-                use_checkpoint=use_checkpoint
+                use_checkpoint=use_checkpoint,
+                isDecoder=False
             )
+            self.enlayers.append(layer)
 
-            self.layers.append(layer)
+        for i_layer in reversed(range(self.num_layers)):
+            layer = BasicLayer(
+                dim=int(embed_dim * 2 ** i_layer),
+                input_resolution=(
+                    patches_resolution[0] // (2 ** i_layer),
+                    # After patch-merging layer, patches_resolution(H, W) is halved
+                    patches_resolution[1] // (2 ** i_layer),
+                ),
+                depth=dedepths[i_layer],
+                num_heads=num_heads[i_layer],
+                window_size=window_size,
+                mlp_ratio=self.mlp_ratio,
+                qkv_bias=qkv_bias, qk_scale=qk_scale,
+                drop=drop_rate, attn_drop=attn_drop_rate,
+                drop_path=dedpr[sum(dedepths[:i_layer]):sum(dedepths[:i_layer + 1])],
+                norm_layer=norm_layer,
+                downsample=PatchUPMerging if (i_layer > 0) else None,
+                # No patch merging at the last stage
+                use_checkpoint=use_checkpoint,
+                isDecoder=True
+            )
+            self.delayers.append(layer)
+
 
         self.norm = norm_layer(self.num_features)
         self.avgpool = nn.AdaptiveAvgPool1d(1)
 
         # Classification Head
+        '''
         self.head = nn.Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
-
+        '''
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
@@ -614,26 +727,26 @@ class SwinTransformer(nn.Module):
 
     def forward_features(self, x):
         x = self.patch_embed(x)
-        print(x.size())
         # if self.ape:
         #     x = x + self.absolute_pos_embed
         x = self.pos_drop(x)
+        each_stage_outs = []
+        i = 1
+        for layer in self.enlayers:
+            x_ori,x = layer(x,x)
+            each_stage_outs.append(x_ori)
 
-        for layer in self.layers:
-            x = layer(x)
-        print(x.size())
-        exit()
-        x = self.norm(x)  # (B, L, C)
-        x = self.avgpool(x.transpose(1, 2))  # (B, C, 1)
-        x = torch.flatten(x, 1)
+        for layer in self.delayers:
+            x = layer(x,each_stage_outs[self.num_layers-i])
+            i += 1
+        #x = self.norm(x)  # (B, L, C) # todo: norm or not?
         return x
 
     def forward(self, x):
         x = self.forward_features(x)
-        x = self.head(x)
         return x
 
 if __name__ == '__main__':
-    model = SwinTransformer(img_size=(500,224)) # only support for n*224
-    dummy = torch.randn(10, 3, 500, 224)
+    model = SwinTransformer(img_size=(224,224)) # only support for n*224
+    dummy = torch.randn(10, 3, 224, 224)
     print(model(dummy).shape)
