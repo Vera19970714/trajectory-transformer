@@ -602,6 +602,55 @@ class PatchEmbed(nn.Module):
 
         return x
 
+class ClassHead(nn.Module):
+    """ Convert patch embedding to image
+
+    Args:
+        img_size (int): Image size (Default: 224)
+        patch_size (int): Patch token size (Default: 4)
+        in_channels (int): Number of input image channels (Default: 3)
+        embed_dim (int): Number of linear projection output channels (Default: 96)
+        norm_layer (nn.Module, optional): Normalization layer (Default: None)
+    """
+
+    def __init__(self, img_size=224, patch_size=4, in_chans=3, embed_dim=96, norm_layer=None):
+        super().__init__()
+        img_size = to_2tuple(img_size)  # (img_size, img_size) to_2tuple simply convert t to (t,t)
+        patch_size = to_2tuple(patch_size)  # (patch_size, patch_size)
+        patches_resolution = [img_size[0] // patch_size[0], img_size[1] // patch_size[1]]  # (num_patches, num_patches)
+
+        self.img_size = img_size
+        self.patch_size = patch_size
+        self.patches_resolution = patches_resolution
+        self.num_patches = patches_resolution[0] * patches_resolution[1]
+
+        self.in_chans = in_chans
+        self.embed_dim = embed_dim
+
+        # proj layer: (B, 96, 56, 56) -> (B, 3, 224, 224)
+        self.proj = nn.ConvTranspose2d(embed_dim, in_chans, kernel_size=patch_size, stride=patch_size)
+
+        if norm_layer is not None:
+            self.norm = norm_layer(in_chans)
+        else:
+            self.norm = None
+
+    def forward(self, x):
+        """
+        x: (B, C, H, W) Default: (B, 3, 224, 224)
+        returns: (B, H//patch_size * W//patch_size, embed_dim) (B, 56*56, 96)
+        """
+        B, P, W = x.shape
+        x = x.view(B,self.patches_resolution[0],self.patches_resolution[1],W)
+        x=x.permute(0,3,1,2)
+        # (B, 96, 56, 56) -> (B, 3, 224, 224)
+        x = self.proj(x)
+        x = x.permute(0,2,3,1)
+
+        if self.norm is not None:
+            x = self.norm(x)
+
+        return x
 
 class SwinTransformer(nn.Module):
     """ Swin Transformer
@@ -647,6 +696,12 @@ class SwinTransformer(nn.Module):
             img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim,
             norm_layer=norm_layer if self.patch_norm else None
         )
+
+        self.class_head = ClassHead(
+            img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim,
+            norm_layer=norm_layer if self.patch_norm else None
+        )
+
         num_patches = self.patch_embed.num_patches
         patches_resolution = self.patch_embed.patches_resolution
         self.patches_resolution = patches_resolution
@@ -739,11 +794,11 @@ class SwinTransformer(nn.Module):
         for layer in self.delayers:
             x = layer(x,each_stage_outs[self.num_layers-i])
             i += 1
-        #x = self.norm(x)  # (B, L, C) # todo: norm or not?
         return x
 
     def forward(self, x):
         x = self.forward_features(x)
+        x = self.class_head(x)
         return x
 
 if __name__ == '__main__':
