@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-import copy
 
 
 def window_partition(x, window_size=7):
@@ -293,11 +292,16 @@ class SwinTransformerBlock(nn.Module):
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
 
+        # self.register_buffer('attn_mask', attn_mask)
+
+    def forward(self, x, memory,isVertical=True):
         # Attention Mask for SW-MSA
         # This handling of attention-mask is my favourite part. What a beautiful implementation.
-        if self.shift_size > 0:
+        if isVertical:
             H, W = self.input_resolution
-
+        else:
+            W, H = self.input_resolution
+        if self.shift_size > 0:
             # To match the dimension for window_partition function
             img_mask = torch.zeros((1, H, W, 1))
 
@@ -330,10 +334,6 @@ class SwinTransformerBlock(nn.Module):
         else:
             attn_mask = None
 
-        self.register_buffer('attn_mask', attn_mask)
-
-    def forward(self, x, memory):
-        H, W = self.input_resolution
         B, L, C = x.shape
         assert L == H * W, "input feature has wrong size"
 
@@ -357,11 +357,11 @@ class SwinTransformerBlock(nn.Module):
         memory_windows = memory_windows.view(-1, self.window_size * self.window_size, C)  # (nW*B, window_size*window_size, C)
 
         # W-MSA / SW-MSA
-        attn_windows = self.attn(x_windows, x_windows, mask=self.attn_mask)  # (nW*B, window_size*window_size, C)
+        attn_windows = self.attn(x_windows, x_windows, mask=attn_mask)  # (nW*B, window_size*window_size, C)
 
         if self.isDecoder:
             if self.crossAttention:
-                attn_windows = self.attn(x_windows,memory_windows, mask=self.attn_mask)  # (nW*B, window_size*window_size, C)
+                attn_windows = self.attn(x_windows,memory_windows, mask=attn_mask)  # (nW*B, window_size*window_size, C)
 
         # Merge Windows
         attn_windows = attn_windows.view(-1, self.window_size, self.window_size, C)
@@ -396,12 +396,14 @@ class PatchMerging(nn.Module):
         self.reduction = nn.Linear(4 * dim, 2 * dim, bias=False)
         self.norm = norm_layer(4 * dim)
 
-    def forward(self, x):
+    def forward(self, x, isVertical=True):
         """
         x: (B, H*W, C)
         """
-
-        H, W = self.input_resolution
+        if isVertical:
+            H, W = self.input_resolution
+        else:
+            W, H = self.input_resolution
         B, L, C = x.shape
         assert L == H * W, "input feature has wrong size"
         assert H % 2 == 0 and W % 2 == 0, f"x size ({H}*{W}) are not even."
@@ -440,11 +442,14 @@ class PatchUPMerging(nn.Module):
         self.reduction = nn.Linear(dim, 2 * dim, bias=False)
         self.norm = norm_layer(2 * dim)
 
-    def forward(self, x):
+    def forward(self, x,isVertical=True):
         """
         x: (B, H*W, C)
         """
-        H, W = self.input_resolution
+        if isVertical:
+            H, W = self.input_resolution
+        else:
+            W, H = self.input_resolution
         B, L, C = x.shape
 
         # Reduction Layer: 2C -> 4C
@@ -522,7 +527,7 @@ class BasicLayer(nn.Module):
         else:
             self.downsample = None
 
-    def forward(self, x, memory):
+    def forward(self, x, memory,isVertical=True):
         for blk in self.blocks:
             # if self.use_checkpoint:
             #     x = checkpoint.checkpoint(blk, x)
@@ -532,7 +537,7 @@ class BasicLayer(nn.Module):
 
         if self.downsample is not None:
             x_ori = x
-            x = self.downsample(x)
+            x = self.downsample(x,isVertical=isVertical)
 
         if self.isDecoder:
             return x
@@ -585,8 +590,6 @@ class PatchEmbed(nn.Module):
         returns: (B, H//patch_size * W//patch_size, embed_dim) (B, 56*56, 96)
         """
         B, C, H, W = x.shape
-        assert H == self.img_size[0] and W == self.img_size[1], \
-            f"Input image size ({H}*{W}]) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
 
         # (B, 3, 224, 224) -> (B, 96, 56, 56)
         x = self.proj(x)
@@ -635,17 +638,19 @@ class ClassHead(nn.Module):
         else:
             self.norm = None
 
-    def forward(self, x):
+    def forward(self, x,isVertical=True):
         """
         x: (B, C, H, W) Default: (B, 3, 224, 224)
         returns: (B, H//patch_size * W//patch_size, embed_dim) (B, 56*56, 96)
         """
         B, P, W = x.shape
-        x = x.view(B,self.patches_resolution[0],self.patches_resolution[1],W)
+        if isVertical:
+            x = x.view(B,self.patches_resolution[0],self.patches_resolution[1],W)
+        else:
+            x = x.view(B, self.patches_resolution[1], self.patches_resolution[0], W)
         x=x.permute(0,3,1,2)
         # (B, 96, 56, 56) -> (B, 3, 224, 224)
         x = self.proj(x)
-        x = x.permute(0,2,3,1)
 
         if self.norm is not None:
             x = self.norm(x)
@@ -780,7 +785,7 @@ class SwinTransformer(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    def forward_features(self, x):
+    def forward_features(self, x,isVertical):
         x = self.patch_embed(x)
         # if self.ape:
         #     x = x + self.absolute_pos_embed
@@ -788,20 +793,20 @@ class SwinTransformer(nn.Module):
         each_stage_outs = []
         i = 1
         for layer in self.enlayers:
-            x_ori,x = layer(x,x)
+            x_ori,x = layer(x,x,isVertical=isVertical)
             each_stage_outs.append(x_ori)
 
         for layer in self.delayers:
-            x = layer(x,each_stage_outs[self.num_layers-i])
+            x = layer(x,each_stage_outs[self.num_layers-i],isVertical=isVertical)
             i += 1
         return x
 
-    def forward(self, x):
-        x = self.forward_features(x)
-        x = self.class_head(x)
+    def forward(self,x,isVertical=True):
+        x = self.forward_features(x,isVertical=isVertical)
+        x = self.class_head(x,isVertical=isVertical)
         return x
 
 if __name__ == '__main__':
-    model = SwinTransformer(img_size=(224,224)) # only support for n*224
-    dummy = torch.randn(10, 3, 224, 224)
-    print(model(dummy).shape)
+    model = SwinTransformer(img_size=(256,192),window_size=2)
+    dummy = torch.randn(10, 3, 192,256)
+    print(model(dummy,isVertical=False).shape)
