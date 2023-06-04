@@ -613,7 +613,7 @@ class ClassHead(nn.Module):
         norm_layer (nn.Module, optional): Normalization layer (Default: None)
     """
 
-    def __init__(self, img_size=224, patch_size=4, in_chans=3, embed_dim=96, norm_layer=None):
+    def __init__(self, img_size=224, patch_size=4, in_chans=1, embed_dim=96, norm_layer=None):
         super().__init__()
         img_size = to_2tuple(img_size)  # (img_size, img_size) to_2tuple simply convert t to (t,t)
         patch_size = to_2tuple(patch_size)  # (patch_size, patch_size)
@@ -627,7 +627,7 @@ class ClassHead(nn.Module):
         self.in_chans = in_chans
         self.embed_dim = embed_dim
 
-        # proj layer: (B, 96, 56, 56) -> (B, 3, 224, 224)
+        # proj layer: (B, 96, 56, 56) -> (B, 1, 224, 224)
         self.proj = nn.ConvTranspose2d(embed_dim, in_chans, kernel_size=patch_size, stride=patch_size)
 
         if norm_layer is not None:
@@ -698,8 +698,8 @@ class SwinTransformer(nn.Module):
         )
 
         self.class_head = ClassHead(
-            img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim,
-            norm_layer=norm_layer if self.patch_norm else None
+            img_size=img_size, patch_size=patch_size, in_chans=1, embed_dim=embed_dim,
+            norm_layer=None
         )
 
         num_patches = self.patch_embed.num_patches
