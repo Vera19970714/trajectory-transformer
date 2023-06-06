@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def window_partition(x, window_size=7):
     """
@@ -303,7 +304,7 @@ class SwinTransformerBlock(nn.Module):
             W, H = self.input_resolution
         if self.shift_size > 0:
             # To match the dimension for window_partition function
-            img_mask = torch.zeros((1, H, W, 1))
+            img_mask = torch.zeros((1, H, W, 1)).to(DEVICE)
 
             # h_slices and w_slices divide a cyclic-shifted image to 9 regions as shown in the paper
             h_slices = (
@@ -466,7 +467,7 @@ class PatchUPMerging(nn.Module):
         x3 = x[:, :, :, int(1.5*C):2*C]
 
         # Separate per patch by 2 x
-        x_new = torch.zeros(B, 2*H, 2*W, int(0.5*C))
+        x_new = torch.zeros(B, 2*H, 2*W, int(0.5*C)).to(DEVICE)
         x_new[:, 0::2, 0::2, :] = x0
         x_new[:, 1::2, 0::2, :] = x1
         x_new[:, 0::2, 1::2, :] = x2

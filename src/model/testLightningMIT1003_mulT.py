@@ -16,7 +16,7 @@ class TransformerModelMIT1003_MULT(pl.LightningModule):
         super().__init__()
         self.args = args
         self.enableLogging = args.enable_logging
-        self.model = SwinTransformer(img_size=(1024,768),window_size=8).to(
+        self.model = SwinTransformer(img_size=(512,384),window_size=4).to(
             DEVICE)
         for p in self.model.parameters():
             if p.dim() > 1:
@@ -24,10 +24,10 @@ class TransformerModelMIT1003_MULT(pl.LightningModule):
         self.loss_fn = torch.nn.CrossEntropyLoss()
         self.total_step = 0
     def training_step(self, batch, batch_idx):
-        src_img = torch.randn(1, 3, 1024,768).to(DEVICE)
-        tgt = torch.randn(1024,768).softmax(dim=1)
+        src_img = torch.randn(1, 3, 512,384).to(DEVICE)
+        tgt = torch.randn(512,384).softmax(dim=1).to(DEVICE)
         logits = self.model(src_img,isVertical=True)
-        loss = self.loss_fn(logits.reshape(1024,768), tgt.reshape(1024,768))
+        loss = self.loss_fn(logits.reshape(512,384), tgt.reshape(512,384))
         # self.log_gradients_in_model(self.total_step)
         self.total_step += 1
         if self.enableLogging == 'True':
@@ -41,10 +41,10 @@ class TransformerModelMIT1003_MULT(pl.LightningModule):
             self.log('training_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def validation_step(self, batch, batch_idx):
-        src_img = torch.randn(1, 3, 1024,768).to(DEVICE)
-        tgt = torch.randint(1, 5, (1024,)).to(DEVICE)
+        src_img = torch.randn(1, 3, 512,384).to(DEVICE)
+        tgt = torch.randn(512,384).softmax(dim=1).to(DEVICE)
         logits = self.model(src_img,isVertical=True)
-        loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt.reshape(-1))
+        loss = self.loss_fn(logits.reshape(512,384), tgt.reshape(512,384))
         # self.log_gradients_in_model(self.total_step)
         if self.enableLogging == 'True':
             self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
@@ -57,10 +57,10 @@ class TransformerModelMIT1003_MULT(pl.LightningModule):
             self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def test_step(self, batch, batch_idx):
-        src_img = torch.randn(1, 3, 1024,768).to(DEVICE)
-        tgt = torch.randint(1, 5, (768,)).to(DEVICE)
+        src_img = torch.randn(1, 3, 512,384).to(DEVICE)
+        tgt = torch.randn(512,384).softmax(dim=1).to(DEVICE)
         logits = self.model(src_img,isVertical=True)
-        loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt.reshape(-1))
+        loss = self.loss_fn(logits.reshape(512,384), tgt.reshape(512,384))
         # self.log_gradients_in_model(self.total_step)
         if self.enableLogging == 'True':
             self.log('test_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
