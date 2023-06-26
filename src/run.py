@@ -14,6 +14,7 @@ from benchmark.base_lightning import BaseModel
 from model.transformerLightningMIT1003 import TransformerModelMIT1003
 from model.transformerLightningMIT1003_vit import TransformerModelMIT1003_VIT
 from model.transformerLightningMIT1003_joint import TransformerModelMIT1003_Joint
+from model.testLightningMIT1003_mulT import TransformerModelMIT1003_MULT
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -23,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_train', type=str)
     parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
     parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
-    parser.add_argument('-checkpoint', default='../ckpt/d3p4_index_sod/last.ckpt', type=str)
+    parser.add_argument('-checkpoint', default='None', type=str)
 
     # parameters ONLY for MIT1003
     parser.add_argument('-data_folder_path', default='../dataset/MIT1003/', type=str)
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     
     # model settings and hyperparameters
     # choices: BaseModel,TransformerMIT1003,Transformer, TransformerMIT1003_vit, TransformerMIT1003_joint
-    parser.add_argument('-model', default='TransformerMIT1003', type=str)
+    parser.add_argument('-model', default='Test', type=str)
     parser.add_argument('-architecture_mode', default='scanpath', type=str)  # choice: heatmap, scanpath, joint
     # architecture related choices: only for TransformerMIT1003 and joint
     parser.add_argument('-feature_extractor', default='CNN', type=str) # NOT USED # choice: CNN, LP
@@ -66,12 +67,12 @@ if __name__ == '__main__':
 
     # training settings
     parser.add_argument('-gpus', default='0', type=str)
-    parser.add_argument('-batch_size', type=int, default=2)
-    parser.add_argument('-num_epochs', type=int, default=1)
+    parser.add_argument('-batch_size', type=int, default=1)
+    parser.add_argument('-num_epochs', type=int, default=10)
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=5)
 
-    parser.add_argument('-do_train', type=str, default='False')
+    parser.add_argument('-do_train', type=str, default='True')
     parser.add_argument('-do_test', type=str, default='True')
 
     args = parser.parse_args()
@@ -107,6 +108,9 @@ if __name__ == '__main__':
     if args.model == 'Transformer':
         model = TransformerModel(args)
         search_data = SearchDataModule(args)
+    elif args.model == 'Test':
+        model = TransformerModelMIT1003_MULT(args)
+        search_data = MIT1003DataModule(args)
     elif args.model == 'BaseModel':
         model = BaseModel(args)
         search_data = BaseSearchDataModule(args)
