@@ -808,5 +808,5 @@ class SwinTransformer(nn.Module):
 
 if __name__ == '__main__':
     model = SwinTransformer(img_size=(256,192),window_size=2)
-    dummy = torch.randn(10, 3, 192,256)
+    dummy = torch.randn(1, 3, 192,256)
     print(model(dummy,isVertical=False).shape)
