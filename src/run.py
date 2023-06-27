@@ -13,11 +13,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-train_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_train', type=str)
-    parser.add_argument('-valid_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
-    parser.add_argument('-test_datapath', default='../dataset/processdata/dataset_Q23_mousedel_time_val', type=str)
+    parser.add_argument('-data_path', default='../dataset/processdata/dataset_Q23_mousedel_time', type=str)
+    parser.add_argument('-index_file', default='../dataset/processdata/splitlist_time_mousedel.txt', type=str)
+    parser.add_argument('-cross_dataset', default='Yes', type=str) # choices: None, Yes, No
     parser.add_argument('-package_size', type=int, default=27)
-    parser.add_argument('-checkpoint', default='../ckpt/bestxy1.ckpt', type=str)
+    parser.add_argument('-checkpoint', default=None, type=str)
 
     parser.add_argument('-log_name', default='test_log', type=str)
     parser.add_argument('-write_output', type=str, default='True')
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=5)
 
-    parser.add_argument('-do_train', type=str, default='False')
+    parser.add_argument('-do_train', type=str, default='True')
     parser.add_argument('-do_test', type=str, default='True')
 
     args = parser.parse_args()

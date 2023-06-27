@@ -29,7 +29,6 @@ class CUT_PIC(object):
         words1 = [str(item) for item in list(df_data1["ID"])]
         words2 = [str(item) for item in list(df_data2["ID"])]
 
-
         word_dict_sorted1 = Counter(words1)
         word_dict_sorted2 = Counter(words2)
 
@@ -37,9 +36,11 @@ class CUT_PIC(object):
             if i==0:
                 dict = word_dict_sorted1
                 df_ori = df_data1
+                print('Q2 size: ', len(dict))
             elif i==1:
                 dict = word_dict_sorted2
                 df_ori = df_data2
+                print('Q3 size: ', len(dict))
 
             for key in tqdm(dict):
                 df1 = df_ori[df_ori["ID"]==int(key)]
@@ -59,7 +60,6 @@ class CUT_PIC(object):
                     CROP_RANGE_1 = 389
                     CROP_RANGE_2 = 106 
                     dim = (106, 390)
-    
 
                 elif question_name.startswith('Q2'):
                     IMAGE_SIZE_1 = 295
@@ -69,7 +69,6 @@ class CUT_PIC(object):
                     CROP_RANGE_1 = 239
                     CROP_RANGE_2 = 116
                     dim = (93, 150)
-
 
                 elif question_name.startswith('Q3'):
                     IMAGE_SIZE_1 = 305
@@ -83,7 +82,6 @@ class CUT_PIC(object):
                 question_img = cv.imread(img_dir + question_name + '.png')
                 question_img = cv.cvtColor(question_img,cv.COLOR_BGR2RGB)
 
-
                 for y in range(1, IMAGE_ROW + 1):
                     for x in range(1, IMAGE_COLUMN + 1):
                         img_cropped_feature = question_img[((1050-IMAGE_SIZE_1*IMAGE_ROW)+(y-1)*IMAGE_SIZE_1):((1050-IMAGE_SIZE_1*IMAGE_ROW)+y*IMAGE_SIZE_1), ((x-1)*IMAGE_SIZE_2):x*IMAGE_SIZE_2]
@@ -96,12 +94,10 @@ class CUT_PIC(object):
                 dataset_dict['package_target'] = package_target
                 dataset_dict['package_seq'] =  package_seq
                 dataset_dict['question_img_feature'] =  Question_img_feature
-
+                dataset_dict['id'] = question_name[:2]
 
                 if question_name.startswith('Q2') or question_name.startswith('Q3'):
                     dataset.append(dataset_dict)
-            
-
 
         with open("./dataset/processdata/dataset_Q23_mousedel_time", "wb") as fp:  # Pickling
             pickle.dump(dataset, fp)
@@ -217,6 +213,7 @@ class SAVE_PIC(object):
 if __name__ == '__main__':
     CUT_PIC = CUT_PIC()
     CUT_PIC.cut_pic()
+    # results: Q2 size 453, Q3 size 439
 
 # if __name__ == '__main__':
 #     SAVE_PIC= SAVE_PIC()

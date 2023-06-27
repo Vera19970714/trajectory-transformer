@@ -1,19 +1,69 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
-from PIL import Image
-from torchvision import datasets, transforms
 import pytorch_lightning as pl
 import pickle
 from torch.nn.utils.rnn import pad_sequence
 import matplotlib.pyplot as plt
 
 
+def randsplit(file, indexFile, isTrain, cross_dataset):
+    with open(file, "rb") as fp:
+        raw_data = pickle.load(fp)
+    data_length = len(raw_data)
+
+    with open(indexFile) as f:
+        lines = f.readlines()
+    linesInt = [int(x) for x in lines]
+
+    if cross_dataset == 'None':
+        split_num = int(data_length*0.9)
+    elif cross_dataset == 'No':
+        split_num = 453
+
+    if isTrain:
+        train_index = np.array(linesInt[:split_num])
+        traindata = np.array(raw_data)[train_index.astype(int)]
+        return traindata
+    else:
+        test_index = np.array(linesInt[-(data_length - split_num):])
+        valdata = np.array(raw_data)[test_index.astype(int)]
+        return valdata
+
+
+def cross_data_split(file, isTrain):
+    with open(file, "rb") as fp:
+        raw_data = pickle.load(fp)
+    shampoo_task = []
+    yogurt_task = []
+    for index in range(len(raw_data)):
+        if raw_data[index]['id'] == 'Q2':
+            shampoo_task.append(index)
+        elif raw_data[index]['id'] == 'Q3':
+            yogurt_task.append(index)
+    if isTrain:
+        train_index = np.array(shampoo_task)
+        traindata = np.array(raw_data)[train_index.astype(int)]
+        return traindata
+    else:
+        val_index = np.array(yogurt_task)
+        valdata = np.array(raw_data)[val_index.astype(int)]
+        return valdata
+
+
 class FixDataset(Dataset):
-    def __init__(self, args, new_datapath):
-        #raw_data = torch.load(new_datapath)
-        with open(new_datapath, "rb") as fp:  # Unpickling
-            raw_data = pickle.load(fp)
+    def __init__(self, args, isTrain):
+        new_datapath = args.data_path
+        indexFile = args.index_file
+        cross_dataset = args.cross_dataset
+        if cross_dataset == 'None' or cross_dataset == 'No':
+            raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset)
+        elif cross_dataset == 'Yes':
+            raw_data = cross_data_split(new_datapath, isTrain)
+        else:
+            print('cross_dataset value ERROR')
+            quit()
+
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
         self.package_target = []
@@ -65,9 +115,9 @@ class FixDataset(Dataset):
 class SearchDataModule(pl.LightningDataModule):
   def __init__(self, args):
     super().__init__()
-    train_set = FixDataset(args, args.train_datapath)
-    val_set = FixDataset(args, args.valid_datapath)
-    test_set = FixDataset(args, args.test_datapath)
+    train_set = FixDataset(args, True)
+    val_set = FixDataset(args, False)
+    test_set = FixDataset(args, False)
     collate_fn = Collator(args.package_size)
     
     self.train_loader = DataLoader(dataset=train_set,
