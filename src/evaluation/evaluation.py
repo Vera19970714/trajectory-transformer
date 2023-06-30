@@ -8,8 +8,54 @@ from itertools import groupby
 from dictances import bhattacharyya
 from scipy.stats import wasserstein_distance
 
+
 ITERATION = 100
 TOTAL_PCK = 27
+cross_dataset = 'None'
+
+def randsplit(file, indexFile, isTrain, cross_dataset):
+    with open(file, "rb") as fp:
+        raw_data = pickle.load(fp)
+    data_length = len(raw_data)
+
+    with open(indexFile) as f:
+        lines = f.readlines()
+    linesInt = [int(x) for x in lines]
+
+    if cross_dataset == 'None':
+        split_num = int(data_length*0.9)
+    elif cross_dataset == 'No':
+        split_num = 453
+
+    if isTrain:
+        train_index = np.array(linesInt[:split_num])
+        traindata = np.array(raw_data)[train_index.astype(int)]
+        return traindata
+    else:
+        test_index = np.array(linesInt[-(data_length - split_num):])
+        valdata = np.array(raw_data)[test_index.astype(int)]
+        return valdata
+
+
+def cross_data_split(file, isTrain):
+    with open(file, "rb") as fp:
+        raw_data = pickle.load(fp)
+    shampoo_task = []
+    yogurt_task = []
+    for index in range(len(raw_data)):
+        if raw_data[index]['id'] == 'Q2':
+            shampoo_task.append(index)
+        elif raw_data[index]['id'] == 'Q3':
+            yogurt_task.append(index)
+    if isTrain:
+        train_index = np.array(shampoo_task)
+        traindata = np.array(raw_data)[train_index.astype(int)]
+        return traindata
+    else:
+        val_index = np.array(yogurt_task)
+        valdata = np.array(raw_data)[val_index.astype(int)]
+        return valdata
+
 
 
 def behavior(result_array, target, gaze):
@@ -51,26 +97,32 @@ def losses(heatmap_gt, gaze, result_array):
 class Evaluation(object):
     def __init__(self):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
-        gaze_gt = '../dataset/checkEvaluation/gaze_gt.csv'
-        gaze_max = '../dataset/checkEvaluation/gaze_max.csv'
-        gaze_expect = '../dataset/checkEvaluation/gaze_expect.csv'
-        gaze_random = '../dataset/checkEvaluation/gaze_random.csv'
-        gaze_resnet = '../dataset/checkEvaluation/gaze_resnet_similarity.csv'
-        gaze_saliency = '../dataset/checkEvaluation/gaze_saliency.csv'
-        gaze_rgb = '../dataset/checkEvaluation/gaze_rgb_similarity.csv'
+        gaze_gt = './dataset/checkEvaluation/cross_no/gaze_gt.csv'
+        gaze_max = './dataset/checkEvaluation/cross_no/gaze_max.csv'
+        gaze_expect = './dataset/checkEvaluation/cross_no/gaze_expect.csv'
+        gaze_random = './dataset/checkEvaluation/gaze_random.csv'
+        gaze_resnet = './dataset/checkEvaluation/gaze_resnet_similarity.csv'
+        gaze_saliency = './dataset/checkEvaluation/gaze_saliency.csv'
+        gaze_rgb = './dataset/checkEvaluation/gaze_rgb_similarity.csv'
 
-        datapath = '../dataset/processdata/dataset_Q23_similarity_mousedel_time_val'
-
-        with open(datapath, "rb") as fp:
-            raw_data = pickle.load(fp)
+        datapath = './dataset/processdata/dataset_Q23_mousedel_time'
+        indexFile = './dataset/processdata/splitlist_time_mousedel.txt'
+        if cross_dataset == 'None' or cross_dataset == 'No':
+            raw_data = randsplit(datapath, indexFile, False, cross_dataset)
+        elif cross_dataset == 'Yes':
+            raw_data = cross_data_split(datapath, False)
+        else:
+            print('cross_dataset value ERROR')
+            quit()
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
         self.target = []
 
         for item in raw_data:
             self.target.append(item['package_target'])
-        self.target = [self.target[i]-1 for i in range(len(self.target))]
-
+        
+        self.target = [int(self.target[i][0])-1 for i in range(len(self.target))]
+        
         self.gaze_gt = np.array(pd.read_csv(gaze_gt))
         #self.gaze_tf = np.array(pd.read_csv(gaze_tf))
         self.gaze_max = np.array(pd.read_csv(gaze_max))

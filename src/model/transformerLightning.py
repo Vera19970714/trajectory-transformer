@@ -393,7 +393,7 @@ class TransformerModel(pl.LightningModule):
         loss_gt,GAZE_tf,GAZE_gt,LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
         self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         if self.args.write_output == 'True':
-            return {'loss_max': loss_max, 'LOSS': LOSS, 'GAZE': GAZE, 'LOGITS': LOGITS, 'GAZE_tf': GAZE_tf,
+            return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt,'LOSS': LOSS, 'GAZE': GAZE, 'LOGITS': LOGITS, 'GAZE_tf': GAZE_tf,
                     'GAZE_gt': GAZE_gt, 'LOGITS_tf': LOGITS_tf, 'GAZE_expect': GAZE_expect}
         else:
             return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt}
@@ -433,6 +433,14 @@ class TransformerModel(pl.LightningModule):
             all_gaze_gt.to_csv(self.args.output_path + '/gaze_gt' + self.args.output_postfix + '.csv', index=False)
             #all_logits_tf.to_csv('../dataset/checkEvaluation/logits_tf.csv', index=False)
             all_gaze_expect.to_csv(self.args.output_path + '/gaze_expect' + self.args.output_postfix + '.csv', index=False)
+            avg_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
+            self.log('test_loss_max_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+
+            avg_loss = torch.stack([x['loss_expect'].cpu().detach() for x in test_step_outputs]).mean()
+            self.log('test_loss_expect_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+
+            avg_loss = torch.stack([x['loss_gt'].cpu().detach() for x in test_step_outputs]).mean()
+            self.log('test_loss_gt_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
         else:
             avg_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
             self.log('test_loss_max_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)

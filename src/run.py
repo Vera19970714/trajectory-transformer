@@ -15,11 +15,11 @@ if __name__ == '__main__':
     # data path and output files
     parser.add_argument('-data_path', default='../dataset/processdata/dataset_Q23_mousedel_time', type=str)
     parser.add_argument('-index_file', default='../dataset/processdata/splitlist_time_mousedel.txt', type=str)
-    parser.add_argument('-cross_dataset', default='Yes', type=str) # choices: None, Yes, No
+    parser.add_argument('-cross_dataset', default='None', type=str) # choices: None, Yes, No
     parser.add_argument('-package_size', type=int, default=27)
     parser.add_argument('-checkpoint', default=None, type=str)
 
-    parser.add_argument('-log_name', default='test_log', type=str)
+    parser.add_argument('-log_name', default='cross_no', type=str)
     parser.add_argument('-write_output', type=str, default='True')
     parser.add_argument('-output_path', type=str, default='../dataset/checkEvaluation/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     # model settings and hyperparameters
     parser.add_argument('-model', default='Transformer', type=str) #BaseModel,
     parser.add_argument('-learning_rate', default=1e-4, type=float)
-    parser.add_argument('-scheduler_lambda1', default=20, type=int)
+    parser.add_argument('-scheduler_lambda1', default=1, type=int)
     parser.add_argument('-scheduler_lambda2', default=0.95, type=float)
     parser.add_argument('-grad_accumulate', type=int, default=1)
     parser.add_argument('-clip_val', default=1.0, type=float)
@@ -37,9 +37,9 @@ if __name__ == '__main__':
     parser.add_argument('-use_threedimension', type=str, default='True')
 
     # training settings
-    parser.add_argument('-gpus', default='0', type=str)
+    parser.add_argument('-gpus', default='-1', type=str)
     parser.add_argument('-batch_size', type=int, default=20)
-    parser.add_argument('-num_epochs', type=int, default=500)
+    parser.add_argument('-num_epochs', type=int, default=100)
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=5)
 
