@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 import pickle
 from torch.nn.utils.rnn import pad_sequence
 import matplotlib.pyplot as plt
-
+from numpy import random
 
 def randsplit(file, indexFile, isTrain, cross_dataset):
     with open(file, "rb") as fp:
@@ -50,19 +50,85 @@ def cross_data_split(file, isTrain):
         valdata = np.array(raw_data)[val_index.astype(int)]
         return valdata
 
+'''save_indices_file_code:
+    testing_indexes = random.choice(shampoo_task, size=45, replace=False)
+    with open("../dataset/processdata/splitlist_shampoo_testing_indices.txt", 'w') as F:
+        F.writelines([str(item).replace(' ', '\t') + '\n' for item in testing_indexes])
+        F.close()
+
+    training_list = []
+    for x in shampoo_task:
+        if x not in testing_indexes:
+            training_list.append(x)
+
+    with open("../dataset/processdata/splitlist_pure_indices.txt", 'w') as F:
+        F.writelines([str(item).replace(' ', '\t') + '\n' for item in training_list])
+        F.close()
+
+    sham = random.choice(shampoo_task, size=204, replace=False)
+    yog = random.choice(yogurt_task, size=204, replace=False)
+    new_list = list(np.concatenate((sham, yog)))
+    with open("../dataset/processdata/splitlist_mixed_indices.txt", 'w') as F:
+        F.writelines([str(item).replace(' ', '\t') + '\n' for item in new_list])
+        F.close()
+
+    yog = list(random.choice(yogurt_task, size=408, replace=False))
+    with open("../dataset/processdata/splitlist_cross_indices.txt", 'w') as F:
+        F.writelines([str(item).replace(' ', '\t') + '\n' for item in yog])
+        F.close()'''
+
+def cross_data_split2(file, isTrain, indexFolder, crossChoice):
+    with open(file, "rb") as fp:
+        raw_data = pickle.load(fp)
+    shampoo_task = []
+    yogurt_task = []
+    for index in range(len(raw_data)):
+        if raw_data[index]['id'] == 'Q2':
+            shampoo_task.append(index)
+        elif raw_data[index]['id'] == 'Q3':
+            yogurt_task.append(index)
+
+    if isTrain:
+        if crossChoice == 'Pure':
+            with open(indexFolder + 'splitlist_pure_indices.txt') as f:
+                lines = f.readlines()
+            train_index = np.array([int(x[:-1]) for x in lines])
+        elif crossChoice == 'Mixed':
+            with open(indexFolder + 'splitlist_mixed_indices.txt') as f:
+                lines = f.readlines()
+            train_index = np.array([int(x[:-1]) for x in lines])
+        elif crossChoice == 'Cross':
+            with open(indexFolder + 'splitlist_cross_indices.txt') as f:
+                lines = f.readlines()
+            train_index = np.array([int(x[:-2]) for x in lines])
+        traindata = np.array(raw_data)[train_index]
+        return traindata
+    else:
+        with open(indexFolder + 'splitlist_shampoo_testing_indices.txt') as f:
+            lines = f.readlines()
+        val_index = np.array([int(x[:-1]) for x in lines])
+        valdata = np.array(raw_data)[val_index]
+        return valdata
+
 
 class FixDataset(Dataset):
     def __init__(self, args, isTrain):
         new_datapath = args.data_path
-        indexFile = args.index_file
+        indexFile = args.index_folder + 'splitlist_time_mousedel.txt'
         cross_dataset = args.cross_dataset
-        if cross_dataset == 'None' or cross_dataset == 'No':
+        '''if cross_dataset == 'None' or cross_dataset == 'No':
             raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset)
         elif cross_dataset == 'Yes':
             raw_data = cross_data_split(new_datapath, isTrain)
         else:
             print('cross_dataset value ERROR')
-            quit()
+            quit()'''
+        assert cross_dataset in ['None', 'Pure', 'Mixed', 'Cross']
+        if cross_dataset == 'None':
+            raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset)
+        else:
+            raw_data = cross_data_split2(new_datapath, isTrain, args.index_folder, cross_dataset)
+
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
