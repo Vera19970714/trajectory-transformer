@@ -65,7 +65,7 @@ def cross_data_split(file, isTrain):
         F.writelines([str(item).replace(' ', '\t') + '\n' for item in training_list])
         F.close()
 
-    sham = random.choice(shampoo_task, size=204, replace=False)
+    sham = random.choice(training_list, size=204, replace=False)
     yog = random.choice(yogurt_task, size=204, replace=False)
     new_list = list(np.concatenate((sham, yog)))
     with open("../dataset/processdata/splitlist_mixed_indices.txt", 'w') as F:
@@ -77,7 +77,7 @@ def cross_data_split(file, isTrain):
         F.writelines([str(item).replace(' ', '\t') + '\n' for item in yog])
         F.close()'''
 
-def cross_data_split2(file, isTrain, indexFolder, crossChoice):
+def cross_data_split2(file, isTrain, indexFolder, crossChoice, testing_dataset_choice):
     with open(file, "rb") as fp:
         raw_data = pickle.load(fp)
     shampoo_task = []
@@ -90,21 +90,21 @@ def cross_data_split2(file, isTrain, indexFolder, crossChoice):
 
     if isTrain:
         if crossChoice == 'Pure':
-            with open(indexFolder + 'splitlist_pure_indices.txt') as f:
+            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_pure_indices.txt') as f:
                 lines = f.readlines()
             train_index = np.array([int(x[:-1]) for x in lines])
         elif crossChoice == 'Mixed':
-            with open(indexFolder + 'splitlist_mixed_indices.txt') as f:
+            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_mixed_indices.txt') as f:
                 lines = f.readlines()
             train_index = np.array([int(x[:-1]) for x in lines])
         elif crossChoice == 'Cross':
-            with open(indexFolder + 'splitlist_cross_indices.txt') as f:
+            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_cross_indices.txt') as f:
                 lines = f.readlines()
             train_index = np.array([int(x[:-2]) for x in lines])
         traindata = np.array(raw_data)[train_index]
         return traindata
     else:
-        with open(indexFolder + 'splitlist_shampoo_testing_indices.txt') as f:
+        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_testing_indices.txt') as f:
             lines = f.readlines()
         val_index = np.array([int(x[:-1]) for x in lines])
         valdata = np.array(raw_data)[val_index]
@@ -116,6 +116,7 @@ class FixDataset(Dataset):
         new_datapath = args.data_path
         indexFile = args.index_folder + 'splitlist_time_mousedel.txt'
         cross_dataset = args.cross_dataset
+        testing_dataset_choice = args.testing_dataset_choice
         '''if cross_dataset == 'None' or cross_dataset == 'No':
             raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset)
         elif cross_dataset == 'Yes':
@@ -124,11 +125,11 @@ class FixDataset(Dataset):
             print('cross_dataset value ERROR')
             quit()'''
         assert cross_dataset in ['None', 'Pure', 'Mixed', 'Cross']
+        assert testing_dataset_choice in ['yogurt', 'shampoo']
         if cross_dataset == 'None':
             raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset)
         else:
-            raw_data = cross_data_split2(new_datapath, isTrain, args.index_folder, cross_dataset)
-
+            raw_data = cross_data_split2(new_datapath, isTrain, args.index_folder, cross_dataset, testing_dataset_choice)
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')

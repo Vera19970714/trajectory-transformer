@@ -15,6 +15,7 @@ if __name__ == '__main__':
     # data path and output files
     parser.add_argument('-data_path', default='../dataset/processdata/dataset_Q23_mousedel_time', type=str)
     parser.add_argument('-index_folder', default='../dataset/processdata/', type=str)
+    parser.add_argument('-testing_dataset_choice', default='yogurt', type=str)  # choices: yogurt, shampoo
     parser.add_argument('-cross_dataset', default='Pure', type=str) # v2 choices: None, Pure, Mixed, Cross  # deprecated choices: None, Yes, No
     parser.add_argument('-package_size', type=int, default=27)
     parser.add_argument('-checkpoint', default=None, type=str)
