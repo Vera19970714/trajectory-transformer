@@ -3,8 +3,34 @@ import torch
 import torch.nn as nn
 from torch.nn import Transformer
 import math
+import numpy as np
 UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
+class PositionalEncodingOri(nn.Module):
+
+    def __init__(self, d_hid, n_position=200):
+        super(PositionalEncodingOri, self).__init__()
+
+        # Not a parameter
+        self.register_buffer('pos_table', self._get_sinusoid_encoding_table(n_position, d_hid))
+
+    def _get_sinusoid_encoding_table(self, n_position, d_hid):
+        ''' Sinusoid position encoding table '''
+
+        def get_position_angle_vec(position):
+            return [position / np.power(10000, 2 * (hid_j // 2) / d_hid) for hid_j in range(d_hid)]
+
+        sinusoid_table = np.array([get_position_angle_vec(pos_i) for pos_i in range(n_position)])
+        sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
+        sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
+
+        return torch.FloatTensor(sinusoid_table).unsqueeze(0)#(1,N,d)
+
+    def forward(self, x):
+        # x(B,N,d)
+        return x + self.pos_table[:, :x.size(1)].clone().detach()
 
 # helper Module that adds positional encoding to the token embedding to introduce a notion of word order.
 class PositionalEncoding(nn.Module):
@@ -36,7 +62,7 @@ class VisualPositionalEncoding(nn.Module):
         pos_embedding = nn.Parameter(torch.randn(maxlen, emb_size))
         pos_embedding = pos_embedding.unsqueeze(-2)
         self.dropout = nn.Dropout(dropout)
-        self.register_buffer('visual_pos_embedding', pos_embedding)
+        self.register_buffer('visual_pos_embedding', pos_embedding) # NOTICE: not learned, it's deterministic
 
     def forward(self, token_embedding: Tensor):
         return self.dropout(token_embedding + self.visual_pos_embedding[:token_embedding.size(0), :])
@@ -95,7 +121,8 @@ class Seq2SeqTransformer(nn.Module):
         #self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, int(emb_size/2))
         self.positional_encoding = PositionalEncoding(
             emb_size, dropout=dropout)
-        self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
+        #self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
+        self.positional_encoding_ori = PositionalEncodingOri(emb_size)
 
         self.cnn_embedding = CNNEmbedding(int(emb_size/2))
         self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))
@@ -120,7 +147,7 @@ class Seq2SeqTransformer(nn.Module):
         #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
         src_pos_emb = self.LinearEmbedding(src)
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
-        src_emb = self.visual_positional_encoding(src_emb) #28,4,512
+        src_emb = self.positional_encoding_ori(src_emb) #28,4,512
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well
 
         tgt_cnn_emb = self.cnn_embedding(tgt_img).transpose(0, 1)  # 28, 4, 256
