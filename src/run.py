@@ -8,6 +8,7 @@ from dataBuilders.data_builder import SearchDataModule
 from dataBuilders.data_builder_base import BaseSearchDataModule
 from model.transformerLightning import TransformerModel
 from benchmark.base_lightning import BaseModel
+import numpy as np
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -16,13 +17,13 @@ if __name__ == '__main__':
     parser.add_argument('-data_path', default='../dataset/processdata/dataset_Q23_mousedel_time', type=str)
     parser.add_argument('-index_folder', default='../dataset/processdata/', type=str)
     parser.add_argument('-testing_dataset_choice', default='yogurt', type=str)  # choices: yogurt, shampoo
-    parser.add_argument('-cross_dataset', default='Pure', type=str) # v2 choices: None, Pure, Mixed, Cross  # deprecated choices: None, Yes, No
+    parser.add_argument('-cross_dataset', default='None', type=str) # v2 choices: None, Pure, Mixed, Cross  # deprecated choices: None, Yes, No
     parser.add_argument('-package_size', type=int, default=27)
-    parser.add_argument('-checkpoint', default=None, type=str)
+    parser.add_argument('-checkpoint', default= 'None', type=str)
 
-    parser.add_argument('-log_name', default='cross_no', type=str)
+    parser.add_argument('-log_name', default='none', type=str)
     parser.add_argument('-write_output', type=str, default='True')
-    parser.add_argument('-output_path', type=str, default='../dataset/checkEvaluation/')
+    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
 
@@ -42,7 +43,7 @@ if __name__ == '__main__':
     parser.add_argument('-batch_size', type=int, default=20)
     parser.add_argument('-num_epochs', type=int, default=100)
     parser.add_argument('-random_seed', type=int, default=3407)
-    parser.add_argument('-early_stop_patience', type=int, default=5)
+    parser.add_argument('-early_stop_patience', type=int, default=20)
 
     parser.add_argument('-do_train', type=str, default='True')
     parser.add_argument('-do_test', type=str, default='True')
@@ -104,6 +105,11 @@ if __name__ == '__main__':
         trainer.test(model=model, dataloaders=search_data.test_loader)
     elif args.do_test == 'True':
         model = model.load_from_checkpoint(args.checkpoint, args=args)
+        leanableposencoding = model.model.visual_positional_encoding.pos_embedding
+        leanableposencoding = leanableposencoding[:28,0,:].cpu().detach().numpy()
+        # save posencoding
+        # np.save('./leanableposencoding.npy',leanableposencoding)
+        # exit()
         trainer.test(model=model, dataloaders=search_data.test_loader)
 
 

@@ -60,12 +60,12 @@ class VisualPositionalEncoding(nn.Module):
                  maxlen: int = 5000):
         super(VisualPositionalEncoding, self).__init__()
         pos_embedding = nn.Parameter(torch.randn(maxlen, emb_size))
-        pos_embedding = pos_embedding.unsqueeze(-2)
+        self.pos_embedding = pos_embedding.unsqueeze(-2)
         self.dropout = nn.Dropout(dropout)
-        self.register_buffer('visual_pos_embedding', pos_embedding) # NOTICE: not learned, it's deterministic
+        # self.register_buffer('visual_pos_embedding', pos_embedding) # NOTICE: not learned, it's deterministic
 
     def forward(self, token_embedding: Tensor):
-        return self.dropout(token_embedding + self.visual_pos_embedding[:token_embedding.size(0), :])
+        return self.dropout(token_embedding + self.pos_embedding[:token_embedding.size(0), :])
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbedding(nn.Module):
@@ -121,7 +121,7 @@ class Seq2SeqTransformer(nn.Module):
         #self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, int(emb_size/2))
         self.positional_encoding = PositionalEncoding(
             emb_size, dropout=dropout)
-        #self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
+        self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
         self.positional_encoding_ori = PositionalEncodingOri(emb_size)
 
         self.cnn_embedding = CNNEmbedding(int(emb_size/2))
@@ -147,7 +147,7 @@ class Seq2SeqTransformer(nn.Module):
         #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
         src_pos_emb = self.LinearEmbedding(src)
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
-        src_emb = self.positional_encoding_ori(src_emb) #28,4,512
+        src_emb = self.positional_encoding(src_emb) #28,4,512
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well
 
         tgt_cnn_emb = self.cnn_embedding(tgt_img).transpose(0, 1)  # 28, 4, 256

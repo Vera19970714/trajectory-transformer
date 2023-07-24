@@ -118,7 +118,7 @@ class TransformerModel(pl.LightningModule):
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
             # use this for (x,y,1)
             tgt_input_2d[tgt1, i, 2] = 1
-            src_pos_2d[tgt2, i, 2] = 1
+            # src_pos_2d[tgt2, i, 2] = 1
             # use this for (0,0,1)
             #tgt_input_2d[tgt1, i] = tgtValue
             #src_pos_2d[tgt2, i] = tgtValue
@@ -187,7 +187,7 @@ class TransformerModel(pl.LightningModule):
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
             # use this for (x,y,1)
             tgt_input_2d[tgt1, i, 2] = 1
-            src_pos_2d[tgt2, i, 2] = 1
+            # src_pos_2d[tgt2, i, 2] = 1
             # use this for (0,0,1)
             #tgt_input_2d[tgt1, i] = tgtValue
             #src_pos_2d[tgt2, i] = tgtValue

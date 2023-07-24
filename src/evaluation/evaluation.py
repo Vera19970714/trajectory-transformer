@@ -11,7 +11,9 @@ from scipy.stats import wasserstein_distance
 
 ITERATION = 100
 TOTAL_PCK = 27
-cross_dataset = 'None'
+cross_dataset = 'Cross' # v2 choices: None, Pure, Mixed, Cross
+testing_dataset_choice = 'shampoo'# choices: yogurt, shampoo
+index_folder = './dataset/processdata/'
 
 def randsplit(file, indexFile, isTrain, cross_dataset):
     with open(file, "rb") as fp:
@@ -56,6 +58,38 @@ def cross_data_split(file, isTrain):
         valdata = np.array(raw_data)[val_index.astype(int)]
         return valdata
 
+def cross_data_split2(file, isTrain, indexFolder, crossChoice, testing_dataset_choice):
+    with open(file, "rb") as fp:
+        raw_data = pickle.load(fp)
+    shampoo_task = []
+    yogurt_task = []
+    for index in range(len(raw_data)):
+        if raw_data[index]['id'] == 'Q2':
+            shampoo_task.append(index)
+        elif raw_data[index]['id'] == 'Q3':
+            yogurt_task.append(index)
+
+    if isTrain:
+        if crossChoice == 'Pure':
+            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_pure_indices.txt') as f:
+                lines = f.readlines()
+            train_index = np.array([int(x[:-1]) for x in lines])
+        elif crossChoice == 'Mixed':
+            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_mixed_indices.txt') as f:
+                lines = f.readlines()
+            train_index = np.array([int(x[:-1]) for x in lines])
+        elif crossChoice == 'Cross':
+            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_cross_indices.txt') as f:
+                lines = f.readlines()
+            train_index = np.array([int(x[:-1]) for x in lines])
+        traindata = np.array(raw_data)[train_index]
+        return traindata
+    else:
+        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_testing_indices.txt') as f:
+            lines = f.readlines()
+        val_index = np.array([int(x[:-1]) for x in lines])
+        valdata = np.array(raw_data)[val_index]
+        return valdata
 
 
 def behavior(result_array, target, gaze):
@@ -97,23 +131,21 @@ def losses(heatmap_gt, gaze, result_array):
 class Evaluation(object):
     def __init__(self):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
-        gaze_gt = './dataset/checkEvaluation/cross_no/gaze_gt.csv'
-        gaze_max = './dataset/checkEvaluation/cross_no/gaze_max.csv'
-        gaze_expect = './dataset/checkEvaluation/cross_no/gaze_expect.csv'
+        gaze_gt = './dataset/checkEvaluation/cross_shampoo_cross/gaze_gt.csv'
+        gaze_max = './dataset/checkEvaluation/cross_shampoo_cross/gaze_max.csv'
+        gaze_expect = './dataset/checkEvaluation/cross_shampoo_cross/gaze_expect.csv'
         gaze_random = './dataset/checkEvaluation/gaze_random.csv'
         gaze_resnet = './dataset/checkEvaluation/gaze_resnet_similarity.csv'
         gaze_saliency = './dataset/checkEvaluation/gaze_saliency.csv'
         gaze_rgb = './dataset/checkEvaluation/gaze_rgb_similarity.csv'
 
-        datapath = './dataset/processdata/dataset_Q23_mousedel_time'
+        new_datapath = './dataset/processdata/dataset_Q23_mousedel_time'
         indexFile = './dataset/processdata/splitlist_time_mousedel.txt'
-        if cross_dataset == 'None' or cross_dataset == 'No':
-            raw_data = randsplit(datapath, indexFile, False, cross_dataset)
-        elif cross_dataset == 'Yes':
-            raw_data = cross_data_split(datapath, False)
+        if cross_dataset == 'None':
+            raw_data = randsplit(new_datapath, indexFile, False, cross_dataset)
         else:
-            print('cross_dataset value ERROR')
-            quit()
+            raw_data = cross_data_split2(new_datapath, False, index_folder, cross_dataset, testing_dataset_choice)
+
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
         self.target = []
