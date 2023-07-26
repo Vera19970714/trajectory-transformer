@@ -100,7 +100,7 @@ def cross_data_split2(file, isTrain, indexFolder, crossChoice, testing_dataset_c
         elif crossChoice == 'Cross':
             with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_cross_indices.txt') as f:
                 lines = f.readlines()
-            train_index = np.array([int(x[:-2]) for x in lines])
+            train_index = np.array([int(x[:-1]) for x in lines])
         traindata = np.array(raw_data)[train_index]
         return traindata
     else:
