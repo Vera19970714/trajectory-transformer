@@ -7,6 +7,7 @@ from pytorch_lightning import loggers as pl_loggers
 from dataBuilders.data_builder import SearchDataModule
 from dataBuilders.data_builder_base import BaseSearchDataModule
 from model.transformerLightning import TransformerModel
+from model.transformerLightning_load import TransformerModel_load
 from benchmark.base_lightning import BaseModel
 import numpy as np
 
@@ -14,16 +15,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-data_path', default='../dataset/processdata/dataset_Q23_mousedel_time', type=str)
-    parser.add_argument('-index_folder', default='../dataset/processdata/', type=str)
+    parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q23_mousedel_time', type=str)
+    parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-testing_dataset_choice', default='yogurt', type=str)  # choices: yogurt, shampoo
     parser.add_argument('-cross_dataset', default='None', type=str) # v2 choices: None, Pure, Mixed, Cross  # deprecated choices: None, Yes, No
     parser.add_argument('-package_size', type=int, default=27)
     parser.add_argument('-checkpoint', default= 'None', type=str)
 
-    parser.add_argument('-log_name', default='none', type=str)
+    parser.add_argument('-log_name', default='test_reverse', type=str)
     parser.add_argument('-write_output', type=str, default='True')
-    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/')
+    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/test_reverse/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
 
@@ -45,10 +46,13 @@ if __name__ == '__main__':
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=20)
 
-    parser.add_argument('-do_train', type=str, default='True')
-    parser.add_argument('-do_test', type=str, default='True')
+    parser.add_argument('-do_train', type=str, default='False')
+    parser.add_argument('-do_test', type=str, default='False')
+    parser.add_argument('-do_valid', type=str, default='True')
 
     args = parser.parse_args()
+
+
 
     # random seed
     seed_everything(args.random_seed)
@@ -81,7 +85,9 @@ if __name__ == '__main__':
         search_data = BaseSearchDataModule(args)
     else:
         print('Invalid model')
-    
+
+    model_load = TransformerModel_load(args)
+
     if args.checkpoint == 'None':
         args.checkpoint = None
     trainer = Trainer(deterministic=True,
@@ -111,5 +117,10 @@ if __name__ == '__main__':
         # np.save('./leanableposencoding.npy',leanableposencoding)
         # exit()
         trainer.test(model=model, dataloaders=search_data.test_loader)
-
-
+    elif args.do_valid == 'True':
+        model_load = model_load.load_from_checkpoint('./lightning_logs/best/default/version_2/checkpoints/epoch=45-step=1885.ckpt', args=args)
+        model.model.cnn_embedding = model_load.model.cnn_embedding
+        for param in model.model.cnn_embedding.parameters():
+            param.requires_grad = False
+        trainer.fit(model, search_data.train_loader, search_data.val_loader)
+        trainer.test(model=model, dataloaders=search_data.test_loader)

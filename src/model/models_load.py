@@ -98,7 +98,7 @@ class CNNEmbedding(nn.Module):
         return output.view(b, l, -1)
 
 # Seq2Seq Network
-class Seq2SeqTransformer(nn.Module):
+class Seq2SeqTransformer_load(nn.Module):
     def __init__(self,
                  num_encoder_layers: int,
                  num_decoder_layers: int,
@@ -109,7 +109,7 @@ class Seq2SeqTransformer(nn.Module):
                  input_dimension: int,
                  dim_feedforward: int,
                  dropout: float = 0.1):
-        super(Seq2SeqTransformer, self).__init__()
+        super(Seq2SeqTransformer_load, self).__init__()
         self.transformer = Transformer(d_model=emb_size,
                                        nhead=nhead,
                                        num_encoder_layers=num_encoder_layers,
@@ -144,7 +144,6 @@ class Seq2SeqTransformer(nn.Module):
                 tgt_padding_mask: Tensor,
                 memory_key_padding_mask: Tensor):
         src_cnn_emb = self.cnn_embedding(src_img).transpose(0, 1) #28, 4, 256
-        
         #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
         src_pos_emb = self.LinearEmbedding(src)
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)

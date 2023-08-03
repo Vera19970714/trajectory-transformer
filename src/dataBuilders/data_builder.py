@@ -247,7 +247,7 @@ class Collator(object):
                                   gaze_seq,
                                   torch.tensor([self.EOS_IDX])))
             package_seq.append(gaze_seq)
-            target = torch.cat((torch.tensor([target]), torch.arange(27)))
+            target = torch.cat((torch.arange(27),torch.tensor([target])))
             # target = torch.cat((torch.tensor([TGT_IDX]), torch.arange(27))) #CHANGE: Add TGT INDX
             package_target.append(target)
             question_img_feature = np.stack(question_img_feature)

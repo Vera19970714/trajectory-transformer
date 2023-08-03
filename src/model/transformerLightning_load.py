@@ -1,5 +1,5 @@
 import pytorch_lightning as pl
-from .models import *
+from .models_load import *
 import torch
 import torch.nn as nn
 from tensorboardX import SummaryWriter
@@ -9,7 +9,7 @@ import numpy as np
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-class TransformerModel(pl.LightningModule):
+class TransformerModel_load(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
@@ -29,7 +29,7 @@ class TransformerModel(pl.LightningModule):
             inputDim = 3
         else:
             inputDim = 2
-        self.model = Seq2SeqTransformer(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
+        self.model = Seq2SeqTransformer_load(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
                                          NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, inputDim, FFN_HID_DIM).to(DEVICE).float()
         for p in self.model.parameters():
             if p.dim() > 1:
@@ -110,10 +110,10 @@ class TransformerModel(pl.LightningModule):
         # use this for (0,0,1)
         #src_pos_2d[0, :] = tgtValue
         # use this for (x,y,1)
-        src_pos_2d[-1, :, 2] = 1
+        src_pos_2d[0, :, 2] = 1
         for i in range(batch):
             #Index = tgt_input[-1, i]
-            Index = src_pos[-1, i]
+            Index = src_pos[0, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
             # use this for (x,y,1)
@@ -122,6 +122,7 @@ class TransformerModel(pl.LightningModule):
             # use this for (0,0,1)
             #tgt_input_2d[tgt1, i] = tgtValue
             #src_pos_2d[tgt2, i] = tgtValue
+        
         return src_pos_2d, tgt_input_2d,  src_img, tgt_img, src_mask, tgt_mask, \
                src_padding_mask, tgt_padding_mask, src_padding_mask
 
@@ -178,10 +179,10 @@ class TransformerModel(pl.LightningModule):
         # use this for (0,0,1)
         #src_pos_2d[0, :] = tgtValue
         # use this for (x,y,1)
-        src_pos_2d[-1, :, 2] = 1
+        src_pos_2d[0, :, 2] = 1
         for i in range(batch):
             #Index = tgt_input[-1, i]
-            Index = src_pos[-1, i]
+            Index = src_pos[0, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
             # use this for (x,y,1)
