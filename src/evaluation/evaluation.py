@@ -125,7 +125,7 @@ def losses(heatmap_gt, gaze, result_array):
         heatmap_single = heatmap_single / heatmap_single.sum()
         distance = wasserstein_distance(heatmap_single, heatmap_gt)
         result_array[5] += distance
-        result_array[6] += np.minimum(heatmap_single, heatmap_gt).mean()
+        result_array[6] += np.minimum(heatmap_single, heatmap_gt).sum()
 
 
 class Evaluation(object):
