@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch.nn import Transformer
 import math
 import numpy as np
+from .positionalEncoding import *
 UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -97,6 +98,7 @@ class CNNEmbedding(nn.Module):
         output = self.fc(output)
         return output.view(b, l, -1)
 
+
 # Seq2Seq Network
 class Seq2SeqTransformer(nn.Module):
     def __init__(self,
@@ -119,10 +121,12 @@ class Seq2SeqTransformer(nn.Module):
         self.generator = nn.Linear(emb_size, tgt_vocab_size).float()
         #self.src_tok_emb = TokenEmbedding(src_vocab_size, int(emb_size/2))
         #self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, int(emb_size/2))
-        self.positional_encoding = PositionalEncoding(
+        self.onedpositional_encoding = PositionalEncoding(
             emb_size, dropout=dropout)
-        self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
-        self.positional_encoding_ori = PositionalEncodingOri(emb_size)
+        self.twodFourier = getFourierPositional(2, int(emb_size/2))
+        self.threedFourier = getFourierPositional(3, int(emb_size/2))
+        #self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
+        #self.positional_encoding_ori = PositionalEncodingOri(emb_size)
 
         self.cnn_embedding = CNNEmbedding(int(emb_size/2))
         self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))
@@ -145,16 +149,20 @@ class Seq2SeqTransformer(nn.Module):
                 memory_key_padding_mask: Tensor):
         src_cnn_emb = self.cnn_embedding(src_img).transpose(0, 1) #28, 4, 256
         #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
-        src_pos_emb = self.LinearEmbedding(src)
+        #src_pos_emb = self.LinearEmbedding(src)
+
+        src_pos_emb = self.twodFourier(src[:, :, :2]).unsqueeze(1)  # 28,4,512
+        # todo: another version
+        #src_pos_emb = self.threedFourier(src).unsqueeze(1)
+
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
-        src_emb = self.positional_encoding(src_emb) #28,4,512
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well
 
         tgt_cnn_emb = self.cnn_embedding(tgt_img).transpose(0, 1)  # 28, 4, 256
         #tgt_pos_emb = self.tgt_tok_emb(trg)  # 28, 4, 256
         tgt_pos_emb = self.LinearEmbedding(trg)
         tgt_emb = torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
-        tgt_emb = self.positional_encoding(tgt_emb)
+        tgt_emb = self.onedpositional_encoding(tgt_emb)
 
         outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
                                 src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
