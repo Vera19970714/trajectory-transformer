@@ -110,6 +110,7 @@ class Seq2SeqTransformer(nn.Module):
                  tgt_vocab_size: int,
                  input_dimension: int,
                  dim_feedforward: int,
+                 posOption: int,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer, self).__init__()
         self.transformer = Transformer(d_model=emb_size,
@@ -123,10 +124,15 @@ class Seq2SeqTransformer(nn.Module):
         #self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, int(emb_size/2))
         self.onedpositional_encoding = PositionalEncoding(
             emb_size, dropout=dropout)
-        self.twodFourier = getFourierPositional(2, int(emb_size/2))
-        self.threedFourier = getFourierPositional(3, int(emb_size/2))
-        self.twodSin = getSinPositional(2, int(emb_size/2))
-        self.threedSin = getSinPositional(3, int(emb_size/2))
+        if posOption == 1:
+            self.twodFourier = getFourierPositional(2, int(emb_size/2))
+        elif posOption == 2:
+            self.threedFourier = getFourierPositional(3, int(emb_size/2))
+        elif posOption == 3:
+            self.twodSin = getSinPositional(2, int(emb_size/2))
+        elif posOption == 4:
+            self.threedSin = getSinPositional(3, int(emb_size/2))
+        self.posOption = posOption
         #self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
         #self.positional_encoding_ori = PositionalEncodingOri(emb_size)
 
@@ -154,11 +160,15 @@ class Seq2SeqTransformer(nn.Module):
         #src_pos_emb = self.LinearEmbedding(src)
 
         # Option 1: 2D/3D Fourier, 28, 2, 3 to 2, 28, 3 to 2, 28, 1, 2
-        #src_pos_emb = self.twodFourier(src[:,:,:2].permute(1, 0, 2).unsqueeze(2)).permute(1, 0, 2) # 28,4,512
-        src_pos_emb = self.threedFourier(src.permute(1, 0, 2).unsqueeze(2)).permute(1, 0, 2)
+        if self.posOption == 1:
+            src_pos_emb = self.twodFourier(src[:,:,:2].permute(1, 0, 2).unsqueeze(2)).permute(1, 0, 2) # 28,4,512
+        elif self.posOption == 2:
+            src_pos_emb = self.threedFourier(src.permute(1, 0, 2).unsqueeze(2)).permute(1, 0, 2)
         # Option 2: 2D/3D Sincos
-        #src_pos_emb = calculate2DPositional(self.twodSin, src)
-        #src_pos_emb = calculate3DPositional(self.threedSin, src)
+        elif self.posOption == 3:
+            src_pos_emb = calculate2DPositional(self.twodSin, src)
+        elif self.posOption == 4:
+            src_pos_emb = calculate3DPositional(self.threedSin, src)
 
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well

@@ -20,6 +20,7 @@ if __name__ == '__main__':
     parser.add_argument('-cross_dataset', default='None', type=str) # v2 choices: None, Pure, Mixed, Cross  # deprecated choices: None, Yes, No
     parser.add_argument('-package_size', type=int, default=27)
     parser.add_argument('-checkpoint', default= 'None', type=str)
+    parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
 
     parser.add_argument('-log_name', default='none', type=str)
     parser.add_argument('-write_output', type=str, default='True')
