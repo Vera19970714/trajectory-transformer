@@ -13,20 +13,19 @@ import numpy as np
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-
     # data path and output files
     parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q23_mousedel_time', type=str)
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-testing_dataset_choice', default='yogurt', type=str)  # choices: yogurt, shampoo
     parser.add_argument('-cross_dataset', default='None', type=str) # v2 choices: None, Pure, Mixed, Cross  # deprecated choices: None, Yes, No
     parser.add_argument('-package_size', type=int, default=27)
-    parser.add_argument('-checkpoint', default= 'None', type=str)
+    parser.add_argument('-checkpoint', default= './lightning_logs/test/default/version_3/checkpoints/epoch=50-step=2090.ckpt', type=str)
 
-    parser.add_argument('-log_name', default='test_reverse', type=str)
-    parser.add_argument('-write_output', type=str, default='True')
-    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/test_reverse/')
+    parser.add_argument('-log_name', default='test', type=str)
+    parser.add_argument('-write_output', type=str, default='False')
+    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/test/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
-    parser.add_argument('-stochastic_iteration', type=int, default=100)
+    parser.add_argument('-stochastic_iteration', type=int, default=1)
 
     # model settings and hyperparameters
     parser.add_argument('-model', default='Transformer', type=str) #BaseModel,
@@ -47,8 +46,8 @@ if __name__ == '__main__':
     parser.add_argument('-early_stop_patience', type=int, default=20)
 
     parser.add_argument('-do_train', type=str, default='False')
-    parser.add_argument('-do_test', type=str, default='False')
-    parser.add_argument('-do_valid', type=str, default='True')
+    parser.add_argument('-do_test', type=str, default='True')
+    parser.add_argument('-do_valid', type=str, default='False')
 
     args = parser.parse_args()
 

@@ -6,6 +6,10 @@ from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 import pandas as pd
 import numpy as np
+from model.utilis import AttentionPlot
+from PIL import Image
+from torchvision import transforms
+import matplotlib.pyplot as plt
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -39,6 +43,7 @@ class TransformerModel(pl.LightningModule):
         #self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate, betas=(0.9, 0.98), eps=1e-9)
         self.loggerS= SummaryWriter(f'./lightning_logs/{args.log_name}')
         self.total_step = 0
+        self.attentionPlot = AttentionPlot()
 
     def log_gradients_in_model(self, step):
         for tag, value in self.model.named_parameters():
@@ -110,10 +115,10 @@ class TransformerModel(pl.LightningModule):
         # use this for (0,0,1)
         #src_pos_2d[0, :] = tgtValue
         # use this for (x,y,1)
-        src_pos_2d[-1, :, 2] = 1
+        src_pos_2d[0, :, 2] = 1
         for i in range(batch):
             #Index = tgt_input[-1, i]
-            Index = src_pos[-1, i]
+            Index = src_pos[0, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
             # use this for (x,y,1)
@@ -178,10 +183,10 @@ class TransformerModel(pl.LightningModule):
         # use this for (0,0,1)
         #src_pos_2d[0, :] = tgtValue
         # use this for (x,y,1)
-        src_pos_2d[-1, :, 2] = 1
+        src_pos_2d[0, :, 2] = 1
         for i in range(batch):
             #Index = tgt_input[-1, i]
-            Index = src_pos[-1, i]
+            Index = src_pos[0, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
             # use this for (x,y,1)
@@ -190,7 +195,7 @@ class TransformerModel(pl.LightningModule):
             # use this for (0,0,1)
             #tgt_input_2d[tgt1, i] = tgtValue
             #src_pos_2d[tgt2, i] = tgtValue
-        return src_pos_2d, tgt_input_2d
+        return src_pos_2d, tgt_input_2d,Index
 
     def validation_step(self, batch, batch_idx):
         src_pos, src_img, tgt_pos, tgt_img = batch
@@ -242,11 +247,11 @@ class TransformerModel(pl.LightningModule):
                 tgt_img_input = tgt_img[:, :i, :, :, :]
                 src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
                 if self.args.use_threedimension == 'True':
-                    src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
+                    src_pos_2d, tgt_input_2d,Index = self.generate3DInput(tgt_input, src_pos)
                 else:
                     src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
 
-                logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+                logits, encoder_atten, decoder_atten = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 _, predicted = torch.max(logits[-1,:,:], 1)
@@ -265,10 +270,10 @@ class TransformerModel(pl.LightningModule):
                 tgt_img_input = next_tgt_img_input
                 src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
                 if self.args.use_threedimension == 'True':
-                    src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
+                    src_pos_2d, tgt_input_2d,Index = self.generate3DInput(tgt_input, src_pos)
                 else:
                     src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
-                logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+                logits, encoder_atten, decoder_atten = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 _, predicted = torch.max(logits[-1,:,:], 1)
@@ -287,7 +292,7 @@ class TransformerModel(pl.LightningModule):
             endIndex = torch.where(GAZE == self.EOS_IDX)[0][0]
             GAZE = GAZE[:endIndex]
             LOGITS = LOGITS[:endIndex]
-        return loss, LOSS, GAZE,LOGITS
+        return loss, LOSS, GAZE,LOGITS,encoder_atten, decoder_atten,Index
 
     def test_expect(self,src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
@@ -308,11 +313,11 @@ class TransformerModel(pl.LightningModule):
                     # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
                     if self.args.use_threedimension == 'True':
-                        src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
+                        src_pos_2d, tgt_input_2d,Index = self.generate3DInput(tgt_input, src_pos)
                     else:
                         src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
                 
-                    logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+                    logits,encoder_atten, decoder_atten = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                         src_img, tgt_img_input,
                                         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                     logits_new = F.softmax(logits[-1,:,:].view(-1), dim=0)
@@ -330,10 +335,10 @@ class TransformerModel(pl.LightningModule):
                     tgt_img_input = next_tgt_img_input
                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
                     if self.args.use_threedimension == 'True':
-                        src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
+                        src_pos_2d, tgt_input_2d,Index  = self.generate3DInput(tgt_input, src_pos)
                     else:
                         src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
-                    logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+                    logits,encoder_atten, decoder_atten = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                         src_img, tgt_img_input,
                                         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                     logits_new = F.softmax(logits[-1,:,:].view(-1), dim=0)
@@ -366,11 +371,11 @@ class TransformerModel(pl.LightningModule):
         # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
         if self.args.use_threedimension == 'True':
-            src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
+            src_pos_2d, tgt_input_2d,Index  = self.generate3DInput(tgt_input, src_pos)
         else:
             src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
 
-        logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+        logits,encoder_atten, decoder_atten = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img_input,
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
         tgt_out = tgt_pos[1:, :]
@@ -381,13 +386,12 @@ class TransformerModel(pl.LightningModule):
         return loss,predicted[:-1],tgt_out[:-1],LOGITS_tf[:-1]
         
     def test_step(self, batch, batch_idx):
-        src_pos, src_img, tgt_pos, tgt_img = batch
+        src_pos, src_img, tgt_pos, tgt_img,question_name = batch
         src_pos = src_pos.to(DEVICE)
         src_img = src_img.to(DEVICE)
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
-
-        loss_max, LOSS, GAZE,LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
+        loss_max, LOSS, GAZE,LOGITS,encoder_atten, decoder_atten,Index = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         loss_expect,GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
         loss_gt,GAZE_tf,GAZE_gt,LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
         self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
@@ -395,7 +399,8 @@ class TransformerModel(pl.LightningModule):
             return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt,'LOSS': LOSS, 'GAZE': GAZE, 'LOGITS': LOGITS, 'GAZE_tf': GAZE_tf,
                     'GAZE_gt': GAZE_gt, 'LOGITS_tf': LOGITS_tf, 'GAZE_expect': GAZE_expect}
         else:
-            return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt}
+            return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt,'encoder_attentions': encoder_atten,
+                            'decoder_attentions': decoder_atten,'question_name':question_name,'target':Index}
 
     def test_epoch_end(self, test_step_outputs):
         if self.args.write_output == 'True':
@@ -441,6 +446,29 @@ class TransformerModel(pl.LightningModule):
             avg_loss = torch.stack([x['loss_gt'].cpu().detach() for x in test_step_outputs]).mean()
             self.log('test_loss_gt_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
         else:
+            for x in test_step_outputs:
+                img_name = x['question_name']
+                target = x['target'].cpu().detach().numpy()
+                im = Image.open("./dataset/img/Question/" + img_name+ '.png')
+                # im = im.resize((int(im.size[0]/3),int(im.size[1]/3)))
+                encoder_atten = x['encoder_attentions']
+                decoder_atten = x['decoder_attentions']
+                encoder_result,decoder_result = self.attentionPlot.get_attention_map(im,encoder_atten,decoder_atten)
+                fig, (ax1, ax2) = plt.subplots(ncols=2)
+                ax1.set_title('Original')
+                ax2.set_title('Encoder Attention Map')
+                _ = ax1.imshow(im)
+                _ = ax2.imshow(encoder_result)
+                plt.savefig('./dataset/attention_nopos/' +'encoder_'+ img_name+'_'+str(target))
+                print(len(decoder_result))
+                for i in range(len(decoder_result)):
+                    each_decoder_result = decoder_result[i]
+                    fig, (ax1, ax2) = plt.subplots(ncols=2)
+                    ax1.set_title('Original')
+                    ax2.set_title('Decoder Attention Map')
+                    _ = ax1.imshow(im)
+                    _ = ax2.imshow(each_decoder_result)
+                    plt.savefig('./dataset/attention_nopos/' + 'decoder_'+'step'+str(i) +'_'+ img_name+'_'+str(target))
             avg_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
             self.log('test_loss_max_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
@@ -449,7 +477,7 @@ class TransformerModel(pl.LightningModule):
 
             avg_loss = torch.stack([x['loss_gt'].cpu().detach() for x in test_step_outputs]).mean()
             self.log('test_loss_gt_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-
+            
     def configure_optimizers(self): 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.args.scheduler_lambda1, gamma=self.args.scheduler_lambda2)

@@ -1,7 +1,7 @@
 from torch import Tensor
 import torch
 import torch.nn as nn
-from torch.nn import Transformer
+from .transformer_utilis import Transformer, TransformerDecoderLayer, TransformerDecoder
 import math
 import numpy as np
 UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
@@ -148,7 +148,7 @@ class Seq2SeqTransformer(nn.Module):
         #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
         src_pos_emb = self.LinearEmbedding(src)
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
-        src_emb = self.positional_encoding(src_emb) #28,4,512
+        # src_emb = self.positional_encoding(src_emb) #28,4,512
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well
 
         tgt_cnn_emb = self.cnn_embedding(tgt_img).transpose(0, 1)  # 28, 4, 256
@@ -157,9 +157,10 @@ class Seq2SeqTransformer(nn.Module):
         tgt_emb = torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
         tgt_emb = self.positional_encoding(tgt_emb)
 
-        outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
+        outs, encoder_attention, decoder_attention = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
                                 src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
-        return self.generator(outs)
+
+        return self.generator(outs),encoder_attention, decoder_attention
 
     def encode(self, src: Tensor, src_mask: Tensor):
         return 0

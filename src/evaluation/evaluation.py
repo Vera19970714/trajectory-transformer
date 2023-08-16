@@ -11,8 +11,8 @@ from scipy.stats import wasserstein_distance
 
 ITERATION = 100
 TOTAL_PCK = 27
-cross_dataset = 'Cross' # v2 choices: None, Pure, Mixed, Cross
-testing_dataset_choice = 'shampoo'# choices: yogurt, shampoo
+cross_dataset = 'None' # v2 choices: None, Pure, Mixed, Cross
+testing_dataset_choice = 'yogurt'# choices: yogurt, shampoo
 index_folder = './dataset/processdata/'
 
 def randsplit(file, indexFile, isTrain, cross_dataset):
@@ -131,9 +131,9 @@ def losses(heatmap_gt, gaze, result_array):
 class Evaluation(object):
     def __init__(self):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
-        gaze_gt = './dataset/checkEvaluation/cross_shampoo_cross/gaze_gt.csv'
-        gaze_max = './dataset/checkEvaluation/cross_shampoo_cross/gaze_max.csv'
-        gaze_expect = './dataset/checkEvaluation/cross_shampoo_cross/gaze_expect.csv'
+        gaze_gt = './dataset/checkEvaluation/test/gaze_gt.csv'
+        gaze_max = './dataset/checkEvaluation/test/gaze_max.csv'
+        gaze_expect = './dataset/checkEvaluation/test/gaze_expect.csv'
         gaze_random = './dataset/checkEvaluation/gaze_random.csv'
         gaze_resnet = './dataset/checkEvaluation/gaze_resnet_similarity.csv'
         gaze_saliency = './dataset/checkEvaluation/gaze_saliency.csv'

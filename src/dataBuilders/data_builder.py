@@ -136,6 +136,7 @@ class FixDataset(Dataset):
         self.package_target = []
         self.question_img_feature = []
         self.package_sequence = []
+        self.question_name = []
         self.args = args
 
         #i=0
@@ -143,6 +144,8 @@ class FixDataset(Dataset):
             self.package_target.append(item['package_target'])
             self.question_img_feature.append(item['question_img_feature'])
             self.package_sequence.append(item['package_seq'])
+            self.question_name.append(item['id'])
+            
             '''i+=1
             if i > 10:
                 break'''
@@ -154,7 +157,7 @@ class FixDataset(Dataset):
 
     # support indexing such that dataset[i] can be used to get i-th sample
     def __getitem__(self, index):
-        return self.question_img_feature[index], self.package_target[index], self.package_sequence[index]
+        return self.question_img_feature[index], self.package_target[index], self.package_sequence[index],self.question_name[index]
 
     # we can call len(dataset) to return the size
     def __len__(self):
@@ -240,6 +243,7 @@ class Collator(object):
             question_img_feature = data_entry[0]  # 27,300,186,3
             target = data_entry[1][0] - 1  # int
             gaze_seq = data_entry[2]  # 9,int
+            question_name = data_entry[3]
             gaze_seq = np.stack([gaze_seq]) - 1  # tgt, from 0-26
             gaze_seq = torch.from_numpy(gaze_seq).squeeze(0)
 
@@ -247,7 +251,7 @@ class Collator(object):
                                   gaze_seq,
                                   torch.tensor([self.EOS_IDX])))
             package_seq.append(gaze_seq)
-            target = torch.cat((torch.arange(27),torch.tensor([target])))
+            target = torch.cat((torch.tensor([target]), torch.arange(27)))
             # target = torch.cat((torch.tensor([TGT_IDX]), torch.arange(27))) #CHANGE: Add TGT INDX
             package_target.append(target)
             question_img_feature = np.stack(question_img_feature)
@@ -271,7 +275,7 @@ class Collator(object):
             tgt_img.append(tgt_img_)
         tgt_img = torch.stack(tgt_img)
         src_img = torch.stack(src_img)
-        return package_target, src_img, package_seq, tgt_img
+        return package_target, src_img, package_seq, tgt_img, question_name
         # return question_img, package_target, package_seq
 
 

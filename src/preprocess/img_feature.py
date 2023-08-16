@@ -94,7 +94,7 @@ class CUT_PIC(object):
                 dataset_dict['package_target'] = package_target
                 dataset_dict['package_seq'] =  package_seq
                 dataset_dict['question_img_feature'] =  Question_img_feature
-                dataset_dict['id'] = question_name[:2]
+                dataset_dict['id'] = question_name
 
                 if question_name.startswith('Q2') or question_name.startswith('Q3'):
                     dataset.append(dataset_dict)
