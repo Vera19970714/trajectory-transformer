@@ -177,8 +177,8 @@ class Seq2SeqTransformer(nn.Module):
         tgt_cnn_emb = self.cnn_embedding(tgt_img).transpose(0, 1)  # 28, 4, 256
         #tgt_pos_emb = self.tgt_tok_emb(trg)  # 28, 4, 256
 
-        #tgt_pos_emb = self.LinearEmbedding(trg)
-        tgt_pos_emb = calculate3DPositional(self.threedSin, trg).to(DEVICE)
+        tgt_pos_emb = self.LinearEmbedding(trg)
+        #tgt_pos_emb = calculate3DPositional(self.threedSin, trg).to(DEVICE)
 
         tgt_emb = torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
         tgt_emb = self.onedpositional_encoding(tgt_emb)
@@ -187,8 +187,8 @@ class Seq2SeqTransformer(nn.Module):
         # tgt concat 3d pos
         # all add, src add 3d, tgt also add 3d
 
-        outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
-                                src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
+        outs = self.transformer(src_emb, tgt_emb, src_mask[1:, 1:], tgt_mask, None,
+                                src_padding_mask[:, 1:], tgt_padding_mask, memory_key_padding_mask[:, 1:])
         return self.generator(outs)
 
     def encode(self, src: Tensor, src_mask: Tensor):

@@ -301,11 +301,11 @@ def calculate3DPositional(x, src):
     shelf = x[0, :, :, 0, :].view(27, -1).unsqueeze(1).repeat(1, tgt.size()[1], 1)
     pos = torch.cat((tgt, shelf), dim=0)
     return pos'''
-    res = []
+    res = torch.zeros((src.size()[0], src.size()[1], x.size()[-1]))
     for i in range(src.size()[0]):
-        a = src[i, 0].long()
-        res.append(x[0, a[0], a[1], a[2]])
-    res = torch.stack(res).unsqueeze(1)
+        for j in range(src.size()[1]):
+            a = src[i, j].long()
+            res[i, j] = x[0, a[0], a[1], a[2]]
     return res
 
 
