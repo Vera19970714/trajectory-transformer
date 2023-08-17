@@ -166,9 +166,9 @@ class Seq2SeqTransformer(nn.Module):
             src_pos_emb = self.threedFourier(src.permute(1, 0, 2).unsqueeze(2)).permute(1, 0, 2)
         # Option 2: 2D/3D Sincos
         elif self.posOption == 3:
-            src_pos_emb = calculate2DPositional(self.twodSin, src)
+            src_pos_emb = calculate2DPositional(self.twodSin, src).to(DEVICE)
         elif self.posOption == 4:
-            src_pos_emb = calculate3DPositional(self.threedSin, src)
+            src_pos_emb = calculate3DPositional(self.threedSin, src).to(DEVICE)
 
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well

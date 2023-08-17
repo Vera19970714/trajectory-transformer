@@ -14,17 +14,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-data_path', default='../dataset/processdata/dataset_Q23_mousedel_time', type=str)
-    parser.add_argument('-index_folder', default='../dataset/processdata/', type=str)
+    parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q23_mousedel_time', type=str)
+    parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-testing_dataset_choice', default='yogurt', type=str)  # choices: yogurt, shampoo
     parser.add_argument('-cross_dataset', default='None', type=str) # v2 choices: None, Pure, Mixed, Cross  # deprecated choices: None, Yes, No
     parser.add_argument('-package_size', type=int, default=27)
     parser.add_argument('-checkpoint', default= 'None', type=str)
     parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
 
-    parser.add_argument('-log_name', default='none', type=str)
+    parser.add_argument('-log_name', default='pos_2', type=str)
     parser.add_argument('-write_output', type=str, default='True')
-    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/')
+    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/pos_2/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
 
