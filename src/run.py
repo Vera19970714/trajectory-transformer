@@ -14,8 +14,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q23_mousedel_time', type=str)
-    parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
+    parser.add_argument('-data_path', default='../dataset/processdata/dataset_Q23_mousedel_time', type=str)
+    parser.add_argument('-index_folder', default='../dataset/processdata/', type=str)
     parser.add_argument('-testing_dataset_choice', default='yogurt', type=str)  # choices: yogurt, shampoo
     parser.add_argument('-cross_dataset', default='None', type=str) # v2 choices: None, Pure, Mixed, Cross  # deprecated choices: None, Yes, No
     parser.add_argument('-package_size', type=int, default=27)
@@ -40,8 +40,8 @@ if __name__ == '__main__':
     parser.add_argument('-use_threedimension', type=str, default='True')
 
     # training settings
-    parser.add_argument('-gpus', default='-1', type=str)
-    parser.add_argument('-batch_size', type=int, default=20)
+    parser.add_argument('-gpus', default='0', type=str)
+    parser.add_argument('-batch_size', type=int, default=2)
     parser.add_argument('-num_epochs', type=int, default=100)
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=20)
