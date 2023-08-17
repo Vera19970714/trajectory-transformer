@@ -296,10 +296,17 @@ def calculate2DPositional(x, src):
 
 def calculate3DPositional(x, src):
     #x: 1, 3, 9, 2, 256; src: 28, 1, 3
-    tgt = x[:, src[0, :, 0].long(), src[0, :, 1].long(), 1, :] # 1, 256
+    '''tgt = x[:, src[0, :, 0].long(), src[0, :, 1].long(), 1, :] # 1, 256
     shelf = x[0, :, :, 0, :].view(27, -1).unsqueeze(1).repeat(1, tgt.size()[1], 1)
     pos = torch.cat((tgt, shelf), dim=0)
-    return pos
+    return pos'''
+    res = []
+    for i in range(27):
+        a = src[i, 0].long()
+        res.append(x[0, a[0], a[1], a[2]])
+    res = torch.stack(res).unsqueeze(1)
+    return res
+
 
 if __name__ == '__main__':
     G = 3
