@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import math
-
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class LearnableFourierPositionalEncoding(nn.Module):
     def __init__(self, G: int, M: int, F_dim: int, H_dim: int, D: int, gamma: float):
         """
@@ -301,7 +301,7 @@ def calculate3DPositional(x, src):
     shelf = x[0, :, :, 0, :].view(27, -1).unsqueeze(1).repeat(1, tgt.size()[1], 1)
     pos = torch.cat((tgt, shelf), dim=0)
     return pos'''
-    res = torch.zeros((src.size()[0], src.size()[1], x.size()[-1]))
+    res = torch.zeros((src.size()[0], src.size()[1], x.size()[-1])).to(DEVICE)
     for i in range(src.size()[0]):
         for j in range(src.size()[1]):
             a = src[i, j].long()
