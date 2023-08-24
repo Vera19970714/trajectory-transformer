@@ -2,6 +2,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import math
+from numpy import dot
+from numpy.linalg import norm
+
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class LearnableFourierPositionalEncoding(nn.Module):
     def __init__(self, G: int, M: int, F_dim: int, H_dim: int, D: int, gamma: float):
@@ -57,7 +60,6 @@ class LearnableFourierPositionalEncoding(nn.Module):
         # Step 3. Reshape to x's shape
         PEx = Y.reshape((B, N, self.D))
         return PEx
-
 
 
 def get_emb(sin_inp):
@@ -123,7 +125,7 @@ class PositionalEncodingPermute1D(nn.Module):
 
 
 class PositionalEncoding2D(nn.Module):
-    def __init__(self, channels):
+    def __init__(self, channels, N=10000):
         """
         :param channels: The last dimension of the tensor you want to apply pos emb to.
         """
@@ -131,7 +133,8 @@ class PositionalEncoding2D(nn.Module):
         self.org_channels = channels
         channels = int(np.ceil(channels / 4) * 2)
         self.channels = channels
-        inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
+        #inv_freq = 1.0 / (N ** (torch.arange(0, channels, 2).float() / channels))
+        inv_freq = (torch.arange(0, channels, 2).float()) ** 0.5 / channels
         self.register_buffer("inv_freq", inv_freq)
         self.register_buffer("cached_penc", None)
 
@@ -193,7 +196,8 @@ class PositionalEncoding3D(nn.Module):
         if channels % 2:
             channels += 1
         self.channels = channels
-        inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
+        #inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
+        inv_freq = (torch.arange(0, channels, 2).float()) ** 0.5 / channels
         self.register_buffer("inv_freq", inv_freq)
         self.register_buffer("cached_penc", None)
 
@@ -312,10 +316,85 @@ def calculate3DPositional(x, src):
     return res
 
 
+def getCosSim(a, b):
+    cos_sim = dot(a, b) / (norm(a) * norm(b))
+    return cos_sim
+
+
+class PositionalEncoding2DUpdated(nn.Module):
+    def __init__(self, channels):
+        """
+        :param channels: The last dimension of the tensor you want to apply pos emb to.
+        """
+        super(PositionalEncoding2DUpdated, self).__init__()
+        self.org_channels = channels
+        channels = int(np.ceil(channels / 4) * 2)
+        self.channels = channels
+        #inv_freq = 1.0 / (N ** (torch.arange(0, channels, 2).float() / channels))
+        inv_freq = (torch.arange(0, channels, 2).float())**0.5 / channels
+        self.register_buffer("inv_freq", inv_freq)
+        self.register_buffer("cached_penc", None)
+
+    def forward(self, tensor):
+        """
+        :param tensor: A 4d tensor of size (batch_size, x, y, ch)
+        :return: Positional Encoding Matrix of size (batch_size, x, y, ch)
+        """
+        if len(tensor.shape) != 4:
+            raise RuntimeError("The input tensor has to be 4d!")
+
+        if self.cached_penc is not None and self.cached_penc.shape == tensor.shape:
+            return self.cached_penc
+
+        self.cached_penc = None
+        batch_size, x, y, orig_ch = tensor.shape
+        pos_x = torch.arange(x, device=tensor.device).type(self.inv_freq.type()) # 50,
+        pos_y = torch.arange(y, device=tensor.device).type(self.inv_freq.type()) # 50,
+        sin_inp_x = torch.einsum("i,j->ij", pos_x, self.inv_freq)
+        #heat_map = sns.heatmap(sin_inp_x, linewidth=1, annot=False)
+        #plt.show()
+
+        sin_inp_y = torch.einsum("i,j->ij", pos_y, self.inv_freq)
+        emb_x = get_emb(sin_inp_x).unsqueeze(1)
+        emb_y = get_emb(sin_inp_y)
+        emb = torch.zeros((x, y, self.channels * 2), device=tensor.device).type(
+            tensor.type()
+        )
+        emb[:, :, : self.channels] = emb_x
+        emb[:, :, self.channels : 2 * self.channels] = emb_y
+
+        self.cached_penc = emb[None, :, :, :orig_ch].repeat(tensor.shape[0], 1, 1, 1)
+        return self.cached_penc
+
+
+def getFakeFourier(ind, W):
+    # ind: 1, 2, W: 2, 50
+    f = np.matmul(ind, W) # 1, 50
+    emb = np.concatenate([np.sin(f), np.cos(f)])  # 1, 100
+    return emb
+
 if __name__ == '__main__':
-    G = 3
+    '''G = 3
     M = 17
     x = torch.randn((97, G, M))
     enc = LearnableFourierPositionalEncoding(G, M, 768, 32, 768, 10)
     pex = enc(x)
-    print(pex.shape)
+    print(pex.shape)'''
+    import seaborn as sns
+    import matplotlib.pylab as plt
+
+    embed = 100
+    enc = PositionalEncoding2DUpdated(embed)
+    x = enc(torch.randn(1, 50, 50, embed)).numpy()[0] # 50, 50, 100
+    center = x[25, 25]
+    simMatrix = np.zeros((50, 50))
+    W = np.random.normal(0, 1, size=(2, 50))
+    for i in range(50):
+        for j in range(50):
+            emb = x[i][j]
+            #emb = getFakeFourier(np.array([i, j]), W)
+            a = getCosSim(emb, center)
+            simMatrix[i][j] = a
+
+    heat_map = sns.heatmap(simMatrix, linewidth=1, annot=False)
+    plt.show()
