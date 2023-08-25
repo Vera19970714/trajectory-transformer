@@ -4,6 +4,7 @@ import torch.nn as nn
 import math
 from numpy import dot
 from numpy.linalg import norm
+import matplotlib.pyplot as plt
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class LearnableFourierPositionalEncoding(nn.Module):
@@ -79,8 +80,8 @@ class PositionalEncoding2D(nn.Module):
         self.org_channels = channels
         channels = int(np.ceil(channels / 4) * 2)
         self.channels = channels
-        #inv_freq = 1.0 / (N ** (torch.arange(0, channels, 2).float() / channels))
-        inv_freq = (torch.arange(0, channels, 2).float()) ** 1 / channels
+        inv_freq = 1.0 / (N ** (torch.arange(0, channels, 2).float() / channels))
+        #inv_freq = (torch.arange(0, channels, 2).float()) ** 1 / channels
         self.register_buffer("inv_freq", inv_freq)
         self.register_buffer("cached_penc", None)
 
@@ -142,8 +143,8 @@ class PositionalEncoding3D(nn.Module):
         if channels % 2:
             channels += 1
         self.channels = channels
-        #inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
-        inv_freq = (torch.arange(0, channels, 2).float()) ** 1 / channels
+        inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
+        #inv_freq = (torch.arange(0, channels, 2).float()) ** 1 / channels
         self.register_buffer("inv_freq", inv_freq)
         self.register_buffer("cached_penc", None)
 
@@ -298,6 +299,21 @@ def getFakeFourier(ind, W):
     emb = np.concatenate([np.sin(f), np.cos(f)])  # 1, 100
     return emb
 
+def computeDotProductDistribution(p1, p2):
+    # p1 size: N, D; p2 size: N, D, 1D positional
+    # run decoder 1) p1=img concat 3D, 2) p1=img add 3D, 3) p1=(img add 3D)*projection 4) p1=img 5) p1=3D
+    sims = []
+    assert p1.size() == p2.size()
+    N, D = p1.size()
+    for i in range(N):
+        for j in range(N):
+            a = getCosSim(p1[i].detach().cpu().numpy(), p2[j].detach().cpu().numpy())
+            sims.append(a)
+
+    plt.hist(sims)
+    plt.show()
+
+
 if __name__ == '__main__':
     '''G = 3
     M = 17
@@ -305,7 +321,8 @@ if __name__ == '__main__':
     enc = LearnableFourierPositionalEncoding(G, M, 768, 32, 768, 10)
     pex = enc(x)
     print(pex.shape)'''
-    import seaborn as sns
+
+    '''import seaborn as sns
     import matplotlib.pylab as plt
 
     embed = 256
@@ -322,4 +339,8 @@ if __name__ == '__main__':
             simMatrix[i][j] = a
 
     heat_map = sns.heatmap(simMatrix, linewidth=1, annot=True)
-    plt.show()
+    plt.show()'''
+
+    p1 = torch.randn((8, 512))
+    p2 = torch.randn((8, 512))
+    computeDotProductDistribution(p1, p2)

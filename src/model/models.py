@@ -182,10 +182,6 @@ class Seq2SeqTransformer(nn.Module):
 
         tgt_emb = torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
         tgt_emb = self.onedpositional_encoding(tgt_emb)
-        # new versions:
-        # remove first one
-        # tgt concat 3d pos
-        # all add, src add 3d, tgt also add 3d
 
         outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
                                 src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
