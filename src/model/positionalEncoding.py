@@ -70,60 +70,6 @@ def get_emb(sin_inp):
     return torch.flatten(emb, -2, -1)
 
 
-class PositionalEncoding1D(nn.Module):
-    def __init__(self, channels):
-        """
-        :param channels: The last dimension of the tensor you want to apply pos emb to.
-        """
-        super(PositionalEncoding1D, self).__init__()
-        self.org_channels = channels
-        channels = int(np.ceil(channels / 2) * 2)
-        self.channels = channels
-        inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
-        self.register_buffer("inv_freq", inv_freq)
-        self.register_buffer("cached_penc", None)
-
-    def forward(self, tensor):
-        """
-        :param tensor: A 3d tensor of size (batch_size, x, ch)
-        :return: Positional Encoding Matrix of size (batch_size, x, ch)
-        """
-        if len(tensor.shape) != 3:
-            raise RuntimeError("The input tensor has to be 3d!")
-
-        if self.cached_penc is not None and self.cached_penc.shape == tensor.shape:
-            return self.cached_penc
-
-        self.cached_penc = None
-        batch_size, x, orig_ch = tensor.shape
-        pos_x = torch.arange(x, device=tensor.device).type(self.inv_freq.type())
-        sin_inp_x = torch.einsum("i,j->ij", pos_x, self.inv_freq)
-        emb_x = get_emb(sin_inp_x)
-        emb = torch.zeros((x, self.channels), device=tensor.device).type(tensor.type())
-        emb[:, : self.channels] = emb_x
-
-        self.cached_penc = emb[None, :, :orig_ch].repeat(batch_size, 1, 1)
-        return self.cached_penc
-
-
-class PositionalEncodingPermute1D(nn.Module):
-    def __init__(self, channels):
-        """
-        Accepts (batchsize, ch, x) instead of (batchsize, x, ch)
-        """
-        super(PositionalEncodingPermute1D, self).__init__()
-        self.penc = PositionalEncoding1D(channels)
-
-    def forward(self, tensor):
-        tensor = tensor.permute(0, 2, 1)
-        enc = self.penc(tensor)
-        return enc.permute(0, 2, 1)
-
-    @property
-    def org_channels(self):
-        return self.penc.org_channels
-
-
 class PositionalEncoding2D(nn.Module):
     def __init__(self, channels, N=10000):
         """
@@ -134,7 +80,7 @@ class PositionalEncoding2D(nn.Module):
         channels = int(np.ceil(channels / 4) * 2)
         self.channels = channels
         #inv_freq = 1.0 / (N ** (torch.arange(0, channels, 2).float() / channels))
-        inv_freq = (torch.arange(0, channels, 2).float()) ** 0.5 / channels
+        inv_freq = (torch.arange(0, channels, 2).float()) ** 1 / channels
         self.register_buffer("inv_freq", inv_freq)
         self.register_buffer("cached_penc", None)
 
@@ -197,7 +143,7 @@ class PositionalEncoding3D(nn.Module):
             channels += 1
         self.channels = channels
         #inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
-        inv_freq = (torch.arange(0, channels, 2).float()) ** 0.5 / channels
+        inv_freq = (torch.arange(0, channels, 2).float()) ** 1 / channels
         self.register_buffer("inv_freq", inv_freq)
         self.register_buffer("cached_penc", None)
 
@@ -251,27 +197,6 @@ class PositionalEncodingPermute3D(nn.Module):
     def org_channels(self):
         return self.penc.org_channels
 
-
-class Summer(nn.Module):
-    def __init__(self, penc):
-        """
-        :param model: The type of positional encoding to run the summer on.
-        """
-        super(Summer, self).__init__()
-        self.penc = penc
-
-    def forward(self, tensor):
-        """
-        :param tensor: A 3, 4 or 5d tensor that matches the model output size
-        :return: Positional Encoding Matrix summed to the original tensor
-        """
-        penc = self.penc(tensor)
-        assert (
-            tensor.size() == penc.size()
-        ), "The original tensor size {} and the positional encoding tensor size {} must match!".format(
-            tensor.size(), penc.size()
-        )
-        return tensor + penc
 
 def getFourierPositional(dimension, embed):
     G = 1
@@ -330,8 +255,8 @@ class PositionalEncoding2DUpdated(nn.Module):
         self.org_channels = channels
         channels = int(np.ceil(channels / 4) * 2)
         self.channels = channels
-        #inv_freq = 1.0 / (N ** (torch.arange(0, channels, 2).float() / channels))
-        inv_freq = (torch.arange(0, channels, 2).float())**0.5 / channels
+        #inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
+        inv_freq = (torch.arange(0, channels, 2).float())**1 / channels
         self.register_buffer("inv_freq", inv_freq)
         self.register_buffer("cached_penc", None)
 
@@ -383,18 +308,18 @@ if __name__ == '__main__':
     import seaborn as sns
     import matplotlib.pylab as plt
 
-    embed = 100
+    embed = 256
     enc = PositionalEncoding2DUpdated(embed)
-    x = enc(torch.randn(1, 50, 50, embed)).numpy()[0] # 50, 50, 100
-    center = x[25, 25]
-    simMatrix = np.zeros((50, 50))
-    W = np.random.normal(0, 1, size=(2, 50))
-    for i in range(50):
-        for j in range(50):
+    x = enc(torch.randn(1, 3, 9, embed)).numpy()[0] # 50, 50, 100
+    center = x[1, 4]
+    simMatrix = np.zeros((3, 9))
+    #W = np.random.normal(0, 1, size=(2, 50))
+    for i in range(3):
+        for j in range(9):
             emb = x[i][j]
             #emb = getFakeFourier(np.array([i, j]), W)
             a = getCosSim(emb, center)
             simMatrix[i][j] = a
 
-    heat_map = sns.heatmap(simMatrix, linewidth=1, annot=False)
+    heat_map = sns.heatmap(simMatrix, linewidth=1, annot=True)
     plt.show()
