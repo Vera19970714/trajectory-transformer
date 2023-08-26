@@ -131,7 +131,7 @@ class Seq2SeqTransformer(nn.Module):
         elif posOption == 3:
             self.twodSin = getSinPositional(2, int(emb_size/2))
         elif posOption == 4:'''
-        self.threedSin = getSinPositional(3, int(emb_size/2))
+        self.threedSin = getSinPositional(3, int(emb_size/2), changeX=True)
 
         #self.posOption = posOption
         #self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)

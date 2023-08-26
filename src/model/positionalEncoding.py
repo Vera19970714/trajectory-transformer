@@ -133,7 +133,7 @@ class PositionalEncodingPermute2D(nn.Module):
 
 
 class PositionalEncoding3D(nn.Module):
-    def __init__(self, channels):
+    def __init__(self, channels, changeX):
         """
         :param channels: The last dimension of the tensor you want to apply pos emb to.
         """
@@ -143,10 +143,11 @@ class PositionalEncoding3D(nn.Module):
         if channels % 2:
             channels += 1
         self.channels = channels
-        inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
-        #inv_freq = (torch.arange(0, channels, 2).float()) ** 1 / channels
+        #inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
+        inv_freq = (torch.arange(0, channels, 2).float()) ** 0.8 / channels
         self.register_buffer("inv_freq", inv_freq)
         self.register_buffer("cached_penc", None)
+        self.changeX = changeX
 
     def forward(self, tensor):
         """
@@ -164,6 +165,10 @@ class PositionalEncoding3D(nn.Module):
         pos_x = torch.arange(x, device=tensor.device).type(self.inv_freq.type())
         pos_y = torch.arange(y, device=tensor.device).type(self.inv_freq.type())
         pos_z = torch.arange(z, device=tensor.device).type(self.inv_freq.type())
+        if self.changeX is True:
+            pos_x = torch.arange(0, 4, 1.6, device=tensor.device).type(self.inv_freq.type())
+        elif self.changeX is False:
+            pos_y = torch.arange(0, 5, 0.6, device=tensor.device).type(self.inv_freq.type())
         sin_inp_x = torch.einsum("i,j->ij", pos_x, self.inv_freq)
         sin_inp_y = torch.einsum("i,j->ij", pos_y, self.inv_freq)
         sin_inp_z = torch.einsum("i,j->ij", pos_z, self.inv_freq)
@@ -208,12 +213,12 @@ def getFourierPositional(dimension, embed):
     enc = LearnableFourierPositionalEncoding(G, M, F, H, D, Gamma)
     return enc
 
-def getSinPositional(dimension, embed):
+def getSinPositional(dimension, embed, changeX):
     if dimension == 2:
         enc = PositionalEncoding2D(embed)
         x = enc(torch.randn(1, 3, 9, embed))
     elif dimension == 3:
-        enc = PositionalEncoding3D(embed)
+        enc = PositionalEncoding3D(embed, changeX)
         x = enc(torch.randn(1, 3, 9, 2, embed))
     return x
 
@@ -248,18 +253,20 @@ def getCosSim(a, b):
 
 
 class PositionalEncoding2DUpdated(nn.Module):
-    def __init__(self, channels):
+    def __init__(self, channels, changeX):
         """
         :param channels: The last dimension of the tensor you want to apply pos emb to.
+        changeX: True or False, change x index or y. None: do nothing
         """
         super(PositionalEncoding2DUpdated, self).__init__()
         self.org_channels = channels
         channels = int(np.ceil(channels / 4) * 2)
         self.channels = channels
         #inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
-        inv_freq = (torch.arange(0, channels, 2).float())**1 / channels
+        inv_freq = (torch.arange(0, channels, 2).float())**(0.8) / channels
         self.register_buffer("inv_freq", inv_freq)
         self.register_buffer("cached_penc", None)
+        self.changeX = changeX
 
     def forward(self, tensor):
         """
@@ -276,6 +283,10 @@ class PositionalEncoding2DUpdated(nn.Module):
         batch_size, x, y, orig_ch = tensor.shape
         pos_x = torch.arange(x, device=tensor.device).type(self.inv_freq.type()) # 50,
         pos_y = torch.arange(y, device=tensor.device).type(self.inv_freq.type()) # 50,
+        if self.changeX is True:
+            pos_x = torch.arange(0, 4, 1.6, device=tensor.device).type(self.inv_freq.type())
+        elif self.changeX is False:
+            pos_y = torch.arange(0, 5, 0.6, device=tensor.device).type(self.inv_freq.type())
         sin_inp_x = torch.einsum("i,j->ij", pos_x, self.inv_freq)
         #heat_map = sns.heatmap(sin_inp_x, linewidth=1, annot=False)
         #plt.show()
@@ -322,11 +333,11 @@ if __name__ == '__main__':
     pex = enc(x)
     print(pex.shape)'''
 
-    '''import seaborn as sns
+    import seaborn as sns
     import matplotlib.pylab as plt
 
     embed = 256
-    enc = PositionalEncoding2DUpdated(embed)
+    enc = PositionalEncoding2DUpdated(embed, changeX=True)
     x = enc(torch.randn(1, 3, 9, embed)).numpy()[0] # 50, 50, 100
     center = x[1, 4]
     simMatrix = np.zeros((3, 9))
@@ -339,8 +350,8 @@ if __name__ == '__main__':
             simMatrix[i][j] = a
 
     heat_map = sns.heatmap(simMatrix, linewidth=1, annot=True)
-    plt.show()'''
+    plt.show()
 
-    p1 = torch.randn((8, 512))
+    '''p1 = torch.randn((8, 512))
     p2 = torch.randn((8, 512))
-    computeDotProductDistribution(p1, p2)
+    computeDotProductDistribution(p1, p2)'''
