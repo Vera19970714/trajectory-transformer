@@ -133,7 +133,7 @@ class PositionalEncodingPermute2D(nn.Module):
 
 
 class PositionalEncoding3D(nn.Module):
-    def __init__(self, channels, changeX):
+    def __init__(self, channels, changeX, functionChoice, alpha):
         """
         :param channels: The last dimension of the tensor you want to apply pos emb to.
         """
@@ -143,8 +143,15 @@ class PositionalEncoding3D(nn.Module):
         if channels % 2:
             channels += 1
         self.channels = channels
-        #inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
-        inv_freq = (torch.arange(0, channels, 2).float()) ** 0.8 / channels
+        if functionChoice == 'original':
+            inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
+        elif functionChoice == 'exp1':
+            inv_freq = (torch.arange(0, channels, 2).float()) ** alpha / channels
+        elif functionChoice == 'exp2':
+            inv_freq = (torch.arange(0, channels, 2).float() / channels) ** alpha
+        elif functionChoice == 'linear':
+            inv_freq = (torch.arange(0, channels, 2).float()) * alpha / channels
+
         self.register_buffer("inv_freq", inv_freq)
         self.register_buffer("cached_penc", None)
         self.changeX = changeX
@@ -165,9 +172,9 @@ class PositionalEncoding3D(nn.Module):
         pos_x = torch.arange(x, device=tensor.device).type(self.inv_freq.type())
         pos_y = torch.arange(y, device=tensor.device).type(self.inv_freq.type())
         pos_z = torch.arange(z, device=tensor.device).type(self.inv_freq.type())
-        if self.changeX is True:
+        if self.changeX == 'True':
             pos_x = torch.arange(0, 4, 1.6, device=tensor.device).type(self.inv_freq.type())
-        elif self.changeX is False:
+        elif self.changeX == 'False':
             pos_y = torch.arange(0, 5, 0.6, device=tensor.device).type(self.inv_freq.type())
         sin_inp_x = torch.einsum("i,j->ij", pos_x, self.inv_freq)
         sin_inp_y = torch.einsum("i,j->ij", pos_y, self.inv_freq)
@@ -213,12 +220,12 @@ def getFourierPositional(dimension, embed):
     enc = LearnableFourierPositionalEncoding(G, M, F, H, D, Gamma)
     return enc
 
-def getSinPositional(dimension, embed, changeX):
+def getSinPositional(dimension, embed, functionChoice, alpha, changeX):
     if dimension == 2:
         enc = PositionalEncoding2D(embed)
         x = enc(torch.randn(1, 3, 9, embed))
     elif dimension == 3:
-        enc = PositionalEncoding3D(embed, changeX)
+        enc = PositionalEncoding3D(embed, changeX, functionChoice, alpha)
         x = enc(torch.randn(1, 3, 9, 2, embed))
     return x
 
@@ -321,7 +328,7 @@ def computeDotProductDistribution(p1, p2):
             a = getCosSim(p1[i].detach().cpu().numpy(), p2[j].detach().cpu().numpy())
             sims.append(a)
 
-    plt.hist(sims)
+    plt.hist(sims, bins=5)
     plt.show()
 
 
@@ -333,7 +340,7 @@ if __name__ == '__main__':
     pex = enc(x)
     print(pex.shape)'''
 
-    import seaborn as sns
+    '''import seaborn as sns
     import matplotlib.pylab as plt
 
     embed = 256
@@ -350,8 +357,41 @@ if __name__ == '__main__':
             simMatrix[i][j] = a
 
     heat_map = sns.heatmap(simMatrix, linewidth=1, annot=True)
-    plt.show()
+    plt.show()'''
 
-    '''p1 = torch.randn((8, 512))
-    p2 = torch.randn((8, 512))
-    computeDotProductDistribution(p1, p2)'''
+    from torch import Tensor
+    class PositionalEncoding(nn.Module):
+        def __init__(self,
+                     emb_size: int,
+                     dropout: float,
+                     maxlen: int = 5000):
+            super(PositionalEncoding, self).__init__()
+            den = torch.exp(- torch.arange(0, emb_size, 2) * math.log(10000) / emb_size)
+            pos = torch.arange(0, maxlen).reshape(maxlen, 1)
+            pos_embedding = torch.zeros((maxlen, emb_size))
+            pos_embedding[:, 0::2] = torch.sin(pos * den)
+            pos_embedding[:, 1::2] = torch.cos(pos * den)
+            pos_embedding = pos_embedding.unsqueeze(-2)
+
+            self.dropout = nn.Dropout(dropout)
+            self.register_buffer('pos_embedding', pos_embedding)
+
+        def forward(self, token_embedding: Tensor):
+            return self.dropout(token_embedding + self.pos_embedding[:token_embedding.size(0), :])
+
+
+    # run decoder 1) p1=img concat 3D, 2) p1=img add 3D, 3) p1=(img add 3D)*projection 4) p1=img 5) p1=3D
+
+    lw =  torch.from_numpy(np.load('dataset/PE/linearWeight.npy')) # 256,256
+    tgt_cnn_emb = torch.from_numpy(np.load('dataset/PE/tgt_cnn_emb.npy')) #8,1,256
+    tg = torch.from_numpy(np.load('dataset/PE/trg.npy')) # 8,1,3
+    emb_size=512
+    threedSin = getSinPositional(3, int(emb_size / 2), changeX=None)
+    tgt_pos_emb = calculate3DPositional(threedSin, tg).to(DEVICE)
+    onedpositional_encoding = PositionalEncoding(
+        int(emb_size / 2), dropout=0.1)
+    p1 = (tgt_cnn_emb + tgt_pos_emb) #torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
+    p1 = torch.matmul(p1,lw)
+    p2 = onedpositional_encoding(p1)
+
+    computeDotProductDistribution(p1.squeeze(1), p2.squeeze(1))

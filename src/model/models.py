@@ -111,6 +111,9 @@ class Seq2SeqTransformer(nn.Module):
                  input_dimension: int,
                  dim_feedforward: int,
                  #posOption: int,
+                 functionChoice: str,
+                 alpha: float,
+                 changeX: str,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer, self).__init__()
         self.transformer = Transformer(d_model=emb_size,
@@ -131,7 +134,8 @@ class Seq2SeqTransformer(nn.Module):
         elif posOption == 3:
             self.twodSin = getSinPositional(2, int(emb_size/2))
         elif posOption == 4:'''
-        self.threedSin = getSinPositional(3, int(emb_size/2), changeX=True)
+        self.threedSin = getSinPositional(3, int(emb_size/2), functionChoice,
+                 alpha, changeX=changeX)
 
         #self.posOption = posOption
         #self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)

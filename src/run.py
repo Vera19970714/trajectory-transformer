@@ -21,6 +21,9 @@ if __name__ == '__main__':
     parser.add_argument('-package_size', type=int, default=27)
     parser.add_argument('-checkpoint', default= 'None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
+    parser.add_argument('-alpha', type=int, default=0.8)
+    parser.add_argument('-functionChoice', default='', type=str) # choices: linear, exp1, exp2, original
+    parser.add_argument('-changeX', default='', type=str) # None, False, True
 
     parser.add_argument('-log_name', default='pos_2', type=str)
     parser.add_argument('-write_output', type=str, default='True')
