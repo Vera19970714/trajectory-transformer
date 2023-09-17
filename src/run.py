@@ -14,20 +14,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-data_path', default='../dataset/processdata/dataset_Q23_mousedel_time', type=str)
-    parser.add_argument('-index_folder', default='../dataset/processdata/', type=str)
+    parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q23_mousedel_time', type=str)
+    parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-testing_dataset_choice', default='yogurt', type=str)  # choices: yogurt, shampoo
-    parser.add_argument('-cross_dataset', default='None', type=str) # v2 choices: None, Pure, Mixed, Cross  # deprecated choices: None, Yes, No
+    parser.add_argument('-cross_dataset', default='Pure', type=str) # v2 choices: None, Pure, Mixed, Cross  # deprecated choices: None, Yes, No
     parser.add_argument('-package_size', type=int, default=27)
     parser.add_argument('-checkpoint', default= 'None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
     parser.add_argument('-alpha', type=int, default=0.8)
-    parser.add_argument('-functionChoice', default='', type=str) # choices: linear, exp1, exp2, original
-    parser.add_argument('-changeX', default='', type=str) # None, False, True
+    parser.add_argument('-functionChoice', default='exp1', type=str) # choices: linear, exp1, exp2, original
+    parser.add_argument('-changeX', default='True', type=str) # None, False, True
 
-    parser.add_argument('-log_name', default='pos_2', type=str)
+    parser.add_argument('-log_name', default='best_yogurt', type=str)
     parser.add_argument('-write_output', type=str, default='True')
-    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/pos_2/')
+    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/best_yogurt/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
 
@@ -43,8 +43,8 @@ if __name__ == '__main__':
     parser.add_argument('-use_threedimension', type=str, default='True')
 
     # training settings
-    parser.add_argument('-gpus', default='0', type=str)
-    parser.add_argument('-batch_size', type=int, default=2)
+    parser.add_argument('-gpus', default='-1', type=str)
+    parser.add_argument('-batch_size', type=int, default=20)
     parser.add_argument('-num_epochs', type=int, default=100)
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=20)
