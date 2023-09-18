@@ -6,6 +6,9 @@ from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 import pandas as pd
 import numpy as np
+import sys
+sys.path.append('./src/')
+from evaluation.evaluation import behavior
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -194,6 +197,61 @@ class TransformerModel(pl.LightningModule):
             #src_pos_2d[tgt2, i] = tgtValue
         return src_pos_2d, tgt_input_2d
 
+    def validation_max(self,src_pos, src_img, tgt_pos, tgt_img):
+        tgt_input = tgt_pos[:-1, :]
+        tgt_img = tgt_img[:, :-1, :, :, :]
+        length = tgt_pos.size(0)
+        loss = 0
+        max_length = 16
+        GAZE = torch.zeros((max_length, 1))-1
+        blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
+        new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
+        for i in range(1,max_length+1):
+            if i==1:
+                tgt_input = tgt_pos[:i, :]
+                tgt_img_input = tgt_img[:, :i, :, :, :]
+                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
+                if self.args.use_threedimension == 'True':
+                    src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
+                else:
+                    src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
+
+                logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+                                    src_img, tgt_img_input,
+                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                _, predicted = torch.max(logits[-1,:,:], 1)
+                if i<length:
+                    tgt_out = tgt_pos[i, :]
+                    loss += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
+                GAZE[i-1][0] = predicted
+                next_tgt_img_input = torch.cat((tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
+                next_tgt_input = torch.cat((tgt_input, predicted.view(-1, 1)), dim=0)
+            else:
+                tgt_input = next_tgt_input
+                tgt_img_input = next_tgt_img_input
+                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
+                if self.args.use_threedimension == 'True':
+                    src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
+                else:
+                    src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
+                logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+                                    src_img, tgt_img_input,
+                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                _, predicted = torch.max(logits[-1,:,:], 1)
+                if i<length:
+                    tgt_out = tgt_pos[i, :]
+                    loss += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
+                GAZE[i-1][0] = predicted
+                if self.EOS_IDX in GAZE[:,0] and i >= length:
+                    break
+                next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
+                next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1,1)), dim=0)
+        loss = loss / (length-1)
+        if self.EOS_IDX in GAZE:
+            endIndex = torch.where(GAZE == self.EOS_IDX)[0][0]
+            GAZE = GAZE[:endIndex]
+        return loss, GAZE, tgt_pos[1:,:][:-1]
+    
     def validation_step(self, batch, batch_idx):
         src_pos, src_img, tgt_pos, tgt_img = batch
         # src_pos(28, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
@@ -201,31 +259,28 @@ class TransformerModel(pl.LightningModule):
         src_img = src_img.to(DEVICE)
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
-
-        if self.args.use_threedimension == 'True':
-            src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
-            src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData3d(src_pos, src_img, tgt_pos, tgt_img)
-        else:
-            src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
-            src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData2d(src_pos, src_img, tgt_pos,
-                                                                                      tgt_img)
-
-        logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),   #src_pos, tgt_input,
-                            src_img, tgt_img,
-                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-        # logits: 11, 1, 31, tgt_out: 11, 1
-        tgt_out = tgt_pos[1:, :]
-        loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-
-        _, predicted = torch.max(logits, 2)
-        print(predicted.view(1, -1))
-
+        loss, GAZE, GAZE_gt = self.validation_max(src_pos, src_img, tgt_pos, tgt_img)
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'loss': loss,}
+        return {'loss': loss, 'GAZE': GAZE, 'GAZE_gt': GAZE_gt,'target':src_pos[0]}
 
     def validation_epoch_end(self, validation_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
+        res_gt, res_max = torch.zeros(6).to(DEVICE), torch.zeros(6).to(DEVICE)
+        i = 0
+        for output in validation_step_outputs:
+            gaze = output['GAZE'].cpu().detach().numpy().T
+            gaze_gt = output['GAZE_gt'].cpu().detach().numpy().T
+            target = output['target'].cpu().detach().numpy()
+            behavior(res_gt, target, gaze_gt)
+            behavior(res_max, target, gaze)
+            i += 1
+
+        res_gt = res_gt / i
+        res_max = res_max / i
+        res_max[5] = torch.sum(torch.abs(res_max[:5] - res_gt[:5]) / res_gt[:5]) * 100
         self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('validation_metric_each_epoch', res_max[5], on_epoch=True, prog_bar=True, sync_dist=True)
+    
 
     def test_max(self,src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
