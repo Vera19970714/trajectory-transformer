@@ -117,15 +117,14 @@ def cross_data_split2(file, isTrain, indexFolder, crossChoice, testing_dataset_c
         testdata = np.array(raw_data)[test_index]
         return testdata
 
-def cross_data_split3(file, isTrain, indexFolder, crossChoice, testing_dataset_choice):
+def cross_data_split3(file, isTrain, indexFolder, testing_dataset_choice):
     with open(file, "rb") as fp:
         raw_data = pickle.load(fp)
 
     if isTrain == 'Train':
-        if crossChoice == 'Only':
-            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_only_indices_train.txt') as f:
-                lines = f.readlines()
-            train_index = np.array([int(x[:-1]) for x in lines])
+        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_only_indices_train.txt') as f:
+            lines = f.readlines()
+        train_index = np.array([int(x[:-1]) for x in lines])
         traindata = np.array(raw_data)[train_index]
         return traindata
     elif isTrain == 'Valid':
@@ -147,6 +146,7 @@ class FixDataset(Dataset):
         new_datapath = args.data_path
         indexFile = args.index_folder + 'splitlist_time_mousedel.txt'
         cross_dataset = args.cross_dataset
+        isSplitValid = args.isSplitValid
         testing_dataset_choice = args.testing_dataset_choice
         '''if cross_dataset == 'None' or cross_dataset == 'No':
             raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset)
@@ -155,14 +155,16 @@ class FixDataset(Dataset):
         else:
             print('cross_dataset value ERROR')
             quit()'''
-        assert cross_dataset in ['None', 'Pure', 'Mixed', 'Cross', 'Combine', 'Only']
-        assert testing_dataset_choice in ['yogurt', 'shampoo']
-        if cross_dataset == 'None':
-            raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset)
-        elif cross_dataset == 'Only':
-            raw_data = cross_data_split3(new_datapath, isTrain, args.index_folder, cross_dataset, testing_dataset_choice)
+        assert cross_dataset in ['None', 'Pure', 'Mixed', 'Cross', 'Combine']
+        # assert testing_dataset_choice in ['yogurt', 'shampoo']
+
+        if isSplitValid == 'True':
+            raw_data = cross_data_split3(new_datapath, isTrain, args.index_folder, testing_dataset_choice)
         else:
-            raw_data = cross_data_split2(new_datapath, isTrain, args.index_folder, cross_dataset, testing_dataset_choice)
+            if cross_dataset == 'None':
+                raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset)
+            else:
+                raw_data = cross_data_split2(new_datapath, isTrain, args.index_folder, cross_dataset, testing_dataset_choice)
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')

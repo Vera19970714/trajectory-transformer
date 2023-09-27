@@ -1,7 +1,7 @@
 import random
 
 # Generate the list from 453 to 891
-number_list = list(range(453, 892))
+number_list = list(range(0, 891))
 
 # Shuffle the list randomly
 random.shuffle(number_list)
@@ -17,12 +17,12 @@ valid_list = number_list[train_size:train_size+valid_size]
 test_list = number_list[train_size+valid_size:]
 
 # Save the lists to separate text files
-with open('splitlist_yogurt_only_indices_train.txt', 'w') as f:
+with open('splitlist_combine_only_indices_train.txt', 'w') as f:
     f.write('\n'.join(map(str, train_list)))
 
-with open('splitlist_yogurt_only_indices_valid.txt', 'w') as f:
+with open('splitlist_combine_only_indices_valid.txt', 'w') as f:
     f.write('\n'.join(map(str, valid_list)))
 
-with open('splitlist_yogurt_only_indices_test.txt', 'w') as f:
+with open('splitlist_combine_only_indices_test.txt', 'w') as f:
     f.write('\n'.join(map(str, test_list)))
 

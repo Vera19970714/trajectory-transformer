@@ -23,11 +23,11 @@ class TransformerModel(pl.LightningModule):
         self.PAD_IDX = self.args.package_size+1
         self.BOS_IDX = self.args.package_size+2
         self.EOS_IDX = self.args.package_size+3
-        EMB_SIZE = 512
-        NHEAD = 4
-        FFN_HID_DIM = 512
-        NUM_ENCODER_LAYERS = 4
-        NUM_DECODER_LAYERS = 4
+        EMB_SIZE = 256
+        NHEAD = 2
+        FFN_HID_DIM = 256
+        NUM_ENCODER_LAYERS = 2
+        NUM_DECODER_LAYERS = 2
         if self.args.use_threedimension == 'True':
             inputDim = 3
         else:
@@ -95,9 +95,9 @@ class TransformerModel(pl.LightningModule):
         # CHANGED position from one dimension to two dimensions
         # tgt_input: 11,1 to 11,2
         # src_pos: 28, 1 to 28, 2
-        
+
         tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 3)).to(DEVICE).float()
-        
+
         tgt_input_2d[:, :, 0] = tgt_input // 9
         tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, 9)
         tgt_input_2d[0, :, 0] = 1.5
@@ -126,7 +126,7 @@ class TransformerModel(pl.LightningModule):
             # use this for (0,0,1)
             #tgt_input_2d[tgt1, i] = tgtValue
             #src_pos_2d[tgt2, i] = tgtValue
-        
+
         return src_pos_2d, tgt_input_2d,  src_img, tgt_img, src_mask, tgt_mask, \
                src_padding_mask, tgt_padding_mask, src_padding_mask
 
@@ -197,61 +197,6 @@ class TransformerModel(pl.LightningModule):
             #src_pos_2d[tgt2, i] = tgtValue
         return src_pos_2d, tgt_input_2d
 
-    def validation_max(self,src_pos, src_img, tgt_pos, tgt_img):
-        tgt_input = tgt_pos[:-1, :]
-        tgt_img = tgt_img[:, :-1, :, :, :]
-        length = tgt_pos.size(0)
-        loss = 0
-        max_length = 16
-        GAZE = torch.zeros((max_length, 1))-1
-        blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
-        new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
-        for i in range(1,max_length+1):
-            if i==1:
-                tgt_input = tgt_pos[:i, :]
-                tgt_img_input = tgt_img[:, :i, :, :, :]
-                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
-                if self.args.use_threedimension == 'True':
-                    src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
-                else:
-                    src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
-
-                logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
-                                    src_img, tgt_img_input,
-                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-                _, predicted = torch.max(logits[-1,:,:], 1)
-                if i<length:
-                    tgt_out = tgt_pos[i, :]
-                    loss += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
-                GAZE[i-1][0] = predicted
-                next_tgt_img_input = torch.cat((tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
-                next_tgt_input = torch.cat((tgt_input, predicted.view(-1, 1)), dim=0)
-            else:
-                tgt_input = next_tgt_input
-                tgt_img_input = next_tgt_img_input
-                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
-                if self.args.use_threedimension == 'True':
-                    src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
-                else:
-                    src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
-                logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
-                                    src_img, tgt_img_input,
-                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-                _, predicted = torch.max(logits[-1,:,:], 1)
-                if i<length:
-                    tgt_out = tgt_pos[i, :]
-                    loss += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
-                GAZE[i-1][0] = predicted
-                if self.EOS_IDX in GAZE[:,0] and i >= length:
-                    break
-                next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
-                next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1,1)), dim=0)
-        loss = loss / (length-1)
-        if self.EOS_IDX in GAZE:
-            endIndex = torch.where(GAZE == self.EOS_IDX)[0][0]
-            GAZE = GAZE[:endIndex]
-        return loss, GAZE, tgt_pos[1:,:][:-1]
-    
     def validation_step(self, batch, batch_idx):
         src_pos, src_img, tgt_pos, tgt_img = batch
         # src_pos(28, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
@@ -259,9 +204,9 @@ class TransformerModel(pl.LightningModule):
         src_img = src_img.to(DEVICE)
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
-        loss, GAZE, GAZE_gt = self.validation_max(src_pos, src_img, tgt_pos, tgt_img)
+        loss, LOSS, GAZE,LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'loss': loss, 'GAZE': GAZE, 'GAZE_gt': GAZE_gt,'target':src_pos[0]}
+        return {'loss': loss, 'GAZE': GAZE, 'GAZE_gt': tgt_pos[1:,:][:-1],'target':src_pos[0]}
 
     def validation_epoch_end(self, validation_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
@@ -274,13 +219,12 @@ class TransformerModel(pl.LightningModule):
             behavior(res_gt, target, gaze_gt)
             behavior(res_max, target, gaze)
             i += 1
-
         res_gt = res_gt / i
         res_max = res_max / i
-        res_max[5] = torch.sum(torch.abs(res_max[:5] - res_gt[:5]) / res_gt[:5]) * 100
+        res_max[5] = torch.sum(torch.abs(res_max[:5] - res_gt[:5]) / res_gt[:5]) / 5
         self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('validation_metric_each_epoch', res_max[5], on_epoch=True, prog_bar=True, sync_dist=True)
-    
+
 
     def test_max(self,src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
@@ -314,7 +258,7 @@ class TransformerModel(pl.LightningModule):
 
                 GAZE[i-1][0] = predicted
                 LOGITS[i-1,:] = self.norm(logits[-1,:,:]).reshape(1,-1)
-                
+
                 next_tgt_img_input = torch.cat((tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((tgt_input, predicted.view(-1, 1)), dim=0)
             else:
@@ -368,20 +312,20 @@ class TransformerModel(pl.LightningModule):
                         src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
                     else:
                         src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
-                
+
                     logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                         src_img, tgt_img_input,
                                         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                     logits_new = F.softmax(logits[-1,:,:].view(-1), dim=0)
                     predicted = torch.multinomial(logits_new,1,replacement=True)
                     GAZE[i-1][n] = predicted
-                    
+
                     if i<length:
                         tgt_out = tgt_pos[i, :]
                         loss_per += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
                     next_tgt_img_input = torch.cat((tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                     next_tgt_input = torch.cat((tgt_input, predicted.view(-1, 1)), dim=0)
-                
+
                 else:
                     tgt_input = next_tgt_input
                     tgt_img_input = next_tgt_img_input
@@ -403,7 +347,7 @@ class TransformerModel(pl.LightningModule):
                         loss_per += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
                     next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                     next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1,1)), dim=0)
-                    
+
             loss += loss_per / (length-1)
         loss= loss / iter
         GAZE_ALL = []
@@ -436,7 +380,7 @@ class TransformerModel(pl.LightningModule):
         LOGITS_tf=soft(logits).squeeze(1)
         print(predicted.view(-1))
         return loss,predicted[:-1],tgt_out[:-1],LOGITS_tf[:-1]
-        
+
     def test_step(self, batch, batch_idx):
         src_pos, src_img, tgt_pos, tgt_img = batch
         src_pos = src_pos.to(DEVICE)
@@ -507,7 +451,7 @@ class TransformerModel(pl.LightningModule):
             avg_loss = torch.stack([x['loss_gt'].cpu().detach() for x in test_step_outputs]).mean()
             self.log('test_loss_gt_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
-    def configure_optimizers(self): 
+    def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.args.scheduler_lambda1, gamma=self.args.scheduler_lambda2)
         return [optimizer], [scheduler]

@@ -189,6 +189,8 @@ class Seq2SeqTransformer(nn.Module):
 
         outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
                                 src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
+        print(outs)
+        exit()
         return self.generator(outs)
 
     def encode(self, src: Tensor, src_mask: Tensor):
