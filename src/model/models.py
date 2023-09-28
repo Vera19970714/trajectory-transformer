@@ -114,14 +114,21 @@ class Seq2SeqTransformer(nn.Module):
                  functionChoice: str,
                  alpha: float,
                  changeX: str,
+                 CAVersion: int,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer, self).__init__()
-        self.transformer = Transformer(d_model=emb_size,
+        '''self.transformer = Transformer(d_model=emb_size,
                                        nhead=nhead,
                                        num_encoder_layers=num_encoder_layers,
                                        num_decoder_layers=num_decoder_layers,
                                        dim_feedforward=dim_feedforward,
-                                       dropout=dropout)
+                                       dropout=dropout)'''
+        encoder_layer = nn.TransformerEncoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
+                                                   dropout=dropout)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
+                                                   dropout=dropout)
+        self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_decoder_layers)
         self.generator = nn.Linear(emb_size, tgt_vocab_size).float()
         #self.src_tok_emb = TokenEmbedding(src_vocab_size, int(emb_size/2))
         #self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, int(emb_size/2))
@@ -143,6 +150,12 @@ class Seq2SeqTransformer(nn.Module):
 
         self.cnn_embedding = CNNEmbedding(int(emb_size/2))
         self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))
+
+        if CAVersion == 3:
+            self.decode_fc = nn.Linear(emb_size, emb_size)
+            self.encode_fc = nn.Linear(emb_size, emb_size)
+            self.placeholder = torch.zeros((1, 1, 1)).to(DEVICE)
+        self.CAVersion = CAVersion
 
 
     def getCNNFeature(self, src_img: Tensor):
@@ -187,9 +200,20 @@ class Seq2SeqTransformer(nn.Module):
         tgt_emb = torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
         tgt_emb = self.onedpositional_encoding(tgt_emb)
 
-        outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
-                                src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
-        return self.generator(outs)
+        #outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None,
+        #                        src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
+        encoder_out = self.transformer_encoder(src_emb, src_mask, src_padding_mask)
+        decoder_out = self.transformer_decoder(tgt_emb, encoder_out, tgt_mask, None, tgt_padding_mask,
+                                               memory_key_padding_mask)
+        if self.CAVersion == 3:
+            encoder_out = self.encode_fc(encoder_out).permute(1, 0, 2)  # 2, 28, 512
+            decoder_out = self.decode_fc(decoder_out).permute(1, 2, 0)  # 2, 512, 8
+            out = torch.bmm(encoder_out, decoder_out).permute(2, 0, 1) # b, 28, 8
+            placeholder = self.placeholder.repeat(out.size()[0], out.size()[1], 1)
+            out = torch.cat((out, placeholder), dim=-1)
+            return out  # 8, 2, 29
+        else:
+            return self.generator(decoder_out)
 
     def encode(self, src: Tensor, src_mask: Tensor):
         return 0
