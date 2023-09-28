@@ -17,9 +17,13 @@ cross_dataset = 'Pure' # v2 choices: None, Pure, Mixed, Cross, Combine
 isSplitValid = 'True'
 testing_dataset_choice = 'yogurt'# choices: yogurt, shampoo
 index_folder = './dataset/processdata/'
+folder_name = ''
 
 def behavior(result_array, target, gaze):
     for i in range(len(gaze)):
+        if len(gaze[i]) == 0:
+            print('GAZE LENGTH IS ZERO')
+            continue
         gaze_element = gaze[i][~np.isnan(gaze[i])]
         result_array[0] += int(target == gaze_element[-1])
         result_array[1] += len(gaze_element)
@@ -56,9 +60,9 @@ def losses(heatmap_gt, gaze, result_array):
 class Evaluation(object):
     def __init__(self):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
-        gaze_gt = './dataset/checkEvaluation/test_yogurt_lr5e-5/gaze_gt.csv'
-        gaze_max = './dataset/checkEvaluation/test_yogurt_lr5e-5/gaze_max.csv'
-        gaze_expect = './dataset/checkEvaluation/test_yogurt_lr5e-5/gaze_expect.csv'
+        gaze_gt = './dataset/checkEvaluation/'+folder_name+'/gaze_gt.csv'
+        gaze_max = './dataset/checkEvaluation/'+folder_name+'/gaze_max.csv'
+        gaze_expect = './dataset/checkEvaluation/'+folder_name+'/gaze_expect.csv'
         gaze_random = './dataset/checkEvaluation/gaze_random.csv'
         gaze_resnet = './dataset/checkEvaluation/gaze_resnet_similarity.csv'
         gaze_saliency = './dataset/checkEvaluation/gaze_saliency.csv'
