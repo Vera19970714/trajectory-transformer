@@ -16,9 +16,9 @@ if __name__ == '__main__':
     # data path and output files
     parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q23_mousedel_time', type=str)
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
-    parser.add_argument('-testing_dataset_choice', default='yogurt', type=str)  # choices: yogurt, shampoo
-    parser.add_argument('-cross_dataset', default='Pure', type=str) # v2 choices: None, Pure, Mixed, Cross,Combine
-    parser.add_argument('-isSplitValid', default='True', type=str)
+    parser.add_argument('-testing_dataset_choice', default='shampoo', type=str)  # choices: yogurt, shampoo
+    parser.add_argument('-cross_dataset', default='None', type=str) # v2 choices: None, Pure, Mixed, Cross,Combine
+    parser.add_argument('-isSplitValid', default='False', type=str)
     parser.add_argument('-package_size', type=int, default=27)
     parser.add_argument('-checkpoint', default= 'None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
@@ -111,11 +111,6 @@ if __name__ == '__main__':
         trainer.test(model=model, dataloaders=search_data.test_loader)
     elif args.do_test == 'True':
         model = model.load_from_checkpoint(args.checkpoint, args=args)
-        # leanableposencoding = model.model.visual_positional_encoding.pos_embedding
-        # leanableposencoding = leanableposencoding[:28,0,:].cpu().detach().numpy()
-        # save posencoding
-        # np.save('./leanableposencoding.npy',leanableposencoding)
-        # exit()
         trainer.test(model=model, dataloaders=search_data.test_loader)
 
 
