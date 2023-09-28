@@ -23,11 +23,18 @@ class TransformerModel(pl.LightningModule):
         self.PAD_IDX = self.args.package_size+1
         self.BOS_IDX = self.args.package_size+2
         self.EOS_IDX = self.args.package_size+3
-        EMB_SIZE = 256
-        NHEAD = 2
-        FFN_HID_DIM = 256
-        NUM_ENCODER_LAYERS = 2
-        NUM_DECODER_LAYERS = 2
+        if args.cross_dataset == 'Pure':
+            EMB_SIZE = 256
+            NHEAD = 2
+            FFN_HID_DIM = 256
+            NUM_ENCODER_LAYERS = 2
+            NUM_DECODER_LAYERS = 2
+        else:
+            EMB_SIZE = 512
+            NHEAD = 4
+            FFN_HID_DIM = 512
+            NUM_ENCODER_LAYERS = 4
+            NUM_DECODER_LAYERS = 4
         if self.args.use_threedimension == 'True':
             inputDim = 3
         else:
