@@ -198,7 +198,7 @@ class FixDataset(Dataset):
     def get_lens(self, sents):
         return [len(sent) for sent in sents]
 
-    def drawTrajectoryDis(self):
+    '''def drawTrajectoryDis(self):
         BOS_IDX = self.args.package_size + 2
         EOS_IDX = self.args.package_size + 3
         output = []
@@ -210,7 +210,7 @@ class FixDataset(Dataset):
             output.append(BOS_IDX)
             output.append(EOS_IDX)
         plt.hist(output, bins=31)
-        plt.show()
+        plt.show()'''
 
 
 # Create a dataloading module as per the PyTorch Lightning Docs
@@ -258,10 +258,10 @@ class SearchDataModule(pl.LightningDataModule):
 
 class Collator(object):
     def __init__(self, package_size):
-        self.TGT_IDX = package_size
-        self.PAD_IDX = package_size + 1
+        #self.TGT_IDX = package_size
+        self.PAD_IDX = package_size + 1# 1
         self.BOS_IDX = package_size + 2
-        self.EOS_IDX = package_size + 3
+        self.EOS_IDX = package_size #+ 3
 
     def __call__(self, data):
         package_target = []

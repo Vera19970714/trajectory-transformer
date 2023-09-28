@@ -17,12 +17,13 @@ class TransformerModel(pl.LightningModule):
         super().__init__()
         self.args = args
         torch.manual_seed(0)
-        SRC_VOCAB_SIZE = self.args.package_size+4
-        TGT_VOCAB_SIZE = self.args.package_size+4
-        self.TGT_IDX = self.args.package_size
+        TGT_VOCAB_SIZE = self.args.package_size+ 2#4
+        self.TGT_VOCAB_SIZE = TGT_VOCAB_SIZE
+        #self.TGT_IDX = self.args.package_size
         self.PAD_IDX = self.args.package_size+1
         self.BOS_IDX = self.args.package_size+2
-        self.EOS_IDX = self.args.package_size+3
+        self.EOS_IDX = self.args.package_size #+3
+
         if args.cross_dataset == 'Pure':
             EMB_SIZE = 256
             NHEAD = 2
@@ -40,7 +41,7 @@ class TransformerModel(pl.LightningModule):
         else:
             inputDim = 2
         self.model = Seq2SeqTransformer(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
-                                         NHEAD, SRC_VOCAB_SIZE, TGT_VOCAB_SIZE, inputDim, FFN_HID_DIM,
+                                         NHEAD, TGT_VOCAB_SIZE, inputDim, FFN_HID_DIM,
                                         args.functionChoice, args.alpha, args.changeX).to(DEVICE).float()
         for p in self.model.parameters():
             if p.dim() > 1:
@@ -241,7 +242,7 @@ class TransformerModel(pl.LightningModule):
         max_length = 16
         LOSS = torch.zeros((length-1, 1))-1
         GAZE = torch.zeros((max_length, 1))-1
-        LOGITS = torch.zeros((max_length, 31))
+        #LOGITS = torch.zeros((max_length, self.TGT_VOCAB_SIZE))
         blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
         new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
         for i in range(1,max_length+1):
@@ -257,6 +258,7 @@ class TransformerModel(pl.LightningModule):
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                logits = logits[:,:,:-1] # discard padding prob
                 _, predicted = torch.max(logits[-1,:,:], 1)
                 if i<length:
                     tgt_out = tgt_pos[i, :]
@@ -264,7 +266,7 @@ class TransformerModel(pl.LightningModule):
                     loss += self.loss_fn(logits[-1,:,:].reshape(-1, logits[-1,:,:].shape[-1]), tgt_out.reshape(-1).long())
 
                 GAZE[i-1][0] = predicted
-                LOGITS[i-1,:] = self.norm(logits[-1,:,:]).reshape(1,-1)
+                #LOGITS[i-1,:] = self.norm(logits[-1,:,:]).reshape(1,-1)
 
                 next_tgt_img_input = torch.cat((tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((tgt_input, predicted.view(-1, 1)), dim=0)
@@ -279,6 +281,7 @@ class TransformerModel(pl.LightningModule):
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                logits = logits[:, :, :-1]  # discard padding prob
                 _, predicted = torch.max(logits[-1,:,:], 1)
                 if i<length:
                     tgt_out = tgt_pos[i, :]
@@ -287,15 +290,15 @@ class TransformerModel(pl.LightningModule):
                 GAZE[i-1][0] = predicted
                 if self.EOS_IDX in GAZE[:,0] and i >= length:
                     break
-                LOGITS[i-1,:] = self.norm(logits[-1,:,:]).reshape(1,-1)
+                #LOGITS[i-1,:] = self.norm(logits[-1,:,:]).reshape(1,-1)
                 next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1,1)), dim=0)
         loss = loss / (length-1)
         if self.EOS_IDX in GAZE:
             endIndex = torch.where(GAZE == self.EOS_IDX)[0][0]
             GAZE = GAZE[:endIndex]
-            LOGITS = LOGITS[:endIndex]
-        return loss, LOSS, GAZE,LOGITS
+            #LOGITS = LOGITS[:endIndex]
+        return loss, LOSS, GAZE #,LOGITS
 
     def test_expect(self,src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
@@ -384,9 +387,9 @@ class TransformerModel(pl.LightningModule):
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         _, predicted = torch.max(logits, 2)
-        LOGITS_tf=soft(logits).squeeze(1)
+        #LOGITS_tf=soft(logits).squeeze(1)
         print(predicted.view(-1))
-        return loss,predicted[:-1],tgt_out[:-1],LOGITS_tf[:-1]
+        return loss,predicted[:-1],tgt_out[:-1] #,LOGITS_tf[:-1]
 
     def test_step(self, batch, batch_idx):
         src_pos, src_img, tgt_pos, tgt_img = batch
@@ -395,19 +398,19 @@ class TransformerModel(pl.LightningModule):
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
 
-        loss_max, LOSS, GAZE,LOGITS = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
-        loss_expect,GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
-        loss_gt,GAZE_tf,GAZE_gt,LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
+        loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
+        loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
+        loss_gt, GAZE_tf, GAZE_gt = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
         self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         if self.args.write_output == 'True':
-            return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt,'LOSS': LOSS, 'GAZE': GAZE, 'LOGITS': LOGITS, 'GAZE_tf': GAZE_tf,
-                    'GAZE_gt': GAZE_gt, 'LOGITS_tf': LOGITS_tf, 'GAZE_expect': GAZE_expect}
+            return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt,'LOSS': LOSS, 'GAZE': GAZE, 'GAZE_tf': GAZE_tf,
+                    'GAZE_gt': GAZE_gt, 'GAZE_expect': GAZE_expect}
         else:
             return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt}
 
     def test_epoch_end(self, test_step_outputs):
         if self.args.write_output == 'True':
-            all_loss, all_gaze, all_gaze_tf, all_gaze_gt, all_logits, all_logits_tf, all_gaze_expect = \
+            all_loss, all_gaze, all_gaze_tf, all_gaze_gt, all_gaze_expect = \
                 pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
             for output in test_step_outputs:
                 #losses = output['LOSS'].cpu().detach().numpy().T

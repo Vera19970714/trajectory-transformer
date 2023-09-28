@@ -5,7 +5,7 @@ from torch.nn import Transformer
 import math
 import numpy as np
 from .positionalEncoding import *
-UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
+#UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -106,7 +106,7 @@ class Seq2SeqTransformer(nn.Module):
                  num_decoder_layers: int,
                  emb_size: int,
                  nhead: int,
-                 src_vocab_size: int,
+                 #src_vocab_size: int,
                  tgt_vocab_size: int,
                  input_dimension: int,
                  dim_feedforward: int,
