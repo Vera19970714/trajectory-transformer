@@ -8,7 +8,11 @@ from dataBuilders.data_builder import SearchDataModule
 from dataBuilders.data_builder_base import BaseSearchDataModule
 from model.transformerLightning import TransformerModel
 from benchmark.base_lightning import BaseModel
-import numpy as np
+
+import os
+import sys
+sys.path.append('./src/')
+from evaluation.evaluation import Evaluation
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -60,6 +64,10 @@ if __name__ == '__main__':
 
     # random seed
     seed_everything(args.random_seed)
+
+    # create new directory of saving results
+    if not os.path.exists(args.output_path):
+        os.mkdir(args.output_path)
 
     # set logger
     logger = pl_loggers.TensorBoardLogger(f'./lightning_logs/{args.log_name}')
@@ -114,5 +122,8 @@ if __name__ == '__main__':
     elif args.do_test == 'True':
         model = model.load_from_checkpoint(args.checkpoint, args=args)
         trainer.test(model=model, dataloaders=search_data.test_loader)
+
+    e = Evaluation(args.cross_dataset, args.isSplitValid, args.testing_dataset_choice, args.output_path)
+    e.evaluation()
 
 
