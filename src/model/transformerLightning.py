@@ -229,7 +229,7 @@ class TransformerModel(pl.LightningModule):
             i += 1
         res_gt = res_gt / i
         res_max = res_max / i
-        res_max[5] = torch.sum(torch.abs(res_max[:5] - res_gt[:5]) / res_gt[:5]) / 5
+        res_max[5] = torch.mean(torch.abs(res_max[:5] - res_gt[:5]) / res_gt[:5])
         self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('validation_metric_each_epoch', res_max[5], on_epoch=True, prog_bar=True, sync_dist=True)
 

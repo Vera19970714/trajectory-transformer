@@ -106,9 +106,10 @@ class Evaluation(object):
         for i in range(self.data_length):
             behavior(res['gt'], self.target[i], self.gaze_gt[i:(i+1)])
             behavior(res['single'], self.target[i], self.gaze_max[i:(i + 1)])
-            behavior(res['random'], self.target[i], self.gaze_random[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
             behavior(res['multi'], self.target[i], self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
             if self.showBenchmark:
+                behavior(res['random'], self.target[i],
+                         self.gaze_random[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
                 behavior(res['resnet'], self.target[i], self.gaze_resnet[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
                 behavior(res['rgb'], self.target[i], self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
                 behavior(res['saliency'], self.target[i], self.gaze_saliency[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])

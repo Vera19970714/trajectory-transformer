@@ -123,7 +123,8 @@ if __name__ == '__main__':
         model = model.load_from_checkpoint(args.checkpoint, args=args)
         trainer.test(model=model, dataloaders=search_data.test_loader)
 
-    e = Evaluation(args.cross_dataset, args.isSplitValid, args.testing_dataset_choice, args.output_path)
+    e = Evaluation(args.cross_dataset, args.isSplitValid, args.testing_dataset_choice, args.output_path,
+                   ITERATION=args.stochastic_iteration, TOTAL_PCK=args.package_size)
     e.evaluation()
 
 
