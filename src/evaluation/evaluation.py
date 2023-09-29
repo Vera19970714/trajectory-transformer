@@ -13,9 +13,9 @@ from dataBuilders.data_builder import randsplit, cross_data_split2, cross_data_s
 
 ITERATION = 100
 TOTAL_PCK = 27
-cross_dataset = 'Pure' # v2 choices: None, Pure, Mixed, Cross, Combine
+cross_dataset = 'Pure' # DONOT USE choices: None, Pure, Mixed, Cross, Combine
 isSplitValid = 'True'
-testing_dataset_choice = 'yogurt'# choices: yogurt, shampoo
+testing_dataset_choice = 'yogurt'# choices: yogurt, shampoo, combine 
 index_folder = './dataset/processdata/'
 folder_name = ''
 
