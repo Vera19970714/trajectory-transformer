@@ -326,6 +326,7 @@ class TransformerModel(pl.LightningModule):
                     logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                         src_img, tgt_img_input,
                                         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                    logits = logits[:, :, :-1]  # discard padding prob
                     logits_new = F.softmax(logits[-1,:,:].view(-1), dim=0)
                     predicted = torch.multinomial(logits_new,1,replacement=True)
                     GAZE[i-1][n] = predicted
@@ -347,6 +348,7 @@ class TransformerModel(pl.LightningModule):
                     logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                         src_img, tgt_img_input,
                                         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                    logits = logits[:, :, :-1]  # discard padding prob
                     logits_new = F.softmax(logits[-1,:,:].view(-1), dim=0)
                     predicted = torch.multinomial(logits_new,1,replacement=True)
                     GAZE[i-1][n] = predicted
@@ -411,7 +413,7 @@ class TransformerModel(pl.LightningModule):
     def test_epoch_end(self, test_step_outputs):
         if self.args.write_output == 'True':
             all_loss, all_gaze, all_gaze_tf, all_gaze_gt, all_gaze_expect = \
-                pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+                pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
             for output in test_step_outputs:
                 #losses = output['LOSS'].cpu().detach().numpy().T
                 #all_loss = pd.concat([all_loss, pd.DataFrame(losses)],axis=0)
