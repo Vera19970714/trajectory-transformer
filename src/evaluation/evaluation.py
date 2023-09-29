@@ -147,6 +147,13 @@ class Evaluation(object):
         print('*' * 20)
 
 
-#if __name__ == '__main__':
-#    e = Evaluation()
-#    e.evaluation()
+if __name__ == '__main__':
+    ITERATION = 100
+    TOTAL_PCK = 27
+    cross_dataset = 'Pure'  # DONOT USE choices: None, Pure, Mixed, Cross, Combine
+    isSplitValid = 'True'
+    testing_dataset_choice = 'yogurt'  # choices: yogurt, shampoo, combine
+    evaluation_url = './dataset/checkEvaluation/baseyogurt'
+
+    e = Evaluation(cross_dataset, isSplitValid, testing_dataset_choice, evaluation_url, ITERATION, TOTAL_PCK)
+    e.evaluation()
