@@ -4,10 +4,9 @@ import numpy as np
 import pytorch_lightning as pl
 import pickle
 from torch.nn.utils.rnn import pad_sequence
-import matplotlib.pyplot as plt
-from numpy import random
 
-def randsplit(file, indexFile, isTrain, cross_dataset):
+
+def randsplit(file, indexFile, isTrain, cross_dataset, isSplitValid):
     with open(file, "rb") as fp:
         raw_data = pickle.load(fp)
     data_length = len(raw_data)
@@ -17,21 +16,33 @@ def randsplit(file, indexFile, isTrain, cross_dataset):
     linesInt = [int(x) for x in lines]
 
     if cross_dataset == 'None':
-        split_num = int(data_length*0.9)
-    elif cross_dataset == 'No':
-        split_num = 453
+        if isSplitValid == 'False':
+            split_num_valid = int(data_length*0.9)
+        elif isSplitValid == 'True':
+            split_num_valid = int(data_length * 0.8)
+            split_num_test = int(data_length * 0.9)
+    #elif cross_dataset == 'No':
+    #    split_num = 453
 
     if isTrain == 'Train':
-        train_index = np.array(linesInt[:split_num])
+        train_index = np.array(linesInt[:split_num_valid])
         traindata = np.array(raw_data)[train_index.astype(int)]
         return traindata
     elif isTrain == 'Valid':
-        test_index = np.array(linesInt[-(data_length - split_num):])
-        valdata = np.array(raw_data)[test_index.astype(int)]
+        if isSplitValid == 'False':
+            test_index = np.array(linesInt[-(data_length - split_num_valid):])
+            valdata = np.array(raw_data)[test_index.astype(int)]
+        elif isSplitValid == 'True':
+            test_index = np.array(linesInt[split_num_valid:split_num_test])
+            valdata = np.array(raw_data)[test_index.astype(int)]
         return valdata
     elif isTrain == 'Test':
-        test_index = np.array(linesInt[-(data_length - split_num):])
-        testdata = np.array(raw_data)[test_index.astype(int)]
+        if isSplitValid == 'False':
+            test_index = np.array(linesInt[-(data_length - split_num_valid):])
+            testdata = np.array(raw_data)[test_index.astype(int)]
+        elif isSplitValid == 'True':
+            test_index = np.array(linesInt[split_num_test:])
+            testdata = np.array(raw_data)[test_index.astype(int)]
         return testdata
 
 
@@ -53,6 +64,7 @@ def cross_data_split(file, isTrain):
         val_index = np.array(yogurt_task)
         valdata = np.array(raw_data)[val_index.astype(int)]
         return valdata
+
 
 '''save_indices_file_code:
     testing_indexes = random.choice(shampoo_task, size=45, replace=False)
@@ -81,60 +93,58 @@ def cross_data_split(file, isTrain):
         F.writelines([str(item).replace(' ', '\t') + '\n' for item in yog])
         F.close()'''
 
-def cross_data_split2(file, isTrain, indexFolder, crossChoice, testing_dataset_choice):
+def get_lines(crossChoice, indexFolder, testing_dataset_choice):
+    if crossChoice == 'Pure':
+        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_pure_indices.txt') as f:
+            lines = f.readlines()
+    elif crossChoice == 'Mixed':
+        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_mixed_indices.txt') as f:
+            lines = f.readlines()
+    elif crossChoice == 'Cross':
+        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_cross_indices.txt') as f:
+            lines = f.readlines()
+    elif crossChoice == 'Combine':
+        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_combine_indices.txt') as f:
+            lines = f.readlines()
+    return lines
+
+
+def cross_data_split2(file, isTrain, indexFolder, crossChoice, testing_dataset_choice, isSplitValid):
     with open(file, "rb") as fp:
         raw_data = pickle.load(fp)
 
     if isTrain == 'Train':
-        if crossChoice == 'Pure':
-            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_pure_indices.txt') as f:
-                lines = f.readlines()
-            train_index = np.array([int(x[:-1]) for x in lines])
-        elif crossChoice == 'Mixed':
-            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_mixed_indices.txt') as f:
-                lines = f.readlines()
-            train_index = np.array([int(x[:-1]) for x in lines])
-        elif crossChoice == 'Cross':
-            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_cross_indices.txt') as f:
-                lines = f.readlines()
-            train_index = np.array([int(x[:-1]) for x in lines])
-        elif crossChoice == 'Combine':
-            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_combine_indices.txt') as f:
-                lines = f.readlines()
-            train_index = np.array([int(x[:-1]) for x in lines])
-        traindata = np.array(raw_data)[train_index]
-        return traindata
-    elif isTrain == 'Valid':
-        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_testing_indices.txt') as f:
-            lines = f.readlines()
-        val_index = np.array([int(x[:-1]) for x in lines])
-        valdata = np.array(raw_data)[val_index]
-        return valdata
-    elif isTrain == 'Test':
-        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_testing_indices.txt') as f:
-            lines = f.readlines()
-        test_index = np.array([int(x[:-1]) for x in lines])
-        testdata = np.array(raw_data)[test_index]
-        return testdata
-
-def cross_data_split3(file, isTrain, indexFolder, testing_dataset_choice):
-    with open(file, "rb") as fp:
-        raw_data = pickle.load(fp)
-
-    if isTrain == 'Train':
-        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_only_indices_train.txt') as f:
-            lines = f.readlines()
+        lines = get_lines(crossChoice, indexFolder, testing_dataset_choice)
         train_index = np.array([int(x[:-1]) for x in lines])
+
+        if isSplitValid == 'True':
+            data_length = len(train_index)
+            split_num = int(data_length * 0.9)
+            train_index = train_index[:split_num]
+
         traindata = np.array(raw_data)[train_index]
         return traindata
+
     elif isTrain == 'Valid':
-        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_only_indices_valid.txt') as f:
-            lines = f.readlines()
-        val_index = np.array([int(x[:-1]) for x in lines])
-        valdata = np.array(raw_data)[val_index]
-        return valdata
+        if isSplitValid == 'False':
+            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_testing_indices.txt') as f:
+                lines = f.readlines()
+            val_index = np.array([int(x[:-1]) for x in lines])
+            valdata = np.array(raw_data)[val_index]
+            return valdata
+        elif isSplitValid == 'True':
+            lines = get_lines(crossChoice, indexFolder, testing_dataset_choice)
+            val_index = np.array([int(x[:-1]) for x in lines])
+
+            data_length = len(val_index)
+            split_num = int(data_length * 0.9)
+            val_index = val_index[split_num:]
+
+            valdata = np.array(raw_data)[val_index]
+            return valdata
+
     elif isTrain == 'Test':
-        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_only_indices_test.txt') as f:
+        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_testing_indices.txt') as f:
             lines = f.readlines()
         test_index = np.array([int(x[:-1]) for x in lines])
         testdata = np.array(raw_data)[test_index]
@@ -155,16 +165,14 @@ class FixDataset(Dataset):
         else:
             print('cross_dataset value ERROR')
             quit()'''
-        assert cross_dataset in ['None', 'Pure', 'Mixed', 'Cross', 'Combine']
-        # assert testing_dataset_choice in ['yogurt', 'shampoo']
+        assert cross_dataset in ['None', 'Pure', 'Mixed', 'Cross']
+        assert testing_dataset_choice in ['yogurt', 'shampoo']
+        print('Settings: ', cross_dataset, testing_dataset_choice, isSplitValid)
 
-        if isSplitValid == 'True':
-            raw_data = cross_data_split3(new_datapath, isTrain, args.index_folder, testing_dataset_choice)
+        if cross_dataset == 'None':
+            raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset, isSplitValid)
         else:
-            if cross_dataset == 'None':
-                raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset)
-            else:
-                raw_data = cross_data_split2(new_datapath, isTrain, args.index_folder, cross_dataset, testing_dataset_choice)
+            raw_data = cross_data_split2(new_datapath, isTrain, args.index_folder, cross_dataset, testing_dataset_choice, isSplitValid)
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')

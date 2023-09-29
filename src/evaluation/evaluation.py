@@ -9,7 +9,7 @@ from dictances import bhattacharyya
 from scipy.stats import wasserstein_distance
 import sys
 sys.path.append('./src/')
-from dataBuilders.data_builder import randsplit, cross_data_split2, cross_data_split3
+from dataBuilders.data_builder import randsplit, cross_data_split2
 
 
 def behavior(result_array, target, gaze):
@@ -73,13 +73,11 @@ class Evaluation(object):
 
         new_datapath = './dataset/processdata/dataset_Q23_mousedel_time'
         indexFile = './dataset/processdata/splitlist_time_mousedel.txt'
-        if isSplitValid == 'True':
-            raw_data = cross_data_split3(new_datapath, 'Test', index_folder, testing_dataset_choice)
+
+        if cross_dataset == 'None':
+            raw_data = randsplit(new_datapath, indexFile, 'Test', cross_dataset, isSplitValid)
         else:
-            if cross_dataset == 'None':
-                raw_data = randsplit(new_datapath, indexFile, 'Test', cross_dataset)
-            else:
-                raw_data = cross_data_split2(new_datapath, 'Test', index_folder, cross_dataset, testing_dataset_choice)
+            raw_data = cross_data_split2(new_datapath, 'Test', index_folder, cross_dataset, testing_dataset_choice, isSplitValid)
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
