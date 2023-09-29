@@ -18,6 +18,9 @@ def behavior(result_array, target, gaze):
             print('GAZE LENGTH IS ZERO')
             continue
         gaze_element = gaze[i][~np.isnan(gaze[i])]
+        if len(gaze_element) == 0:
+            print('replacing it...')
+            gaze_element = gaze[i-1][~np.isnan(gaze[i-1])]
         result_array[0] += int(target == gaze_element[-1])
         result_array[1] += len(gaze_element)
         search_len = 0
