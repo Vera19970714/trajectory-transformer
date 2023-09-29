@@ -326,7 +326,8 @@ class TransformerModel(pl.LightningModule):
                     logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                         src_img, tgt_img_input,
                                         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-                    logits = logits[:, :, :-1]  # discard padding prob
+                    # the first token cannot be end token
+                    logits = logits[:, :, :-2]  # discard padding prob
                     logits_new = F.softmax(logits[-1,:,:].view(-1), dim=0)
                     predicted = torch.multinomial(logits_new,1,replacement=True)
                     GAZE[i-1][n] = predicted
