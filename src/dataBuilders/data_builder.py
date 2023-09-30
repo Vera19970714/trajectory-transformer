@@ -168,6 +168,9 @@ class FixDataset(Dataset):
         assert cross_dataset in ['None', 'Pure', 'Mixed', 'Cross']
         assert testing_dataset_choice in ['yogurt', 'shampoo']
         print('Settings: ', cross_dataset, testing_dataset_choice, isSplitValid)
+        if isSplitValid == 'True' and cross_dataset in ['Mixed', 'Cross']:
+            print('NOT IMPLEMENTED')
+            quit()
 
         if cross_dataset == 'None':
             raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset, isSplitValid)
