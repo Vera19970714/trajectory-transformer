@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q23_mousedel_time', type=str)
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
 
-    parser.add_argument('-cross_dataset', default='None', type=str) # choices: None, Pure, Mixed, Cross
+    parser.add_argument('-cross_dataset', default='Pure', type=str) # choices: None, Pure, Mixed, Cross
     parser.add_argument('-testing_dataset_choice', default='yogurt', type=str) # only work in cross dataset, choices: yogurt, shampoo
     parser.add_argument('-isSplitValid', default='True', type=str)
 
@@ -31,12 +31,12 @@ if __name__ == '__main__':
     parser.add_argument('-alpha', type=int, default=0.8)
     parser.add_argument('-functionChoice', default='original', type=str) # choices: linear, exp1, exp2, original
     parser.add_argument('-changeX', default='False', type=str) # None, False, True
-    parser.add_argument('-CA_version', default=3, type=int)  # valid values atm: 0, 3
+    parser.add_argument('-CA_version', default=0, type=int)  # valid values atm: 0, 3
     # 0: no cross attention, 1: add padding to input, 2: extra FC stream, 3: add pad prob in logits
 
-    parser.add_argument('-log_name', default='caorder', type=str)
+    parser.add_argument('-log_name', default='yogurt', type=str)
     parser.add_argument('-write_output', type=str, default='True')
-    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/caorder/')
+    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/yogurt/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
 
@@ -52,8 +52,8 @@ if __name__ == '__main__':
     parser.add_argument('-use_threedimension', type=str, default='True')
 
     # training settings
-    parser.add_argument('-gpus', default='0', type=str)
-    parser.add_argument('-batch_size', type=int, default=2)
+    parser.add_argument('-gpus', default='-1', type=str)
+    parser.add_argument('-batch_size', type=int, default=20)
     parser.add_argument('-num_epochs', type=int, default=100)
     parser.add_argument('-random_seed', type=int, default=3407)
     parser.add_argument('-early_stop_patience', type=int, default=30)
