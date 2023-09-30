@@ -31,7 +31,7 @@ if __name__ == '__main__':
     parser.add_argument('-alpha', type=int, default=0.8)
     parser.add_argument('-functionChoice', default='original', type=str) # choices: linear, exp1, exp2, original
     parser.add_argument('-changeX', default='False', type=str) # None, False, True
-    parser.add_argument('-CA_version', default=3, type=int)  # valid values atm: 0, 3
+    parser.add_argument('-CA_version', default=0, type=int)  # valid values atm: 0, 3
     # 0: no cross attention, 1: add padding to input, 2: extra FC stream, 3: add pad prob in logits
     parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads
     parser.add_argument('-CA_dk', default=1, type=int) # 512, 64, scaling factor in attention matrix
