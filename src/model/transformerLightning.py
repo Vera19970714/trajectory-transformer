@@ -122,12 +122,12 @@ class TransformerModel(pl.LightningModule):
         # use this for (0,0,1)
         #src_pos_2d[0, :] = tgtValue
         # use this for (x,y,1)
-        src_pos_2d[0, :, 2] = 1
+        src_pos_2d[-1, :, 2] = 1 # the last one is target
         for i in range(batch):
             #Index = tgt_input[-1, i]
-            Index = src_pos[0, i]
+            Index = src_pos[-1, i] # the last one is target
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
-            tgt2 = torch.where(src_pos[:, i] == Index)[0]
+            #tgt2 = torch.where(src_pos[:, i] == Index)[0]
             # use this for (x,y,1)
             tgt_input_2d[tgt1, i, 2] = 1
             # src_pos_2d[tgt2, i, 2] = 1
@@ -138,7 +138,7 @@ class TransformerModel(pl.LightningModule):
         return src_pos_2d, tgt_input_2d,  src_img, tgt_img, src_mask, tgt_mask, \
                src_padding_mask, tgt_padding_mask, src_padding_mask
 
-    def processData2d(self, src_pos, src_img, tgt_pos, tgt_img):
+    '''def processData2d(self, src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
@@ -170,7 +170,7 @@ class TransformerModel(pl.LightningModule):
         src_pos_2d[:, :, 1] = torch.remainder(src_pos, 9)
         src_pos_2d[0, :, 0] = -1
         src_pos_2d[0, :, 1] = -1
-        return src_pos_2d, tgt_input_2d
+        return src_pos_2d, tgt_input_2d'''
 
     def generate3DInput(self, tgt_input, src_pos):
         tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 3)).to(DEVICE).float()
@@ -191,10 +191,10 @@ class TransformerModel(pl.LightningModule):
         # use this for (0,0,1)
         #src_pos_2d[0, :] = tgtValue
         # use this for (x,y,1)
-        src_pos_2d[0, :, 2] = 1
+        src_pos_2d[-1, :, 2] = 1 # the last one is target
         for i in range(batch):
             #Index = tgt_input[-1, i]
-            Index = src_pos[0, i]
+            Index = src_pos[-1, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt2 = torch.where(src_pos[:, i] == Index)[0]
             # use this for (x,y,1)
