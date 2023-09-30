@@ -115,6 +115,8 @@ class Seq2SeqTransformer(nn.Module):
                  alpha: float,
                  changeX: str,
                  CAVersion: int,
+                 CA_head: int,
+                 CA_d_k: int,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer, self).__init__()
         '''self.transformer = Transformer(d_model=emb_size,
@@ -152,9 +154,12 @@ class Seq2SeqTransformer(nn.Module):
         self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))
 
         if CAVersion == 3:
-            self.decode_fc = nn.Linear(emb_size, emb_size)
-            self.encode_fc = nn.Linear(emb_size, emb_size)
-            self.placeholder = torch.zeros((1, 1, 1)).to(DEVICE)
+            self.cross_attentions = nn.ModuleList()
+            self.CA_head = CA_head
+            for _ in range(CA_head):
+                self.cross_attentions.append(Cross_Attention(emb_size, CA_d_k))
+            self.readout = nn.Linear(CA_head, 1)
+
         self.CAVersion = CAVersion
 
 
@@ -206,12 +211,14 @@ class Seq2SeqTransformer(nn.Module):
         decoder_out = self.transformer_decoder(tgt_emb, encoder_out, tgt_mask, None, tgt_padding_mask,
                                                memory_key_padding_mask)
         if self.CAVersion == 3:
-            encoder_out = self.encode_fc(encoder_out).permute(1, 0, 2)  # 2, 28, 512
-            decoder_out = self.decode_fc(decoder_out).permute(1, 2, 0)  # 2, 512, 8
-            out = torch.bmm(encoder_out, decoder_out).permute(2, 0, 1) # b, 28, 8
-            placeholder = self.placeholder.repeat(out.size()[0], out.size()[1], 1)
-            out = torch.cat((out, placeholder), dim=-1)
-            return out  # 8, 2, 29
+            att_matrices = []
+            for layer in self.cross_attentions:
+                att = layer(encoder_out, decoder_out)
+                att_matrices.append(att)
+            att_matrices = torch.concat(att_matrices, dim=-1)
+            if self.CA_head != 1:
+                out = self.readout(att_matrices)
+            return out.squeeze(-1)  # 8, 2, 29
         else:
             return self.generator(decoder_out)
 
@@ -220,6 +227,23 @@ class Seq2SeqTransformer(nn.Module):
 
     def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
         return 0
+
+
+class Cross_Attention(nn.Module):
+    def __init__(self, emb_size, d_k):
+        super(Cross_Attention, self).__init__()
+        self.d_k = d_k
+        self.decode_fc = nn.Linear(emb_size, emb_size)
+        self.encode_fc = nn.Linear(emb_size, emb_size)
+        self.placeholder = torch.zeros((1, 1, 1)).to(DEVICE)
+
+    def forward(self, encoder_out, decoder_out):
+        encoder_out = self.encode_fc(encoder_out).permute(1, 0, 2)  # 2, 28, 512
+        decoder_out = self.decode_fc(decoder_out).permute(1, 2, 0)  # 2, 512, 8
+        out = torch.bmm(encoder_out, decoder_out).permute(2, 0, 1)  # b, 28, 8
+        placeholder = self.placeholder.repeat(out.size()[0], out.size()[1], 1)
+        out = torch.cat((out, placeholder), dim=-1) / (self.d_k ** 0.5)
+        return out.unsqueeze(-1)
 
 
 def generate_square_subsequent_mask(sz):
