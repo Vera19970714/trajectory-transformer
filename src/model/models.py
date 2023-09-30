@@ -215,9 +215,9 @@ class Seq2SeqTransformer(nn.Module):
             for layer in self.cross_attentions:
                 att = layer(encoder_out, decoder_out)
                 att_matrices.append(att)
-            att_matrices = torch.concat(att_matrices, dim=-1)
+            out = torch.concat(att_matrices, dim=-1)
             if self.CA_head != 1:
-                out = self.readout(att_matrices)
+                out = self.readout(out)
             return out.squeeze(-1)  # 8, 2, 29
         else:
             return self.generator(decoder_out)
