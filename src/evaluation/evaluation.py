@@ -9,7 +9,7 @@ from dictances import bhattacharyya
 from scipy.stats import wasserstein_distance
 import sys
 sys.path.append('./src/')
-from dataBuilders.data_builder import randsplit, cross_data_split2
+from dataBuilders.data_builder import randsplit, cross_data_split2, cross_data_split
 
 
 def behavior(result_array, target, gaze):
@@ -71,13 +71,15 @@ class Evaluation(object):
             gaze_saliency = './dataset/checkEvaluation/gaze_saliency.csv'
             gaze_rgb = './dataset/checkEvaluation/gaze_rgb_similarity.csv'
 
-        new_datapath = './dataset/processdata/dataset_Q23_mousedel_time'
+        new_datapath = './dataset/processdata/dataset_Q123_mousedel_time'
         indexFile = './dataset/processdata/splitlist_time_mousedel.txt'
 
-        if cross_dataset == 'None':
+        '''if cross_dataset == 'None':
             raw_data = randsplit(new_datapath, indexFile, 'Test', cross_dataset, isSplitValid)
         else:
-            raw_data = cross_data_split2(new_datapath, 'Test', index_folder, cross_dataset, testing_dataset_choice, isSplitValid)
+            raw_data = cross_data_split2(new_datapath, 'Test', index_folder, cross_dataset, testing_dataset_choice, isSplitValid)'''
+        print('Testing wine ONLY')
+        raw_data = cross_data_split(new_datapath, 'Test')
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
@@ -150,11 +152,11 @@ class Evaluation(object):
 
 if __name__ == '__main__':
     ITERATION = 100
-    TOTAL_PCK = 27
+    TOTAL_PCK = 22
     cross_dataset = 'Pure'  # DONOT USE choices: None, Pure, Mixed, Cross, Combine
     isSplitValid = 'True'
-    testing_dataset_choice = 'yogurt'  # choices: yogurt, shampoo, combine
-    evaluation_url = './dataset/checkEvaluation/baseyogurt'
+    testing_dataset_choice = 'wine'  # choices: yogurt, shampoo, combine
+    evaluation_url = './dataset/checkEvaluation/wine'
 
     e = Evaluation(cross_dataset, isSplitValid, testing_dataset_choice, evaluation_url, ITERATION, TOTAL_PCK)
     e.evaluation()
