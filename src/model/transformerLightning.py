@@ -107,14 +107,14 @@ class TransformerModel(pl.LightningModule):
 
         tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 3)).to(DEVICE).float()
 
-        tgt_input_2d[:, :, 0] = tgt_input // 9
-        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, 9)
-        tgt_input_2d[0, :, 0] = 1.5
-        tgt_input_2d[0, :, 1] = 4.5
+        tgt_input_2d[:, :, 0] = tgt_input // self.args.shelf_col
+        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, self.args.shelf_col)
+        tgt_input_2d[0, :, 0] = float(self.args.shelf_row) / 2
+        tgt_input_2d[0, :, 1] = float(self.args.shelf_col) / 2
 
         src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 3)).to(DEVICE).float()
-        src_pos_2d[:, :, 0] = src_pos // 9
-        src_pos_2d[:, :, 1] = torch.remainder(src_pos, 9)
+        src_pos_2d[:, :, 0] = src_pos // self.args.shelf_col
+        src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.args.shelf_col)
 
         # changed to three dimension
         batch = tgt_input.size()[1]
@@ -176,14 +176,14 @@ class TransformerModel(pl.LightningModule):
     def generate3DInput(self, tgt_input, src_pos):
         tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 3)).to(DEVICE).float()
 
-        tgt_input_2d[:, :, 0] = tgt_input // 9
-        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, 9)
-        tgt_input_2d[0, :, 0] = 1.5
-        tgt_input_2d[0, :, 1] = 4.5
+        tgt_input_2d[:, :, 0] = tgt_input // self.args.shelf_col
+        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, self.args.shelf_col)
+        tgt_input_2d[0, :, 0] = float(self.args.shelf_row) / 2
+        tgt_input_2d[0, :, 1] = float(self.args.shelf_col) / 2
 
         src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 3)).to(DEVICE).float()
-        src_pos_2d[:, :, 0] = src_pos // 9
-        src_pos_2d[:, :, 1] = torch.remainder(src_pos, 9)
+        src_pos_2d[:, :, 0] = src_pos // self.args.shelf_col
+        src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.args.shelf_col)
 
         # changed to three dimension
         batch = tgt_input.size()[1]

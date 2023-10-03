@@ -51,17 +51,32 @@ def cross_data_split(file, isTrain):
         raw_data = pickle.load(fp)
     shampoo_task = []
     yogurt_task = []
+    wine_task = []
     for index in range(len(raw_data)):
         if raw_data[index]['id'] == 'Q2':
             shampoo_task.append(index)
         elif raw_data[index]['id'] == 'Q3':
             yogurt_task.append(index)
-    if isTrain:
+        elif raw_data[index]['id'] == 'Q1':
+            wine_task.append(index)
+    data_length = len(wine_task)
+    split = int(data_length * 0.9)
+    training = wine_task[:split]
+    testing = wine_task[split:]
+    '''if isTrain:
         train_index = np.array(shampoo_task)
         traindata = np.array(raw_data)[train_index.astype(int)]
         return traindata
     else:
         val_index = np.array(yogurt_task)
+        valdata = np.array(raw_data)[val_index.astype(int)]
+        return valdata'''
+    if isTrain:
+        train_index = np.array(training)
+        traindata = np.array(raw_data)[train_index.astype(int)]
+        return traindata
+    else:
+        val_index = np.array(testing)
         valdata = np.array(raw_data)[val_index.astype(int)]
         return valdata
 
@@ -166,16 +181,18 @@ class FixDataset(Dataset):
             print('cross_dataset value ERROR')
             quit()'''
         assert cross_dataset in ['None', 'Pure', 'Mixed', 'Cross']
-        assert testing_dataset_choice in ['yogurt', 'shampoo']
+        assert testing_dataset_choice in ['yogurt', 'shampoo', 'wine']
         print('Settings: ', cross_dataset, testing_dataset_choice, isSplitValid)
         if isSplitValid == 'True' and cross_dataset in ['Mixed', 'Cross']:
             print('NOT IMPLEMENTED')
             quit()
 
-        if cross_dataset == 'None':
+        '''if cross_dataset == 'None':
             raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset, isSplitValid)
         else:
-            raw_data = cross_data_split2(new_datapath, isTrain, args.index_folder, cross_dataset, testing_dataset_choice, isSplitValid)
+            raw_data = cross_data_split2(new_datapath, isTrain, args.index_folder, cross_dataset, testing_dataset_choice, isSplitValid)'''
+        print('Testing wine ONLY')
+        raw_data = cross_data_split(new_datapath, isTrain)
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
@@ -273,6 +290,7 @@ class Collator(object):
         self.PAD_IDX = package_size + 1# 1
         self.BOS_IDX = package_size + 2
         self.EOS_IDX = package_size #+ 3
+        self.package_size = package_size
 
     def __call__(self, data):
         package_target = []
@@ -293,7 +311,7 @@ class Collator(object):
                                   gaze_seq,
                                   torch.tensor([self.EOS_IDX])))
             package_seq.append(gaze_seq)
-            target = torch.cat((torch.arange(27), torch.tensor([target])))
+            target = torch.cat((torch.arange(self.package_size), torch.tensor([target])))
             # target = torch.cat((torch.tensor([TGT_IDX]), torch.arange(27))) #CHANGE: Add TGT INDX
             package_target.append(target)
             question_img_feature = np.stack(question_img_feature)
