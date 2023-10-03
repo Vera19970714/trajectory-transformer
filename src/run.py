@@ -60,7 +60,7 @@ if __name__ == '__main__':
     parser.add_argument('-gpus', default='0', type=str)
     parser.add_argument('-batch_size', type=int, default=2)
     parser.add_argument('-num_epochs', type=int, default=100)
-    parser.add_argument('-random_seed', type=int, default=3407)
+    parser.add_argument('-random_seed', type=int, default=888)
     parser.add_argument('-early_stop_patience', type=int, default=30)
 
     parser.add_argument('-monitor', type=str, default='validation_metric_each_epoch') #'validation_loss_each_epoch'

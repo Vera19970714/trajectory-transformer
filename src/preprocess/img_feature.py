@@ -68,7 +68,8 @@ class CUT_PIC(object):
                     IMAGE_COLUMN = 11
                     CROP_RANGE_1 = 389
                     CROP_RANGE_2 = 106 
-                    dim = (106, 390)
+                    #dim = (106, 390)
+                    dim = (93, 150)
 
                 elif question_name.startswith('Q2'):
                     IMAGE_SIZE_1 = 295

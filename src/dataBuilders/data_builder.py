@@ -71,7 +71,7 @@ def cross_data_split(file, isTrain):
         val_index = np.array(yogurt_task)
         valdata = np.array(raw_data)[val_index.astype(int)]
         return valdata'''
-    if isTrain:
+    if isTrain == 'Train':
         train_index = np.array(training)
         traindata = np.array(raw_data)[train_index.astype(int)]
         return traindata
