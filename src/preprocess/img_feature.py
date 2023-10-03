@@ -9,6 +9,7 @@ import pickle
 from tqdm import tqdm
 
 img_dir = './dataset/img/Question/'
+data_dir0 = './dataset/gaze/time_Q1_mousedel.xlsx'
 data_dir1 = './dataset/gaze/time_Q2_mousedel.xlsx'
 data_dir2 = './dataset/gaze/time_Q3_mousedel.xlsx'
 target_dir = './dataset/img/Target/'
@@ -24,20 +25,29 @@ class CUT_PIC(object):
 
     def cut_pic(self):
         dataset = []
+        df_data0 = pd.read_excel(data_dir0)
         df_data1 = pd.read_excel(data_dir1)
         df_data2 = pd.read_excel(data_dir2)
+        words0 = [str(item) for item in list(df_data0["ID"])]
         words1 = [str(item) for item in list(df_data1["ID"])]
         words2 = [str(item) for item in list(df_data2["ID"])]
 
+        word_dict_sorted0 = Counter(words0)
         word_dict_sorted1 = Counter(words1)
         word_dict_sorted2 = Counter(words2)
 
-        for i in range(2):
+        for i in range(3):
             if i==0:
+                dict = word_dict_sorted0
+                df_ori = df_data0
+                print('Q1 size: ', len(dict))
+
+            elif i==1:
                 dict = word_dict_sorted1
                 df_ori = df_data1
                 print('Q2 size: ', len(dict))
-            elif i==1:
+
+            elif i==2:
                 dict = word_dict_sorted2
                 df_ori = df_data2
                 print('Q3 size: ', len(dict))
@@ -52,7 +62,6 @@ class CUT_PIC(object):
                 dataset_dict = {}
                 Question_img_feature = []
                 if question_name.startswith('Q1'):
-                    continue
                     IMAGE_SIZE_1 = 449
                     IMAGE_SIZE_2 = 152
                     IMAGE_ROW = 2
@@ -96,10 +105,9 @@ class CUT_PIC(object):
                 dataset_dict['question_img_feature'] =  Question_img_feature
                 dataset_dict['id'] = question_name[:2]
 
-                if question_name.startswith('Q2') or question_name.startswith('Q3'):
-                    dataset.append(dataset_dict)
+                dataset.append(dataset_dict)
 
-        with open("./dataset/processdata/dataset_Q23_mousedel_time", "wb") as fp:  # Pickling
+        with open("./dataset/processdata/dataset_Q123_mousedel_time", "wb") as fp:  # Pickling
             pickle.dump(dataset, fp)
 
         print("Finish...")
