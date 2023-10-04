@@ -6,49 +6,24 @@ import pickle
 from torch.nn.utils.rnn import pad_sequence
 
 
-def randsplit(file, indexFile, isTrain, cross_dataset, isSplitValid):
-    with open(file, "rb") as fp:
+def get_val_and_tst(testing_dataset):
+    split_num_valid = int(len(testing_dataset) * 0.8)
+    split_num_test = int(len(testing_dataset) * 0.9)
+    val = testing_dataset[split_num_valid:split_num_test]
+    tst = testing_dataset[split_num_test:]
+    return val, tst
+
+
+def randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice):
+    with open(datapath, "rb") as fp:
         raw_data = pickle.load(fp)
-    data_length = len(raw_data)
 
     with open(indexFile) as f:
         lines = f.readlines()
-    linesInt = [int(x) for x in lines]
+    linesInt = np.array([int(x) for x in lines])
 
-    if cross_dataset == 'None':
-        if isSplitValid == 'False':
-            split_num_valid = int(data_length*0.9)
-        elif isSplitValid == 'True':
-            split_num_valid = int(data_length * 0.8)
-            split_num_test = int(data_length * 0.9)
-    #elif cross_dataset == 'No':
-    #    split_num = 453
+    raw_data = np.array(raw_data)[linesInt.astype(int)]
 
-    if isTrain == 'Train':
-        train_index = np.array(linesInt[:split_num_valid])
-        traindata = np.array(raw_data)[train_index.astype(int)]
-        return traindata
-    elif isTrain == 'Valid':
-        if isSplitValid == 'False':
-            test_index = np.array(linesInt[-(data_length - split_num_valid):])
-            valdata = np.array(raw_data)[test_index.astype(int)]
-        elif isSplitValid == 'True':
-            test_index = np.array(linesInt[split_num_valid:split_num_test])
-            valdata = np.array(raw_data)[test_index.astype(int)]
-        return valdata
-    elif isTrain == 'Test':
-        if isSplitValid == 'False':
-            test_index = np.array(linesInt[-(data_length - split_num_valid):])
-            testdata = np.array(raw_data)[test_index.astype(int)]
-        elif isSplitValid == 'True':
-            test_index = np.array(linesInt[split_num_test:])
-            testdata = np.array(raw_data)[test_index.astype(int)]
-        return testdata
-
-
-def cross_data_split(file, isTrain):
-    with open(file, "rb") as fp:
-        raw_data = pickle.load(fp)
     shampoo_task = []
     yogurt_task = []
     wine_task = []
@@ -59,140 +34,45 @@ def cross_data_split(file, isTrain):
             yogurt_task.append(index)
         elif raw_data[index]['id'] == 'Q1':
             wine_task.append(index)
-    data_length = len(wine_task)
-    split = int(data_length * 0.9)
-    training = wine_task[:split]
-    testing = wine_task[split:]
-    '''if isTrain:
-        train_index = np.array(shampoo_task)
-        traindata = np.array(raw_data)[train_index.astype(int)]
-        return traindata
-    else:
-        val_index = np.array(yogurt_task)
-        valdata = np.array(raw_data)[val_index.astype(int)]
-        return valdata'''
+
+    if training_dataset_choice == 'pure':
+        if testing_dataset_choice == 'wine':
+            testing_dataset = wine_task
+        elif testing_dataset_choice == 'yogurt':
+            testing_dataset = yogurt_task
+        val, tst = get_val_and_tst(testing_dataset)
+        training_dataset = testing_dataset
+    elif training_dataset_choice == 'mixed':
+        val_wine, tst_wine = get_val_and_tst(wine_task)
+        val_yogurt, tst_yogurt = get_val_and_tst(yogurt_task)
+        val = val_wine + val_yogurt
+        tst = tst_wine + tst_yogurt
+        training_dataset = wine_task + yogurt_task
+    if isTrain == 'Valid':
+        return val
+    if isTrain == 'Test':
+        return tst
+
+    final_training = []
+    for i in training_dataset:
+        if i not in val and i not in tst:
+            final_training.append(i)
     if isTrain == 'Train':
-        train_index = np.array(training)
-        traindata = np.array(raw_data)[train_index.astype(int)]
-        return traindata
-    else:
-        val_index = np.array(testing)
-        valdata = np.array(raw_data)[val_index.astype(int)]
-        return valdata
-
-
-'''save_indices_file_code:
-    testing_indexes = random.choice(shampoo_task, size=45, replace=False)
-    with open("../dataset/processdata/splitlist_shampoo_testing_indices.txt", 'w') as F:
-        F.writelines([str(item).replace(' ', '\t') + '\n' for item in testing_indexes])
-        F.close()
-
-    training_list = []
-    for x in shampoo_task:
-        if x not in testing_indexes:
-            training_list.append(x)
-
-    with open("../dataset/processdata/splitlist_pure_indices.txt", 'w') as F:
-        F.writelines([str(item).replace(' ', '\t') + '\n' for item in training_list])
-        F.close()
-
-    sham = random.choice(training_list, size=204, replace=False)
-    yog = random.choice(yogurt_task, size=204, replace=False)
-    new_list = list(np.concatenate((sham, yog)))
-    with open("../dataset/processdata/splitlist_mixed_indices.txt", 'w') as F:
-        F.writelines([str(item).replace(' ', '\t') + '\n' for item in new_list])
-        F.close()
-
-    yog = list(random.choice(yogurt_task, size=408, replace=False))
-    with open("../dataset/processdata/splitlist_cross_indices.txt", 'w') as F:
-        F.writelines([str(item).replace(' ', '\t') + '\n' for item in yog])
-        F.close()'''
-
-def get_lines(crossChoice, indexFolder, testing_dataset_choice):
-    if crossChoice == 'Pure':
-        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_pure_indices.txt') as f:
-            lines = f.readlines()
-    elif crossChoice == 'Mixed':
-        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_mixed_indices.txt') as f:
-            lines = f.readlines()
-    elif crossChoice == 'Cross':
-        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_cross_indices.txt') as f:
-            lines = f.readlines()
-    elif crossChoice == 'Combine':
-        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_combine_indices.txt') as f:
-            lines = f.readlines()
-    return lines
-
-
-def cross_data_split2(file, isTrain, indexFolder, crossChoice, testing_dataset_choice, isSplitValid):
-    with open(file, "rb") as fp:
-        raw_data = pickle.load(fp)
-
-    if isTrain == 'Train':
-        lines = get_lines(crossChoice, indexFolder, testing_dataset_choice)
-        train_index = np.array([int(x[:-1]) for x in lines])
-
-        if isSplitValid == 'True':
-            data_length = len(train_index)
-            split_num = int(data_length * 0.9)
-            train_index = train_index[:split_num]
-
-        traindata = np.array(raw_data)[train_index]
-        return traindata
-
-    elif isTrain == 'Valid':
-        if isSplitValid == 'False':
-            with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_testing_indices.txt') as f:
-                lines = f.readlines()
-            val_index = np.array([int(x[:-1]) for x in lines])
-            valdata = np.array(raw_data)[val_index]
-            return valdata
-        elif isSplitValid == 'True':
-            lines = get_lines(crossChoice, indexFolder, testing_dataset_choice)
-            val_index = np.array([int(x[:-1]) for x in lines])
-
-            data_length = len(val_index)
-            split_num = int(data_length * 0.9)
-            val_index = val_index[split_num:]
-
-            valdata = np.array(raw_data)[val_index]
-            return valdata
-
-    elif isTrain == 'Test':
-        with open(indexFolder + 'splitlist_' + testing_dataset_choice + '_testing_indices.txt') as f:
-            lines = f.readlines()
-        test_index = np.array([int(x[:-1]) for x in lines])
-        testdata = np.array(raw_data)[test_index]
-        return testdata
+        return final_training
 
 
 class FixDataset(Dataset):
     def __init__(self, args, isTrain):
-        new_datapath = args.data_path
-        indexFile = args.index_folder + 'splitlist_time_mousedel.txt'
-        cross_dataset = args.cross_dataset
-        isSplitValid = args.isSplitValid
+        datapath = args.data_path
+        indexFile = args.index_folder + args.index_file
         testing_dataset_choice = args.testing_dataset_choice
-        '''if cross_dataset == 'None' or cross_dataset == 'No':
-            raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset)
-        elif cross_dataset == 'Yes':
-            raw_data = cross_data_split(new_datapath, isTrain)
-        else:
-            print('cross_dataset value ERROR')
-            quit()'''
-        assert cross_dataset in ['None', 'Pure', 'Mixed', 'Cross']
-        assert testing_dataset_choice in ['yogurt', 'shampoo', 'wine']
-        print('Settings: ', cross_dataset, testing_dataset_choice, isSplitValid)
-        if isSplitValid == 'True' and cross_dataset in ['Mixed', 'Cross']:
-            print('NOT IMPLEMENTED')
-            quit()
+        training_dataset_choice = args.training_dataset_choice
 
-        '''if cross_dataset == 'None':
-            raw_data = randsplit(new_datapath, indexFile, isTrain, cross_dataset, isSplitValid)
-        else:
-            raw_data = cross_data_split2(new_datapath, isTrain, args.index_folder, cross_dataset, testing_dataset_choice, isSplitValid)'''
-        print('Testing wine ONLY')
-        raw_data = cross_data_split(new_datapath, isTrain)
+        assert testing_dataset_choice in ['wine', 'yogurt']
+        assert training_dataset_choice in ['mixed', 'pure']
+        print('Settings: ', training_dataset_choice, testing_dataset_choice)
+
+        raw_data = randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice)
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')

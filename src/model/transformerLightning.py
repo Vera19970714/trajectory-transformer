@@ -24,7 +24,7 @@ class TransformerModel(pl.LightningModule):
         self.BOS_IDX = self.args.package_size+2
         self.EOS_IDX = self.args.package_size #+3
 
-        if args.cross_dataset == 'Pure':
+        if args.training_dataset_choice == 'Pure':
             EMB_SIZE = 256
             NHEAD = 2
             FFN_HID_DIM = 256

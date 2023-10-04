@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 
 file = './dataset/processdata/dataset_Q23_similarity_mousedel_time'
-indexFile = './dataset/processdata/splitlist_time_mousedel.txt'
+indexFile = './dataset/processdata/splitlist_shampoo_yogurt.txt'
 
 def randsplit(file):
     with open(file, "rb") as fp:  # Unpickling
@@ -32,7 +32,7 @@ def randsplit(file):
         pickle.dump(traindata, fp)
     with open("./dataset/processdata/dataset_Q23_similarity_mousedel_time_val", "wb") as fp:  # Pickling
         pickle.dump(valdata, fp)
-    '''with open('./dataset/processdata/splitlist_time_mousedel.txt', 'w') as F:
+    '''with open('./dataset/processdata/splitlist_shampoo_yogurt.txt', 'w') as F:
         F.writelines([str(item).replace(' ', '\t')+'\n' for item in list])
         F.close()'''
 

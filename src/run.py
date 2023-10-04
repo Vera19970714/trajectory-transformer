@@ -20,10 +20,10 @@ if __name__ == '__main__':
     # data path and output files
     parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q123_mousedel_time', type=str)
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
+    parser.add_argument('-index_file', default='splitlist_all.txt', type=str)
 
-    parser.add_argument('-cross_dataset', default='Pure', type=str) # choices: None, Pure, Mixed, Cross
-    parser.add_argument('-testing_dataset_choice', default='wine', type=str) # only work in cross dataset, choices: yogurt, shampoo, wine
-    parser.add_argument('-isSplitValid', default='True', type=str)
+    parser.add_argument('-testing_dataset_choice', default='wine', type=str)  # wine, yogurt
+    parser.add_argument('-training_dataset_choice', default='pure', type=str)  # mixed, pure
 
     parser.add_argument('-package_size', type=int, default=22)
     parser.add_argument('-shelf_row', type=int, default=2)
@@ -57,8 +57,8 @@ if __name__ == '__main__':
     parser.add_argument('-use_threedimension', type=str, default='True')
 
     # training settings
-    parser.add_argument('-gpus', default='-1', type=str)
-    parser.add_argument('-batch_size', type=int, default=20)
+    parser.add_argument('-gpus', default='0', type=str)
+    parser.add_argument('-batch_size', type=int, default=2)
     parser.add_argument('-num_epochs', type=int, default=100)
     parser.add_argument('-random_seed', type=int, default=888)
     parser.add_argument('-early_stop_patience', type=int, default=30)
@@ -130,7 +130,7 @@ if __name__ == '__main__':
         model = model.load_from_checkpoint(args.checkpoint, args=args)
         trainer.test(model=model, dataloaders=search_data.test_loader)
 
-    e = Evaluation(args.cross_dataset, args.isSplitValid, args.testing_dataset_choice, args.output_path,
+    e = Evaluation(args.training_dataset_choice, args.testing_dataset_choice, args.output_path,
                    ITERATION=args.stochastic_iteration, TOTAL_PCK=args.package_size)
     e.evaluation()
 

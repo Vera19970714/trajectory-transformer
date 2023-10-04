@@ -9,7 +9,7 @@ from dictances import bhattacharyya
 from scipy.stats import wasserstein_distance
 import sys
 sys.path.append('./src/')
-from dataBuilders.data_builder import randsplit, cross_data_split2, cross_data_split
+from dataBuilders.data_builder import randsplit
 
 
 def behavior(result_array, target, gaze):
@@ -55,7 +55,7 @@ def losses(heatmap_gt, gaze, result_array, TOTAL_PCK):
 
 
 class Evaluation(object):
-    def __init__(self, cross_dataset, isSplitValid, testing_dataset_choice, evaluation_url,
+    def __init__(self, training_dataset_choice, testing_dataset_choice, evaluation_url,
                  ITERATION=100, TOTAL_PCK=27, showBenchmark=False):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
         self.ITERATION = ITERATION
@@ -71,15 +71,11 @@ class Evaluation(object):
             gaze_saliency = './dataset/checkEvaluation/gaze_saliency.csv'
             gaze_rgb = './dataset/checkEvaluation/gaze_rgb_similarity.csv'
 
-        new_datapath = './dataset/processdata/dataset_Q123_mousedel_time'
-        indexFile = './dataset/processdata/splitlist_time_mousedel.txt'
+        datapath = './dataset/processdata/dataset_Q123_mousedel_time'
+        indexFile = './dataset/processdata/splitlist_all.txt'
 
-        '''if cross_dataset == 'None':
-            raw_data = randsplit(new_datapath, indexFile, 'Test', cross_dataset, isSplitValid)
-        else:
-            raw_data = cross_data_split2(new_datapath, 'Test', index_folder, cross_dataset, testing_dataset_choice, isSplitValid)'''
-        print('Testing wine ONLY')
-        raw_data = cross_data_split(new_datapath, 'Test')
+        raw_data = randsplit(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice)
+
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
@@ -153,10 +149,13 @@ class Evaluation(object):
 if __name__ == '__main__':
     ITERATION = 100
     TOTAL_PCK = 22
-    cross_dataset = 'Pure'  # DONOT USE choices: None, Pure, Mixed, Cross, Combine
+    '''cross_dataset = 'Pure'  # DONOT USE choices: None, Pure, Mixed, Cross, Combine
     isSplitValid = 'True'
-    testing_dataset_choice = 'wine'  # choices: yogurt, shampoo, combine
+    testing_dataset_choice = 'wine'  # choices: yogurt, shampoo, combine'''
+    training_dataset_choice = 'mixed'
+    testing_dataset_choice = 'wine'
+
     evaluation_url = './dataset/checkEvaluation/wine'
 
-    e = Evaluation(cross_dataset, isSplitValid, testing_dataset_choice, evaluation_url, ITERATION, TOTAL_PCK)
+    e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url, ITERATION, TOTAL_PCK)
     e.evaluation()
