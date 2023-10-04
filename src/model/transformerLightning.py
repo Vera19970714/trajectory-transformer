@@ -36,10 +36,8 @@ class TransformerModel(pl.LightningModule):
             FFN_HID_DIM = 512
             NUM_ENCODER_LAYERS = 4
             NUM_DECODER_LAYERS = 4
-        if self.args.use_threedimension == 'True':
-            inputDim = 3
-        else:
-            inputDim = 2
+
+        inputDim = 3
         self.model = Seq2SeqTransformer(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
                                          NHEAD, TGT_VOCAB_SIZE, inputDim, FFN_HID_DIM,
                                         args.functionChoice, args.alpha, args.changeX, args.CA_version,
@@ -69,14 +67,9 @@ class TransformerModel(pl.LightningModule):
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
 
-        if self.args.use_threedimension == 'True':
-            src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
-            src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData3d(src_pos, src_img, tgt_pos,
-                                                                                      tgt_img)
-        else:
-            src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
-            src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData2d(src_pos, src_img, tgt_pos,
-                                                                                      tgt_img)
+        src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
+        src_padding_mask, tgt_padding_mask, src_padding_mask = self.processData3d(src_pos, src_img, tgt_pos,
+                                                                                  tgt_img)
 
         logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img,
@@ -95,83 +88,13 @@ class TransformerModel(pl.LightningModule):
     def processData3d(self, src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
-        # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
-        # tgt_input = tgt_pos[:-1, :]
-        # tgt_img = tgt_img[:, :-1, :, :, :]
-        # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
 
-        # CHANGED position from one dimension to two dimensions
-        # tgt_input: 11,1 to 11,2
-        # src_pos: 28, 1 to 28, 2
-
-        tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 3)).to(DEVICE).float()
-
-        tgt_input_2d[:, :, 0] = tgt_input // self.args.shelf_col
-        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, self.args.shelf_col)
-        tgt_input_2d[0, :, 0] = float(self.args.shelf_row) / 2
-        tgt_input_2d[0, :, 1] = float(self.args.shelf_col) / 2
-
-        src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 3)).to(DEVICE).float()
-        src_pos_2d[:, :, 0] = src_pos // self.args.shelf_col
-        src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.args.shelf_col)
-
-        # changed to three dimension
-        batch = tgt_input.size()[1]
-        #tgtValue = torch.tensor((0, 0, 1)).to(DEVICE).float()
-        # assign the first in src_pos
-        # use this for (0,0,1)
-        #src_pos_2d[0, :] = tgtValue
-        # use this for (x,y,1)
-        src_pos_2d[-1, :, 2] = 1 # the last one is target
-        for i in range(batch):
-            #Index = tgt_input[-1, i]
-            Index = src_pos[-1, i] # the last one is target
-            tgt1 = torch.where(tgt_input[:, i] == Index)[0]
-            #tgt2 = torch.where(src_pos[:, i] == Index)[0]
-            # use this for (x,y,1)
-            tgt_input_2d[tgt1, i, 2] = 1
-            # src_pos_2d[tgt2, i, 2] = 1
-            # use this for (0,0,1)
-            #tgt_input_2d[tgt1, i] = tgtValue
-            #src_pos_2d[tgt2, i] = tgtValue
+        src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
 
         return src_pos_2d, tgt_input_2d,  src_img, tgt_img, src_mask, tgt_mask, \
                src_padding_mask, tgt_padding_mask, src_padding_mask
 
-    '''def processData2d(self, src_pos, src_img, tgt_pos, tgt_img):
-        tgt_input = tgt_pos[:-1, :]
-        tgt_img = tgt_img[:, :-1, :, :, :]
-        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
-
-        tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 2)).to(DEVICE).float()
-        tgt_input_2d[:, :, 0] = tgt_input // 9
-        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, 9)
-        tgt_input_2d[0, :, 0] = 1.5
-        tgt_input_2d[0, :, 1] = 4.5
-
-        src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 2)).to(DEVICE).float()
-        src_pos_2d[:, :, 0] = src_pos // 9
-        src_pos_2d[:, :, 1] = torch.remainder(src_pos, 9)
-        src_pos_2d[0, :, 0] = -1
-        src_pos_2d[0, :, 1] = -1
-
-        return src_pos_2d, tgt_input_2d, src_img, tgt_img, src_mask, tgt_mask, \
-               src_padding_mask, tgt_padding_mask, src_padding_mask
-
-    def generate2DInput(self, tgt_input, src_pos):
-        tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 2)).to(DEVICE).float()
-        tgt_input_2d[:, :, 0] = tgt_input // 9
-        tgt_input_2d[:, :, 1] = torch.remainder(tgt_input, 9)
-        tgt_input_2d[0, :, 0] = 1.5
-        tgt_input_2d[0, :, 1] = 4.5
-
-        src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 2)).to(DEVICE).float()
-        src_pos_2d[:, :, 0] = src_pos // 9
-        src_pos_2d[:, :, 1] = torch.remainder(src_pos, 9)
-        src_pos_2d[0, :, 0] = -1
-        src_pos_2d[0, :, 1] = -1
-        return src_pos_2d, tgt_input_2d'''
 
     def generate3DInput(self, tgt_input, src_pos):
         tgt_input_2d = torch.zeros((tgt_input.size()[0], tgt_input.size()[1], 3)).to(DEVICE).float()
@@ -187,23 +110,11 @@ class TransformerModel(pl.LightningModule):
 
         # changed to three dimension
         batch = tgt_input.size()[1]
-        #tgtValue = torch.tensor((0, 0, 1)).to(DEVICE).float()
-        # assign the first in src_pos
-        # use this for (0,0,1)
-        #src_pos_2d[0, :] = tgtValue
-        # use this for (x,y,1)
         src_pos_2d[-1, :, 2] = 1 # the last one is target
         for i in range(batch):
-            #Index = tgt_input[-1, i]
             Index = src_pos[-1, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
-            tgt2 = torch.where(src_pos[:, i] == Index)[0]
-            # use this for (x,y,1)
             tgt_input_2d[tgt1, i, 2] = 1
-            # src_pos_2d[tgt2, i, 2] = 1
-            # use this for (0,0,1)
-            #tgt_input_2d[tgt1, i] = tgtValue
-            #src_pos_2d[tgt2, i] = tgtValue
         return src_pos_2d, tgt_input_2d
 
     def validation_step(self, batch, batch_idx):
@@ -252,10 +163,7 @@ class TransformerModel(pl.LightningModule):
                 tgt_input = tgt_pos[:i, :]
                 tgt_img_input = tgt_img[:, :i, :, :, :]
                 src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
-                if self.args.use_threedimension == 'True':
-                    src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
-                else:
-                    src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
+                src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
 
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
@@ -276,10 +184,7 @@ class TransformerModel(pl.LightningModule):
                 tgt_input = next_tgt_input
                 tgt_img_input = next_tgt_img_input
                 src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
-                if self.args.use_threedimension == 'True':
-                    src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
-                else:
-                    src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
+                src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
@@ -320,10 +225,7 @@ class TransformerModel(pl.LightningModule):
                     tgt_img_input = tgt_img[:, :i, :, :, :]
                     # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
-                    if self.args.use_threedimension == 'True':
-                        src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
-                    else:
-                        src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
+                    src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
 
                     logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                         src_img, tgt_img_input,
@@ -344,10 +246,7 @@ class TransformerModel(pl.LightningModule):
                     tgt_input = next_tgt_input
                     tgt_img_input = next_tgt_img_input
                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
-                    if self.args.use_threedimension == 'True':
-                        src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
-                    else:
-                        src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
+                    src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
                     logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                         src_img, tgt_img_input,
                                         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
@@ -381,10 +280,7 @@ class TransformerModel(pl.LightningModule):
         soft = torch.nn.Softmax(dim=2)
         # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input, self.PAD_IDX)
-        if self.args.use_threedimension == 'True':
-            src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
-        else:
-            src_pos_2d, tgt_input_2d = self.generate2DInput(tgt_input, src_pos)
+        src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
 
         logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img_input,

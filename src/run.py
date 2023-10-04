@@ -22,12 +22,8 @@ if __name__ == '__main__':
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-index_file', default='splitlist_all.txt', type=str)
 
-    parser.add_argument('-testing_dataset_choice', default='wine', type=str)  # wine, yogurt
+    parser.add_argument('-testing_dataset_choice', default='yogurt', type=str)  # wine, yogurt
     parser.add_argument('-training_dataset_choice', default='pure', type=str)  # mixed, pure
-
-    parser.add_argument('-package_size', type=int, default=22)
-    parser.add_argument('-shelf_row', type=int, default=2)
-    parser.add_argument('-shelf_col', type=int, default=11)
 
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
@@ -39,9 +35,9 @@ if __name__ == '__main__':
     parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads
     parser.add_argument('-CA_dk', default=512, type=int) # 512, 64, scaling factor in attention matrix
 
-    parser.add_argument('-log_name', default='wine', type=str)
+    parser.add_argument('-log_name', default='yogurt_pure', type=str)
     parser.add_argument('-write_output', type=str, default='True')
-    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/wine/')
+    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/yogurt_pure/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
 
@@ -54,7 +50,6 @@ if __name__ == '__main__':
     parser.add_argument('-clip_val', default=1.0, type=float)
     parser.add_argument('-limit_val_batches', default=1.0, type=float)
     parser.add_argument('-val_check_interval', default=1.0, type=float)
-    parser.add_argument('-use_threedimension', type=str, default='True')
 
     # training settings
     parser.add_argument('-gpus', default='0', type=str)
@@ -68,6 +63,16 @@ if __name__ == '__main__':
     parser.add_argument('-do_test', type=str, default='True')
 
     args = parser.parse_args()
+
+    if args.training_dataset_choice == 'Pure':
+        if args.testing_dataset_choice == 'wine':
+            args.package_size = 22
+            args.shelf_row = 2
+            args.shelf_col = 11
+        elif args.testing_dataset_choice == 'yogurt':
+            args.package_size = 27
+            args.shelf_row = 3
+            args.shelf_col = 9
 
     # random seed
     seed_everything(args.random_seed)
