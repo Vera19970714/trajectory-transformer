@@ -49,16 +49,16 @@ def randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dat
         tst = tst_wine + tst_yogurt
         training_dataset = wine_task + yogurt_task
     if isTrain == 'Valid':
-        return val
+        return raw_data[np.array(val).astype(int)]
     if isTrain == 'Test':
-        return tst
+        return raw_data[np.array(tst).astype(int)]
 
     final_training = []
     for i in training_dataset:
         if i not in val and i not in tst:
             final_training.append(i)
     if isTrain == 'Train':
-        return final_training
+        return raw_data[np.array(final_training).astype(int)]
 
 
 class FixDataset(Dataset):
@@ -136,7 +136,7 @@ class SearchDataModule(pl.LightningDataModule):
                                     collate_fn=collate_fn,
                                     shuffle=True)
     self.val_loader = DataLoader(dataset=val_set,
-                                    batch_size=1,
+                                    batch_size=3,
                                     num_workers=2,
                                     collate_fn=collate_fn,
                                     shuffle=False)
