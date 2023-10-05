@@ -7,8 +7,9 @@ from pytorch_lightning import loggers as pl_loggers
 from dataBuilders.data_builder import SearchDataModule
 from dataBuilders.data_builder_base import BaseSearchDataModule
 from model.transformerLightning import TransformerModel
+from model.transformerLightning_mixed import TransformerModel_Mixed
 from benchmark.base_lightning import BaseModel
-
+import numpy as np
 import os
 import sys
 sys.path.append('./src/')
@@ -22,8 +23,8 @@ if __name__ == '__main__':
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-index_file', default='splitlist_all.txt', type=str)
 
-    parser.add_argument('-testing_dataset_choice', default='yogurt', type=str)  # wine, yogurt
-    parser.add_argument('-training_dataset_choice', default='pure', type=str)  # mixed, pure
+    parser.add_argument('-testing_dataset_choice', default='-', type=str)  # wine, yogurt (use when train=pure)
+    parser.add_argument('-training_dataset_choice', default='mixed', type=str)  # mixed, pure
 
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
@@ -32,11 +33,10 @@ if __name__ == '__main__':
     parser.add_argument('-changeX', default='True', type=str) # None, False, True
     parser.add_argument('-CA_version', default=3, type=int)  # valid values atm: 0, 3
     # 0: no cross attention, 1: add padding to input, 2: extra FC stream, 3: add pad prob in logits
-    parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads
+    parser.add_argument('-CA_head', default=1, type=int) # the number of cross attention heads
     parser.add_argument('-CA_dk', default=512, type=int) # 512, 64, scaling factor in attention matrix
 
-    parser.add_argument('-log_name', default='yogurt_pure', type=str)
-    parser.add_argument('-write_output', type=str, default='True')
+    parser.add_argument('-log_name', default='mixed', type=str)
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
 
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     # training settings
     parser.add_argument('-gpus', default='-1', type=str)
-    parser.add_argument('-batch_size', type=int, default=32)
+    parser.add_argument('-batch_size', type=int, default=20)
     parser.add_argument('-num_epochs', type=int, default=100)
     parser.add_argument('-random_seed', type=int, default=888)
     parser.add_argument('-early_stop_patience', type=int, default=30)
@@ -72,6 +72,12 @@ if __name__ == '__main__':
             args.package_size = 27
             args.shelf_row = 3
             args.shelf_col = 9
+    elif args.training_dataset_choice == 'mixed':
+        args.package_size = np.array([27, 22])
+        args.shelf_row = np.array([3, 2])
+        args.shelf_col = np.array([9, 11])
+        args.batch_size *= 2
+
     args.output_path = './dataset/checkEvaluation/' + args.log_name + '/'
 
     # random seed
@@ -102,7 +108,10 @@ if __name__ == '__main__':
     # make dataloader & model
 
     if args.model == 'Transformer':
-        model = TransformerModel(args)
+        if args.training_dataset_choice == 'pure':
+            model = TransformerModel(args)
+        elif args.training_dataset_choice == 'mixed':
+            model = TransformerModel_Mixed(args)
         search_data = SearchDataModule(args)
     if args.model == 'BaseModel':
         model = BaseModel(args)

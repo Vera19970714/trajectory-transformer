@@ -113,7 +113,8 @@ class Evaluation(object):
                 behavior(res['rgb'], self.target[i], self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
                 behavior(res['saliency'], self.target[i], self.gaze_saliency[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
 
-            gt = self.gaze_gt[i][~np.isnan(self.gaze_gt[i])]
+            print('disabled loss')
+            '''gt = self.gaze_gt[i][~np.isnan(self.gaze_gt[i])]
             heatmap_gt = torch.zeros(self.TOTAL_PCK)
             for element in gt:
                 heatmap_gt[int(element)] += 1
@@ -124,7 +125,7 @@ class Evaluation(object):
                 losses(heatmap_gt, self.gaze_resnet[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)], res['resnet'], self.TOTAL_PCK)
                 losses(heatmap_gt, self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)], res['rgb'], self.TOTAL_PCK)
                 losses(heatmap_gt, self.gaze_saliency[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)], res['saliency'], self.TOTAL_PCK)
-                losses(heatmap_gt, self.gaze_random[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)], res['random'], self.TOTAL_PCK)
+                losses(heatmap_gt, self.gaze_random[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)], res['random'], self.TOTAL_PCK)'''
 
         res['gt'] = res['gt'] / self.data_length
         res['single'] = res['single'] / self.data_length
