@@ -28,16 +28,15 @@ if __name__ == '__main__':
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
     parser.add_argument('-alpha', type=int, default=0.8)
-    parser.add_argument('-functionChoice', default='original', type=str) # choices: linear, exp1, exp2, original
-    parser.add_argument('-changeX', default='False', type=str) # None, False, True
-    parser.add_argument('-CA_version', default=0, type=int)  # valid values atm: 0, 3
+    parser.add_argument('-functionChoice', default='exp1', type=str) # choices: linear, exp1, exp2, original
+    parser.add_argument('-changeX', default='True', type=str) # None, False, True
+    parser.add_argument('-CA_version', default=3, type=int)  # valid values atm: 0, 3
     # 0: no cross attention, 1: add padding to input, 2: extra FC stream, 3: add pad prob in logits
     parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads
     parser.add_argument('-CA_dk', default=512, type=int) # 512, 64, scaling factor in attention matrix
 
     parser.add_argument('-log_name', default='yogurt_pure', type=str)
     parser.add_argument('-write_output', type=str, default='True')
-    parser.add_argument('-output_path', type=str, default='./dataset/checkEvaluation/yogurt_pure/')
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
 
@@ -52,8 +51,8 @@ if __name__ == '__main__':
     parser.add_argument('-val_check_interval', default=1.0, type=float)
 
     # training settings
-    parser.add_argument('-gpus', default='0', type=str)
-    parser.add_argument('-batch_size', type=int, default=2)
+    parser.add_argument('-gpus', default='-1', type=str)
+    parser.add_argument('-batch_size', type=int, default=32)
     parser.add_argument('-num_epochs', type=int, default=100)
     parser.add_argument('-random_seed', type=int, default=888)
     parser.add_argument('-early_stop_patience', type=int, default=30)
@@ -64,7 +63,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.training_dataset_choice == 'Pure':
+    if args.training_dataset_choice == 'pure':
         if args.testing_dataset_choice == 'wine':
             args.package_size = 22
             args.shelf_row = 2
@@ -73,6 +72,7 @@ if __name__ == '__main__':
             args.package_size = 27
             args.shelf_row = 3
             args.shelf_col = 9
+    args.output_path = './dataset/checkEvaluation/' + args.log_name + '/'
 
     # random seed
     seed_everything(args.random_seed)
