@@ -249,7 +249,7 @@ class TransformerModel_Mixed(pl.LightningModule):
             # LOGITS = LOGITS[:endIndex]
         return loss, LOSS, GAZE
 
-    def test_expect(self,src_pos, src_img, tgt_pos, tgt_img):
+    def test_expect(self,src_pos, src_img, tgt_pos, tgt_img, type):
         #tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)

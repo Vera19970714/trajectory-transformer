@@ -53,7 +53,7 @@ if __name__ == '__main__':
     # training settings
     parser.add_argument('-gpus', default='-1', type=str)
     parser.add_argument('-batch_size', type=int, default=20)
-    parser.add_argument('-num_epochs', type=int, default=100)
+    parser.add_argument('-num_epochs', type=int, default=500)
     parser.add_argument('-random_seed', type=int, default=888)
     parser.add_argument('-early_stop_patience', type=int, default=30)
 
