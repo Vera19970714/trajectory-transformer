@@ -146,13 +146,17 @@ class TransformerModel(pl.LightningModule):
         self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('validation_metric_each_epoch', res_max[5], on_epoch=True, prog_bar=True, sync_dist=True)
 
-
-    def generate_one_scanpath(self, tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb, max_length=16):
+    def test_max(self, src_pos, src_img, tgt_pos, tgt_img):
+        tgt_input = tgt_pos[:-1, :]
+        tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)
         loss = 0
+        max_length = 16
         LOSS = torch.zeros((length - 1, 1)) - 1
         GAZE = torch.zeros((max_length, 1)) - 1
-
+        # LOGITS = torch.zeros((max_length, self.TGT_VOCAB_SIZE))
+        blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
+        new_src_img = torch.cat((src_img[:, 1:, :, :], blank), dim=1)  # 31,300,186,3
         for i in range(1, max_length + 1):
             if i == 1:
                 tgt_input = tgt_pos[:i, :]
@@ -163,13 +167,8 @@ class TransformerModel(pl.LightningModule):
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-                # the first token cannot be end token
-                logits = logits[:, :, :-2]  # discard padding prob
-                if getMaxProb:
-                    _, predicted = torch.max(logits[-1, :, :], 1)
-                else:
-                    logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
-                    predicted = torch.multinomial(logits_new, 1, replacement=True)
+                logits = logits[:, :, :-1]  # discard padding prob
+                _, predicted = torch.max(logits[-1, :, :], 1)
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -191,11 +190,7 @@ class TransformerModel(pl.LightningModule):
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 logits = logits[:, :, :-1]  # discard padding prob
-                if getMaxProb:
-                    _, predicted = torch.max(logits[-1, :, :], 1)
-                else:
-                    logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
-                    predicted = torch.multinomial(logits_new, 1, replacement=True)
+                _, predicted = torch.max(logits[-1, :, :], 1)
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -209,44 +204,81 @@ class TransformerModel(pl.LightningModule):
                 next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1, 1)), dim=0)
         loss = loss / (length - 1)
-        return loss, LOSS, GAZE  # ,LOGITS
-
-    def test_max(self, src_pos, src_img, tgt_pos, tgt_img):
-        #tgt_input = tgt_pos[:-1, :]
-        tgt_img = tgt_img[:, :-1, :, :, :]
-        blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
-        new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
-        loss, LOSS, GAZE = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb=True)
         if self.EOS_IDX in GAZE:
             endIndex = torch.where(GAZE == self.EOS_IDX)[0][0]
             GAZE = GAZE[:endIndex]
             # LOGITS = LOGITS[:endIndex]
-        return loss, LOSS, GAZE
+        return loss, LOSS, GAZE  # ,LOGITS
 
-
-    def test_expect(self,src_pos, src_img, tgt_pos, tgt_img):
-        #tgt_input = tgt_pos[:-1, :]
+    def test_expect(self, src_pos, src_img, tgt_pos, tgt_img):
+        tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)
         loss = 0
         max_length = 16
         blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
-        new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
+        new_src_img = torch.cat((src_img[:, 1:, :, :], blank), dim=1)  # 31,300,186,3
         iter = self.args.stochastic_iteration
-        GAZE = torch.zeros((max_length, iter))-1
+        GAZE = torch.zeros((max_length, iter)) - 1
         for n in range(iter):
-            loss_per, _, GAZE_per = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb=False)
-            GAZE[:, n:(n+1)] = GAZE_per
-            loss += loss_per / (length-1)
-        loss= loss / iter
+            loss_per = 0
+            for i in range(1, max_length + 1):
+                if i == 1:
+                    tgt_input = tgt_pos[:i, :]
+                    tgt_img_input = tgt_img[:, :i, :, :, :]
+                    # src: 15, b; tgt_input: 14, b; src_msk: 15, 15; tgt_msk: 13, 13; tgt_padding_msk: 2, 13; src_padding_msk: 2, 15
+                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input,
+                                                                                         self.PAD_IDX)
+                    src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
+
+                    logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+                                        src_img, tgt_img_input,
+                                        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                    # the first token cannot be end token
+                    logits = logits[:, :, :-2]  # discard padding prob
+                    logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
+                    predicted = torch.multinomial(logits_new, 1, replacement=True)
+                    GAZE[i - 1][n] = predicted
+
+                    if i < length:
+                        tgt_out = tgt_pos[i, :]
+                        loss_per += self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
+                                                 tgt_out.reshape(-1).long())
+                    next_tgt_img_input = torch.cat((tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
+                    next_tgt_input = torch.cat((tgt_input, predicted.view(-1, 1)), dim=0)
+
+                else:
+                    tgt_input = next_tgt_input
+                    tgt_img_input = next_tgt_img_input
+                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src_pos, tgt_input,
+                                                                                         self.PAD_IDX)
+                    src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
+                    logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
+                                        src_img, tgt_img_input,
+                                        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                    logits = logits[:, :, :-1]  # discard padding prob
+                    logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
+                    predicted = torch.multinomial(logits_new, 1, replacement=True)
+                    GAZE[i - 1][n] = predicted
+                    if self.EOS_IDX in GAZE[:, n] and i >= length:
+                        break
+                    if i < length:
+                        tgt_out = tgt_pos[i, :]
+                        loss_per += self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
+                                                 tgt_out.reshape(-1).long())
+                    next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
+                    next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1, 1)), dim=0)
+
+            loss += loss_per / (length - 1)
+        loss = loss / iter
         GAZE_ALL = []
         for i in range(iter):
-            if self.EOS_IDX in GAZE[:,i]:
-                j = torch.where(GAZE[:,i]==self.EOS_IDX)[0][0]
+            if self.EOS_IDX in GAZE[:, i]:
+                j = torch.where(GAZE[:, i] == self.EOS_IDX)[0][0]
                 GAZE_ALL.append(GAZE[:j, i])
             else:
-                GAZE_ALL.append(GAZE[:,i])
-        return loss,GAZE_ALL
+                GAZE_ALL.append(GAZE[:, i])
+        return loss, GAZE_ALL
 
     def test_gt(self,src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
