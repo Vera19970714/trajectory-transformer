@@ -147,7 +147,7 @@ class TransformerModel(pl.LightningModule):
         self.log('validation_metric_each_epoch', res_max[5], on_epoch=True, prog_bar=True, sync_dist=True)
 
 
-    def generate_one_scanpath(self, tgt_pos, tgt_img, src_pos, src_img, new_src_img, max_length=16):
+    def generate_one_scanpath(self, tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb, max_length=16):
         length = tgt_pos.size(0)
         loss = 0
         LOSS = torch.zeros((length - 1, 1)) - 1
@@ -163,8 +163,13 @@ class TransformerModel(pl.LightningModule):
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-                logits = logits[:, :, :-1]  # discard padding prob
-                _, predicted = torch.max(logits[-1, :, :], 1)
+                # the first token cannot be end token
+                logits = logits[:, :, :-2]  # discard padding prob
+                if getMaxProb:
+                    _, predicted = torch.max(logits[-1, :, :], 1)
+                else:
+                    logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
+                    predicted = torch.multinomial(logits_new, 1, replacement=True)
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -186,7 +191,11 @@ class TransformerModel(pl.LightningModule):
                                     src_img, tgt_img_input,
                                     src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
                 logits = logits[:, :, :-1]  # discard padding prob
-                _, predicted = torch.max(logits[-1, :, :], 1)
+                if getMaxProb:
+                    _, predicted = torch.max(logits[-1, :, :], 1)
+                else:
+                    logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
+                    predicted = torch.multinomial(logits_new, 1, replacement=True)
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -207,7 +216,7 @@ class TransformerModel(pl.LightningModule):
         tgt_img = tgt_img[:, :-1, :, :, :]
         blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
         new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
-        loss, LOSS, GAZE = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img)
+        loss, LOSS, GAZE = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb=True)
         if self.EOS_IDX in GAZE:
             endIndex = torch.where(GAZE == self.EOS_IDX)[0][0]
             GAZE = GAZE[:endIndex]
@@ -226,8 +235,8 @@ class TransformerModel(pl.LightningModule):
         iter = self.args.stochastic_iteration
         GAZE = torch.zeros((max_length, iter))-1
         for n in range(iter):
-            loss_per, _, GAZE_per = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img)
-            GAZE[:, n] = GAZE_per
+            loss_per, _, GAZE_per = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb=False)
+            GAZE[:, n:(n+1)] = GAZE_per
             loss += loss_per / (length-1)
         loss= loss / iter
         GAZE_ALL = []
