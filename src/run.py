@@ -33,12 +33,13 @@ if __name__ == '__main__':
     parser.add_argument('-changeX', default='True', type=str) # None, False, True
     parser.add_argument('-CA_version', default=3, type=int)  # valid values atm: 0, 3
     # 0: no cross attention, 1: add padding to input, 2: extra FC stream, 3: add pad prob in logits
-    parser.add_argument('-CA_head', default=1, type=int) # the number of cross attention heads
+    parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads
     parser.add_argument('-CA_dk', default=512, type=int) # 512, 64, scaling factor in attention matrix
 
     parser.add_argument('-log_name', default='mixed', type=str)
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
+    parser.add_argument('-write_output', type=str, default='True')
 
     # model settings and hyperparameters
     parser.add_argument('-model', default='Transformer', type=str) #BaseModel,

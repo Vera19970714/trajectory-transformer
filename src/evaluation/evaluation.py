@@ -113,7 +113,7 @@ class Evaluation(object):
                 behavior(res['rgb'], self.target[i], self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
                 behavior(res['saliency'], self.target[i], self.gaze_saliency[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
 
-            print('disabled loss')
+            #print('disabled loss')
             '''gt = self.gaze_gt[i][~np.isnan(self.gaze_gt[i])]
             heatmap_gt = torch.zeros(self.TOTAL_PCK)
             for element in gt:
