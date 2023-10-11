@@ -24,18 +24,11 @@ class TransformerModel_Mixed(pl.LightningModule):
         self.BOS_IDX = self.args.package_size+2
         self.EOS_IDX = self.args.package_size #+3
 
-        if args.training_dataset_choice == 'Pure':
-            EMB_SIZE = 256
-            NHEAD = 2
-            FFN_HID_DIM = 256
-            NUM_ENCODER_LAYERS = 2
-            NUM_DECODER_LAYERS = 2
-        else:
-            EMB_SIZE = 512
-            NHEAD = 4
-            FFN_HID_DIM = 512
-            NUM_ENCODER_LAYERS = 4
-            NUM_DECODER_LAYERS = 4
+        EMB_SIZE = 512
+        NHEAD = 4
+        FFN_HID_DIM = 512
+        NUM_ENCODER_LAYERS = 4
+        NUM_DECODER_LAYERS = 4
 
         inputDim = 3
         self.model = Seq2SeqTransformer(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
