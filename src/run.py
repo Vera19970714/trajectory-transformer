@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
-    parser.add_argument('-alpha', type=int, default=0.8)
+    parser.add_argument('-alpha', type=float, default=0.8)
     parser.add_argument('-functionChoice', default='exp1', type=str) # choices: linear, exp1, exp2, original
     parser.add_argument('-changeX', default='True', type=str) # None, False, True
     parser.add_argument('-CA_version', default=3, type=int)  # valid values atm: 0, 3
