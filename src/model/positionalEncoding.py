@@ -5,6 +5,7 @@ import math
 from numpy import dot
 from numpy.linalg import norm
 import matplotlib.pyplot as plt
+from torch import Tensor
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class LearnableFourierPositionalEncoding(nn.Module):
@@ -269,8 +270,8 @@ class PositionalEncoding2DUpdated(nn.Module):
         self.org_channels = channels
         channels = int(np.ceil(channels / 4) * 2)
         self.channels = channels
-        #inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
-        inv_freq = (torch.arange(0, channels, 2).float())**(0.8) / channels
+        inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
+        #inv_freq = (torch.arange(0, channels, 2).float())**(0.8) / channels
         self.register_buffer("inv_freq", inv_freq)
         self.register_buffer("cached_penc", None)
         self.changeX = changeX
@@ -332,6 +333,119 @@ def computeDotProductDistribution(p1, p2):
     plt.show()
 
 
+class PositionalEncoding(nn.Module):
+    def __init__(self,
+                 emb_size: int,
+                 dropout: float,
+                 functionChoice: str,
+                 alpha: int,
+                 maxlen: int = 5000):
+        super(PositionalEncoding, self).__init__()
+
+        #den = (torch.arange(0, emb_size, 2).float()) ** 0.8 / emb_size # exp1
+        #den = torch.exp(- torch.arange(0, emb_size, 2) * math.log(10000) / emb_size) #original
+        channels = emb_size
+        if functionChoice == 'original':
+            inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
+        elif functionChoice == 'exp1':
+            inv_freq = (torch.arange(0, channels, 2).float()) ** alpha / channels
+        elif functionChoice == 'exp2':
+            inv_freq = (torch.arange(0, channels, 2).float() / channels) ** alpha
+        elif functionChoice == 'linear':
+            inv_freq = (torch.arange(0, channels, 2).float()) * alpha / channels
+        den = inv_freq
+
+        pos = torch.arange(0, maxlen).reshape(maxlen, 1)
+        pos_embedding = torch.zeros((maxlen, emb_size))
+        pos_embedding[:, 0::2] = torch.sin(pos * den)
+        pos_embedding[:, 1::2] = torch.cos(pos * den)
+        pos_embedding = pos_embedding.unsqueeze(-2)
+
+        self.dropout = nn.Dropout(dropout)
+        self.register_buffer('pos_embedding', pos_embedding)
+
+    def forward(self, token_embedding: Tensor):
+        return self.dropout(token_embedding + self.pos_embedding[:token_embedding.size(0), :])
+
+
+def draw2Dheatmap():
+    import seaborn as sns
+    import matplotlib.pylab as plt
+
+    embed = 256
+    totali = 50
+    totalj = 50
+    enc = PositionalEncoding2DUpdated(embed, changeX=None)
+    x = enc(torch.randn(1, totali, totalj, embed)).numpy()[0]  # 50, 50, 100
+    center = x[int(totali / 2), int(totalj / 2)]
+    simMatrix = np.zeros((totali, totalj))
+    # W = np.random.normal(0, 1, size=(2, 50))
+    for i in range(totali):
+        for j in range(totalj):
+            emb = x[i][j]
+            # emb = getFakeFourier(np.array([i, j]), W)
+            a = getCosSim(emb, center)
+            simMatrix[i][j] = a
+
+    heat_map = sns.heatmap(simMatrix, linewidth=1, annot=False)
+    plt.show()
+
+
+def draw1Dheatmap():
+    import seaborn as sns
+    import matplotlib.pylab as plt
+
+    embed = 256
+    totali = 250
+    totalj = 50
+    def getLine(choice, alpha):
+        enc = PositionalEncoding(embed, 0, choice, alpha).pos_embedding
+        x = enc[:totali, 0].numpy()  # 50, 50, 100
+        ref = x[125]
+        simMatrix = np.zeros((1, totali))
+        # W = np.random.normal(0, 1, size=(2, 50))
+        for i in range(1, totali):
+            emb = x[i]
+            a = getCosSim(emb, ref)
+            # a = getCosSim(emb, x[i-1])
+            simMatrix[0, i] = a
+        return simMatrix[0, 1:]
+
+    line9 = getLine('linear', 0.9)
+    #line8 = getLine('exp1', 0.8)
+    line7 = getLine('linear', 0.7)
+    #line6 = getLine('exp1', 0.6)
+    line5 = getLine('linear', 0.5)
+    #sns.heatmap(simMatrix, linewidth=1, annot=False)
+    #print(simMatrix[0])
+    #sns.heatmap(simMatrix[:, 1:], linewidth=1, annot=False)
+    # plt.hist(simMatrix[0, 1:])
+    plt.plot(line5, label='alpha=0.5')
+    #plt.plot(line6, label='alpha=0.6')
+    plt.plot(line7, label='alpha=0.7')
+    #plt.plot(line8, label='alpha=0.8')
+    plt.plot(line9, label='alpha=0.9')
+    plt.legend()
+    plt.show()
+
+
+def runDifferentDecoderPE():
+    # run decoder 1) p1=img concat 3D, 2) p1=img add 3D, 3) p1=(img add 3D)*projection 4) p1=img 5) p1=3D
+
+    lw = torch.from_numpy(np.load('dataset/PE/linearWeight.npy'))  # 256,256
+    tgt_cnn_emb = torch.from_numpy(np.load('dataset/PE/tgt_cnn_emb.npy'))  # 8,1,256
+    tg = torch.from_numpy(np.load('dataset/PE/trg.npy'))  # 8,1,3
+    emb_size = 512
+    threedSin = getSinPositional(3, int(emb_size / 2), 'original', 0.8, None)
+    tgt_pos_emb = calculate3DPositional(threedSin, tg).to(DEVICE)
+    onedpositional_encoding = PositionalEncoding(
+        int(emb_size / 2), dropout=0.1)
+    p1 = (tgt_cnn_emb + tgt_pos_emb)  # torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
+    p1 = torch.matmul(p1, lw)
+    p2 = onedpositional_encoding(p1)
+
+    computeDotProductDistribution(p1.squeeze(1), p2.squeeze(1))
+
 if __name__ == '__main__':
     '''G = 3
     M = 17
@@ -339,59 +453,6 @@ if __name__ == '__main__':
     enc = LearnableFourierPositionalEncoding(G, M, 768, 32, 768, 10)
     pex = enc(x)
     print(pex.shape)'''
-
-    '''import seaborn as sns
-    import matplotlib.pylab as plt
-
-    embed = 256
-    enc = PositionalEncoding2DUpdated(embed, changeX=True)
-    x = enc(torch.randn(1, 3, 9, embed)).numpy()[0] # 50, 50, 100
-    center = x[1, 4]
-    simMatrix = np.zeros((3, 9))
-    #W = np.random.normal(0, 1, size=(2, 50))
-    for i in range(3):
-        for j in range(9):
-            emb = x[i][j]
-            #emb = getFakeFourier(np.array([i, j]), W)
-            a = getCosSim(emb, center)
-            simMatrix[i][j] = a
-
-    heat_map = sns.heatmap(simMatrix, linewidth=1, annot=True)
-    plt.show()'''
-
-    from torch import Tensor
-    class PositionalEncoding(nn.Module):
-        def __init__(self,
-                     emb_size: int,
-                     dropout: float,
-                     maxlen: int = 5000):
-            super(PositionalEncoding, self).__init__()
-            den = torch.exp(- torch.arange(0, emb_size, 2) * math.log(10000) / emb_size)
-            pos = torch.arange(0, maxlen).reshape(maxlen, 1)
-            pos_embedding = torch.zeros((maxlen, emb_size))
-            pos_embedding[:, 0::2] = torch.sin(pos * den)
-            pos_embedding[:, 1::2] = torch.cos(pos * den)
-            pos_embedding = pos_embedding.unsqueeze(-2)
-
-            self.dropout = nn.Dropout(dropout)
-            self.register_buffer('pos_embedding', pos_embedding)
-
-        def forward(self, token_embedding: Tensor):
-            return self.dropout(token_embedding + self.pos_embedding[:token_embedding.size(0), :])
+    draw1Dheatmap()
 
 
-    # run decoder 1) p1=img concat 3D, 2) p1=img add 3D, 3) p1=(img add 3D)*projection 4) p1=img 5) p1=3D
-
-    lw =  torch.from_numpy(np.load('dataset/PE/linearWeight.npy')) # 256,256
-    tgt_cnn_emb = torch.from_numpy(np.load('dataset/PE/tgt_cnn_emb.npy')) #8,1,256
-    tg = torch.from_numpy(np.load('dataset/PE/trg.npy')) # 8,1,3
-    emb_size=512
-    threedSin = getSinPositional(3, int(emb_size / 2), changeX=None)
-    tgt_pos_emb = calculate3DPositional(threedSin, tg).to(DEVICE)
-    onedpositional_encoding = PositionalEncoding(
-        int(emb_size / 2), dropout=0.1)
-    p1 = (tgt_cnn_emb + tgt_pos_emb) #torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
-    p1 = torch.matmul(p1,lw)
-    p2 = onedpositional_encoding(p1)
-
-    computeDotProductDistribution(p1.squeeze(1), p2.squeeze(1))
