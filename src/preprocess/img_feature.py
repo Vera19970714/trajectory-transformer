@@ -56,6 +56,7 @@ class CUT_PIC(object):
             for key in tqdm(dict):
                 df1 = df_ori[df_ori["ID"]==int(key)]
                 df1.reset_index(drop=True, inplace=True)
+                tgt_package = df1["Target"]
                 question_name = list(df1["Question"])[0]
                 package_seq = list(df1["Choice"])
                 package_target = list(df1["T_Package"])[0]
@@ -108,9 +109,10 @@ class CUT_PIC(object):
                         Question_img_feature.append(img_cropped_feature)
                         
                 dataset_dict['package_target'] = package_target
-                dataset_dict['package_seq'] =  package_seq
-                dataset_dict['question_img_feature'] =  Question_img_feature
+                dataset_dict['package_seq'] = package_seq
+                dataset_dict['question_img_feature'] = Question_img_feature
                 dataset_dict['id'] = question_name[:2]
+                dataset_dict['tgt'] = tgt_package
 
                 dataset.append(dataset_dict)
 
@@ -118,12 +120,10 @@ class CUT_PIC(object):
             pickle.dump(dataset, fp)
 
         print("Finish...")
-
-
     
 
 if __name__ == '__main__':
-    CUT_PIC = CUT_PIC('pad', "./dataset/processdata/dataset_Q123_mousedel_time_padwine")
+    CUT_PIC = CUT_PIC('resize', "./dataset/processdata/dataset_Q123_mousedel_time")
     CUT_PIC.cut_pic()
     # results: Q2 size 453, Q3 size 439
 
