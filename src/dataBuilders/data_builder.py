@@ -40,14 +40,17 @@ def randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dat
             testing_dataset = wine_task
         elif testing_dataset_choice == 'yogurt':
             testing_dataset = yogurt_task
-        val, tst = get_val_and_tst(testing_dataset)
+        #val, tst = get_val_and_tst(testing_dataset)
         training_dataset = testing_dataset
-    elif training_dataset_choice == 'mixed':
-        val_wine, tst_wine = get_val_and_tst(wine_task)
-        val_yogurt, tst_yogurt = get_val_and_tst(yogurt_task)
-        val = val_wine + val_yogurt
-        tst = tst_wine + tst_yogurt
-        training_dataset = wine_task + yogurt_task
+    #elif training_dataset_choice == 'mixed':
+    val_wine, tst_wine = get_val_and_tst(wine_task)
+    val_yogurt, tst_yogurt = get_val_and_tst(yogurt_task)
+    val = val_wine + val_yogurt
+    tst = tst_wine + tst_yogurt
+    #training_dataset = wine_task + yogurt_task
+
+    # training data same, val and tst: use mixed
+
     if isTrain == 'Valid':
         return raw_data[np.array(val).astype(int)]
     if isTrain == 'Test':
