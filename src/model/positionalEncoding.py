@@ -396,12 +396,12 @@ def draw1Dheatmap():
     import matplotlib.pylab as plt
 
     embed = 256
-    totali = 250
+    totali = 11
     totalj = 50
     def getLine(choice, alpha):
         enc = PositionalEncoding(embed, 0, choice, alpha).pos_embedding
         x = enc[:totali, 0].numpy()  # 50, 50, 100
-        ref = x[125]
+        ref = x[5]
         simMatrix = np.zeros((1, totali))
         # W = np.random.normal(0, 1, size=(2, 50))
         for i in range(1, totali):
@@ -411,20 +411,22 @@ def draw1Dheatmap():
             simMatrix[0, i] = a
         return simMatrix[0, 1:]
 
-    line9 = getLine('linear', 0.9)
-    #line8 = getLine('exp1', 0.8)
-    line7 = getLine('linear', 0.7)
-    #line6 = getLine('exp1', 0.6)
-    line5 = getLine('linear', 0.5)
+    line9 = getLine('original', 0.9)
+    line8 = getLine('exp1', 0.9)
+    line7 = getLine('exp1', 0.7)
+    line6 = getLine('exp1', 0.5)
+    line5 = getLine('linear', 0.9)
+    line4 = getLine('exp2', 0.9)
     #sns.heatmap(simMatrix, linewidth=1, annot=False)
     #print(simMatrix[0])
     #sns.heatmap(simMatrix[:, 1:], linewidth=1, annot=False)
     # plt.hist(simMatrix[0, 1:])
-    plt.plot(line5, label='alpha=0.5')
-    #plt.plot(line6, label='alpha=0.6')
-    plt.plot(line7, label='alpha=0.7')
-    #plt.plot(line8, label='alpha=0.8')
-    plt.plot(line9, label='alpha=0.9')
+    plt.plot(line4, label='exp2, 0.9')
+    plt.plot(line5, label='linear, 0.9')
+    plt.plot(line6, label='exp1, 0.5')
+    plt.plot(line7, label='exp1, 0.7')
+    plt.plot(line8, label='exp1, 0.9')
+    plt.plot(line9, label='original')
     plt.legend()
     plt.show()
 
