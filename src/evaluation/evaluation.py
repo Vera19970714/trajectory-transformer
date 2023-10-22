@@ -56,6 +56,7 @@ def losses(heatmap_gt, gaze, result_array, TOTAL_PCK):
 
 class Evaluation(object):
     def __init__(self, training_dataset_choice, testing_dataset_choice, evaluation_url,
+                 datapath, indexFile,
                  ITERATION=100, TOTAL_PCK=27, showBenchmark=False):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
         self.ITERATION = ITERATION
@@ -71,8 +72,8 @@ class Evaluation(object):
             gaze_saliency = './dataset/checkEvaluation/gaze_saliency.csv'
             gaze_rgb = './dataset/checkEvaluation/gaze_rgb_similarity.csv'
 
-        datapath = './dataset/processdata/dataset_Q123_mousedel_time'
-        indexFile = './dataset/processdata/splitlist_all_time.txt'
+        #datapath = './dataset/processdata/dataset_Q123_mousedel_time'
+        #indexFile = './dataset/processdata/splitlist_all_time.txt'
 
         raw_data = randsplit(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice)
 

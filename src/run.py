@@ -146,6 +146,7 @@ if __name__ == '__main__':
         trainer.test(model=model, dataloaders=search_data.test_loader)
 
     e = Evaluation(args.training_dataset_choice, args.testing_dataset_choice, args.output_path,
+                   args.data_path, args.index_folder+args.index_file,
                    ITERATION=args.stochastic_iteration, TOTAL_PCK=args.package_size)
     e.evaluation()
 
