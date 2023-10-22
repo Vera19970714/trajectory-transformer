@@ -396,12 +396,12 @@ def draw1Dheatmap():
     import matplotlib.pylab as plt
 
     embed = 256
-    totali = 11
+    totali = 15
     totalj = 50
     def getLine(choice, alpha):
         enc = PositionalEncoding(embed, 0, choice, alpha).pos_embedding
         x = enc[:totali, 0].numpy()  # 50, 50, 100
-        ref = x[5]
+        ref = x[int(totali/2)]
         simMatrix = np.zeros((1, totali))
         # W = np.random.normal(0, 1, size=(2, 50))
         for i in range(1, totali):
