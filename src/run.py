@@ -21,14 +21,14 @@ if __name__ == '__main__':
     # data path and output files
     parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q123_mousedel_time', type=str)
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
-    parser.add_argument('-index_file', default='splitlist_all.txt', type=str)
+    parser.add_argument('-index_file', default='splitlist_all_time.txt', type=str)
 
-    parser.add_argument('-testing_dataset_choice', default='-', type=str)  # wine, yogurt (use when train=pure)
-    parser.add_argument('-training_dataset_choice', default='mixed', type=str)  # mixed, pure
+    parser.add_argument('-testing_dataset_choice', default='all', type=str)  # wine, yogurt, all
+    parser.add_argument('-training_dataset_choice', default='yogurt', type=str)  # wine, yogurt, all
 
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
-    parser.add_argument('-alpha', type=float, default=0.8)
+    parser.add_argument('-alpha', type=float, default=0.9)
     parser.add_argument('-functionChoice', default='exp1', type=str) # choices: linear, exp1, exp2, original
     parser.add_argument('-changeX', default='True', type=str) # None, False, True
     parser.add_argument('-CA_version', default=3, type=int)  # valid values atm: 0, 3
@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.training_dataset_choice == 'pure':
+    if args.training_dataset_choice == args.testing_dataset_choice:
         if args.testing_dataset_choice == 'wine':
             args.package_size = 22
             args.shelf_row = 2
@@ -73,7 +73,7 @@ if __name__ == '__main__':
             args.package_size = 27
             args.shelf_row = 3
             args.shelf_col = 9
-    elif args.training_dataset_choice == 'mixed':
+    else:
         args.package_size = np.array([27, 22])
         args.shelf_row = np.array([3, 2])
         args.shelf_col = np.array([9, 11])
@@ -109,9 +109,9 @@ if __name__ == '__main__':
     # make dataloader & model
 
     if args.model == 'Transformer':
-        if args.training_dataset_choice == 'pure':
+        if args.training_dataset_choice == args.testing_dataset_choice and args.training_dataset_choice != "all":
             model = TransformerModel(args)
-        elif args.training_dataset_choice == 'mixed':
+        else:
             model = TransformerModel_Mixed(args)
         search_data = SearchDataModule(args)
     if args.model == 'BaseModel':

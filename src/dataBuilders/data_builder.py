@@ -35,21 +35,25 @@ def randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dat
         elif raw_data[index]['id'] == 'Q1':
             wine_task.append(index)
 
-    if training_dataset_choice == 'pure':
-        if testing_dataset_choice == 'wine':
-            testing_dataset = wine_task
-        elif testing_dataset_choice == 'yogurt':
-            testing_dataset = yogurt_task
-        val, tst = get_val_and_tst(testing_dataset)
-        training_dataset = testing_dataset
-    elif training_dataset_choice == 'mixed':
-        val_wine, tst_wine = get_val_and_tst(wine_task)
-        val_yogurt, tst_yogurt = get_val_and_tst(yogurt_task)
+    val_wine, tst_wine = get_val_and_tst(wine_task)
+    val_yogurt, tst_yogurt = get_val_and_tst(yogurt_task)
+
+    if testing_dataset_choice == 'wine':
+        val = val_wine
+        tst = tst_wine
+    elif testing_dataset_choice == 'yogurt':
+        val = val_yogurt
+        tst = tst_yogurt
+    else:
         val = val_wine + val_yogurt
         tst = tst_wine + tst_yogurt
-        training_dataset = wine_task + yogurt_task
 
-    # training data same, val and tst: use mixed
+    if training_dataset_choice == 'wine':
+        training_dataset = wine_task
+    elif training_dataset_choice == 'yogurt':
+        training_dataset = yogurt_task
+    else:
+        training_dataset = wine_task + yogurt_task
 
     if isTrain == 'Valid':
         return raw_data[np.array(val).astype(int)]
@@ -71,8 +75,8 @@ class FixDataset(Dataset):
         testing_dataset_choice = args.testing_dataset_choice
         training_dataset_choice = args.training_dataset_choice
 
-        #assert testing_dataset_choice in ['wine', 'yogurt']
-        assert training_dataset_choice in ['mixed', 'pure']
+        assert testing_dataset_choice in ["wine", "yogurt", "all"]
+        assert training_dataset_choice in ["wine", "yogurt", "all"]
         print('Settings: ', training_dataset_choice, testing_dataset_choice)
 
         raw_data = randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice)
@@ -133,10 +137,10 @@ class SearchDataModule(pl.LightningDataModule):
     train_set = FixDataset(args, 'Train')
     val_set = FixDataset(args, 'Valid')
     test_set = FixDataset(args, 'Test')
-    if args.training_dataset_choice == 'pure':
-        collate_fn = Collator_pure(args.package_size)
-    elif args.training_dataset_choice == 'mixed':
+    if args.training_dataset_choice == 'all' or args.testing_dataset_choice:
         collate_fn = Collator_mixed(args.package_size)
+    else:
+        collate_fn = Collator_pure(args.package_size)
     
     self.train_loader = DataLoader(dataset=train_set,
                                     batch_size=args.batch_size,
