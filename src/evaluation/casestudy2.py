@@ -36,7 +36,7 @@ class Evaluation(object):
         gaze_expect = evaluation_url+'/gaze_expect.csv'
 
         datapath = './dataset/processdata/dataset_Q123_mousedel_time'
-        indexFile = './dataset/processdata/splitlist_all.txt'
+        indexFile = './dataset/processdata/splitlist_all_time.txt'
 
         raw_data = randsplit(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice)
 
