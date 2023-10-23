@@ -204,10 +204,10 @@ class SearchDataModule(pl.LightningDataModule):
     train_set = FixDataset(args, 'Train')
     val_set = FixDataset(args, 'Valid')
     test_set = FixDataset(args, 'Test')
-    if args.training_dataset_choice == 'all' or args.testing_dataset_choice:
-        collate_fn = Collator_mixed(args.package_size)
-    else:
+    if args.training_dataset_choice != 'all' and args.testing_dataset_choice == args.training_dataset_choice:
         collate_fn = Collator_pure(args.package_size)
+    else:
+        collate_fn = Collator_mixed(args.package_size)
     
     self.train_loader = DataLoader(dataset=train_set,
                                     batch_size=args.batch_size,

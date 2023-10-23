@@ -19,13 +19,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q123_mousedel_time', type=str)
+    parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q123_mousedel_time_raw', type=str)
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-index_file', default='splitlist_all_time.txt', type=str)
 
-    parser.add_argument('-testing_dataset_choice', default='all', type=str)  # wine, yogurt, all
-    parser.add_argument('-training_dataset_choice', default='all', type=str)  # wine, yogurt, all
-    parser.add_argument('-layout_choice', default=1, type=int)
+    parser.add_argument('-testing_dataset_choice', default='wine', type=str)  # wine, yogurt, all
+    parser.add_argument('-training_dataset_choice', default='wine', type=str)  # wine, yogurt, all
+    parser.add_argument('-layout_choice', default=0, type=int)
     parser.add_argument('-target_choice', default=0, type=int)
 
     parser.add_argument('-checkpoint', default='None', type=str)
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads
     parser.add_argument('-CA_dk', default=512, type=int) # 512, 64, scaling factor in attention matrix
 
-    parser.add_argument('-log_name', default='mixed', type=str)
+    parser.add_argument('-log_name', default='pure_wine_raw', type=str)
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
     parser.add_argument('-write_output', type=str, default='True')

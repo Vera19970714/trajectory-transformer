@@ -83,7 +83,7 @@ class CNNEmbedding(nn.Module):
         super(CNNEmbedding, self).__init__()
         self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
         self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
-        self.fc = nn.Linear(1440, outputSize)
+        self.fc = nn.Linear(768, outputSize) # yogurt: 1440, unresized wine: 768
         #nn.init.kaiming_normal_(self.fc.weight, mode='fan_in',
         #                        nonlinearity='leaky_relu')
 
