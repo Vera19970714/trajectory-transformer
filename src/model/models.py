@@ -9,6 +9,52 @@ from .positionalEncoding import *
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
+from torch import Tensor
+import torch
+import torch.nn as nn
+from torch.nn import Transformer
+import math
+import torch.nn.functional as F
+#from .transformerLightning import PositionalEncoding, VisualPositionalEncoding, TokenEmbedding
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
+class SPPLayer(nn.Module):
+    def __init__(self, num_levels=4, pool_type='max'):
+        super(SPPLayer, self).__init__()
+        self.num_levels = num_levels
+        self.pool_type = pool_type
+
+    def forward(self, x):
+        bs, c, h, w = x.size()
+        pooling_layers = []
+        previous_conv_size = [h, w]
+        for i in range(self.num_levels):
+            level = 2 ** i
+            h_kernel = int(math.ceil(previous_conv_size[0] / level))
+            w_kernel = int(math.ceil(previous_conv_size[1] / level))
+            w_pad1 = int(math.floor((w_kernel * level - previous_conv_size[1]) / 2))
+            w_pad2 = int(math.ceil((w_kernel * level - previous_conv_size[1]) / 2))
+            h_pad1 = int(math.floor((h_kernel * level - previous_conv_size[0]) / 2))
+            h_pad2 = int(math.ceil((h_kernel * level - previous_conv_size[0]) / 2))
+            assert w_pad1 + w_pad2 == (w_kernel * level - previous_conv_size[1]) and \
+                   h_pad1 + h_pad2 == (h_kernel * level - previous_conv_size[0])
+
+            padded_input = F.pad(input=x, pad=[w_pad1, w_pad2, h_pad1, h_pad2],
+                                 mode='constant', value=0)
+            if self.pool_type == "max":
+                pool = nn.MaxPool2d((h_kernel, w_kernel), stride=(h_kernel, w_kernel), padding=(0, 0))
+            elif self.pool_type == "avg":
+                pool = nn.AvgPool2d((h_kernel, w_kernel), stride=(h_kernel, w_kernel), padding=(0, 0))
+            else:
+                raise RuntimeError("Unknown pooling type: %s, please use \"max\" or \"avg\".")
+
+            tensor = pool(padded_input)
+            tensor = torch.flatten(tensor, start_dim=1, end_dim=-1)
+            pooling_layers.append(tensor)
+        x = torch.cat(pooling_layers, dim=-1) #32,128,512
+        return x
+
 class PositionalEncodingOri(nn.Module):
 
     def __init__(self, d_hid, n_position=200):
@@ -82,8 +128,11 @@ class CNNEmbedding(nn.Module):
     def __init__(self, outputSize):
         super(CNNEmbedding, self).__init__()
         self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
-        self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
-        self.fc = nn.Linear(768, outputSize) # yogurt: 1440, unresized wine: 768
+        self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU())
+        # remove
+        #self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
+        self.fc = nn.Linear(2720, outputSize) # yogurt: 1440, unresized wine: 768, spp: 2720
+        self.sppLayer = SPPLayer()
         #nn.init.kaiming_normal_(self.fc.weight, mode='fan_in',
         #                        nonlinearity='leaky_relu')
 
@@ -94,7 +143,8 @@ class CNNEmbedding(nn.Module):
         input = tokens.contiguous().view(-1, w, h, 3).permute(0, 3, 1, 2)
         output = self.cnn1(input) # b, 16, 29, 17
         output = self.cnn2(output) # 112, 32, 9, 5
-        output = torch.flatten(output, start_dim=1, end_dim=-1)
+        output = self.sppLayer(output)
+        #output = torch.flatten(output, start_dim=1, end_dim=-1)
         output = self.fc(output)
         return output.view(b, l, -1)
 
