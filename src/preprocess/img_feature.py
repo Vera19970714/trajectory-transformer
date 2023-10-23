@@ -75,6 +75,8 @@ class CUT_PIC(object):
                         dim = (93, 150)
                     elif self.wine_choice == 'pad':
                         dim = (51, 150)
+                    elif self.wine_choice == 'raw':
+                        dim = (106, 390)
 
                 elif question_name.startswith('Q2'):
                     IMAGE_SIZE_1 = 295
@@ -124,7 +126,7 @@ class CUT_PIC(object):
     
 
 if __name__ == '__main__':
-    CUT_PIC = CUT_PIC('resize', "./dataset/processdata/dataset_Q123_mousedel_time")
+    CUT_PIC = CUT_PIC('resize', "./dataset/processdata/dataset_Q123_mousedel_time_raw")
     CUT_PIC.cut_pic()
     # results: Q2 size 453, Q3 size 439
 
