@@ -24,7 +24,9 @@ if __name__ == '__main__':
     parser.add_argument('-index_file', default='splitlist_all_time.txt', type=str)
 
     parser.add_argument('-testing_dataset_choice', default='all', type=str)  # wine, yogurt, all
-    parser.add_argument('-training_dataset_choice', default='yogurt', type=str)  # wine, yogurt, all
+    parser.add_argument('-training_dataset_choice', default='all', type=str)  # wine, yogurt, all
+    parser.add_argument('-layout_choice', default=1, type=int)
+    parser.add_argument('-target_choice', default=0, type=int)
 
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
@@ -64,7 +66,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.training_dataset_choice == args.testing_dataset_choice:
+    if args.training_dataset_choice == args.testing_dataset_choice and args.testing_dataset_choice != 'all':
         if args.testing_dataset_choice == 'wine':
             args.package_size = 22
             args.shelf_row = 2

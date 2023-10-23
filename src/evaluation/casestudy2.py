@@ -47,7 +47,7 @@ class Evaluation(object):
 
         for item in raw_data:
             self.target.append(item['package_target'])
-            self.target_id.append(item['tgt'][0])
+            self.target_id.append(item['tgt_id'])
 
         self.target = [int(self.target[i][0])-1 for i in range(len(self.target))]
 

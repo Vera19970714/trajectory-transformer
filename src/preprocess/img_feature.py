@@ -112,7 +112,8 @@ class CUT_PIC(object):
                 dataset_dict['package_seq'] = package_seq
                 dataset_dict['question_img_feature'] = Question_img_feature
                 dataset_dict['id'] = question_name[:2]
-                dataset_dict['tgt'] = tgt_package
+                dataset_dict['tgt_id'] = tgt_package[0]
+                dataset_dict['layout_id'] = question_name
 
                 dataset.append(dataset_dict)
 

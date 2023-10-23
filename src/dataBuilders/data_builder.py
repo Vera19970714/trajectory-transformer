@@ -14,6 +14,67 @@ def get_val_and_tst(testing_dataset):
     return val, tst
 
 
+def randsplit_tgt(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice,
+                  layout_id, target_id):
+    if layout_id != 0:
+        layout_id = 'Q3_21'
+    elif target_id != 0:
+        target_id = 'T3_1'
+
+    with open(datapath, "rb") as fp:
+        raw_data = pickle.load(fp)
+
+    with open(indexFile) as f:
+        lines = f.readlines()
+    linesInt = np.array([int(x) for x in lines])
+
+    raw_data = np.array(raw_data)[linesInt.astype(int)]
+
+    shampoo_task = []
+    yogurt_task = []
+    wine_task = []
+    tst = []
+    for index in range(len(raw_data)):
+        if raw_data[index]['tgt_id'] == target_id or raw_data[index]['layout_id'] == layout_id:
+            tst.append(index)
+            continue
+        if raw_data[index]['id'] == 'Q2':
+            shampoo_task.append(index)
+        elif raw_data[index]['id'] == 'Q3':
+            yogurt_task.append(index)
+        elif raw_data[index]['id'] == 'Q1':
+            wine_task.append(index)
+
+    val_wine, _ = get_val_and_tst(wine_task)
+    val_yogurt, _ = get_val_and_tst(yogurt_task)
+
+    if testing_dataset_choice == 'wine':
+        val = val_wine
+    elif testing_dataset_choice == 'yogurt':
+        val = val_yogurt
+    else:
+        val = val_wine + val_yogurt
+
+    if training_dataset_choice == 'wine':
+        training_dataset = wine_task
+    elif training_dataset_choice == 'yogurt':
+        training_dataset = yogurt_task
+    else:
+        training_dataset = wine_task + yogurt_task
+
+    if isTrain == 'Valid':
+        return raw_data[np.array(val).astype(int)]
+    if isTrain == 'Test':
+        return raw_data[np.array(tst).astype(int)]
+
+    final_training = []
+    for i in training_dataset:
+        if i not in val and i not in tst:
+            final_training.append(i)
+    if isTrain == 'Train':
+        return raw_data[np.array(final_training).astype(int)]
+
+
 def randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice):
     with open(datapath, "rb") as fp:
         raw_data = pickle.load(fp)
@@ -77,9 +138,15 @@ class FixDataset(Dataset):
 
         assert testing_dataset_choice in ["wine", "yogurt", "all"]
         assert training_dataset_choice in ["wine", "yogurt", "all"]
-        print('Settings: ', training_dataset_choice, testing_dataset_choice)
+        print('Settings: ', isTrain, training_dataset_choice, testing_dataset_choice)
 
-        raw_data = randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice)
+        layout_id = args.layout_choice
+        target_id = args.target_choice
+        if layout_id == target_id == 0:
+            raw_data = randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice)
+        else:
+            raw_data = randsplit_tgt(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice,
+                                 layout_id, target_id)
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
