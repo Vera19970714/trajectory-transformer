@@ -60,7 +60,8 @@ class CUT_PIC(object):
                 question_name = list(df1["Question"])[0]
                 package_seq = list(df1["Choice"])
                 package_target = list(df1["T_Package"])[0]
-                package_target  = [package_target]  # (np.repeat(package_target,27))   
+                package_target  = [package_target]  # (np.repeat(package_target,27)) 
+                sub_id = list(df1["Sub_ID"])[0]
                 dataset_dict = {}
                 Question_img_feature = []
                 if question_name.startswith('Q1'):
@@ -116,6 +117,7 @@ class CUT_PIC(object):
                 dataset_dict['id'] = question_name[:2]
                 dataset_dict['tgt_id'] = tgt_package[0]
                 dataset_dict['layout_id'] = question_name
+                dataset_dict['sub_id'] = sub_id
 
                 dataset.append(dataset_dict)
 
