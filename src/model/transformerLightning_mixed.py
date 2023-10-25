@@ -234,7 +234,7 @@ class TransformerModel_Mixed(pl.LightningModule):
         #tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
         blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
-        new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
+        new_src_img = torch.cat((src_img[:,:-1,:,:], blank), dim=1) #31,300,186,3
         loss, LOSS, GAZE = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, True, type)
         if self.EOS_IDX[type] in GAZE:
             endIndex = torch.where(GAZE == self.EOS_IDX[type])[0][0]
@@ -249,7 +249,7 @@ class TransformerModel_Mixed(pl.LightningModule):
         loss = 0
         max_length = 16
         blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
-        new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
+        new_src_img = torch.cat((src_img[:,:-1,:,:], blank), dim=1) #31,300,186,3
         iter = self.args.stochastic_iteration
         GAZE = torch.zeros((max_length, iter))-1
         for n in range(iter):
