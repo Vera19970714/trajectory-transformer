@@ -59,7 +59,7 @@ def generate3DInput_irregular(tgt_input, src_pos):
 
 
 
-def generate_one_scanpath_irregular(tgt_pos, tgt_img, src_pos, src_img, new_src_img, tgt_1d_pos, getMaxProb, model, max_length=16):
+def generate_one_scanpath_irregular(tgt_pos, tgt_img, src_pos, src_img, new_src_img, tgt_1d_pos, getMaxProb, model, max_length):
     loss_fn = torch.nn.CrossEntropyLoss()
     length = tgt_pos.size(0)
     loss = 0
@@ -128,13 +128,13 @@ def generate_one_scanpath_irregular(tgt_pos, tgt_img, src_pos, src_img, new_src_
     loss = loss / (length - 1)
     return loss, LOSS, GAZE  # ,LOGITS
 
-def test_max_irregular(src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos, model):
+def test_max_irregular(src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos, model, max_len):
     #tgt_input = tgt_pos[:-1, :]
     tgt_img = tgt_img[0][:-1]
 
     new_src_img = src_img[0][:-1] + [torch.from_numpy(np.ones((1, 128, 50, 3))).float().to(DEVICE)] * 3
 
-    loss, LOSS, GAZE = generate_one_scanpath_irregular(tgt_pos, tgt_img, src_pos, src_img[0], new_src_img, tgt_1d_pos, True, model)
+    loss, LOSS, GAZE = generate_one_scanpath_irregular(tgt_pos, tgt_img, src_pos, src_img[0], new_src_img, tgt_1d_pos, True, model, max_len)
     if EOS_IDX_testing in GAZE:
         endIndex = torch.where(GAZE == EOS_IDX_testing)[0][0]
         GAZE = GAZE[:endIndex]
@@ -142,7 +142,7 @@ def test_max_irregular(src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos, model):
     return loss, LOSS, GAZE
 
 
-def test_expect_irregular(src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos, model):
+def test_expect_irregular(src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos, model, max_len):
     #tgt_input = tgt_pos[:-1, :]
     src_img = src_img[0]
     tgt_img = tgt_img[0][:-1]
@@ -154,7 +154,7 @@ def test_expect_irregular(src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos, model)
     new_src_img = src_img[:-1] + [torch.from_numpy(np.ones((1, 128, 50, 3))).float().to(DEVICE)] * 3
     GAZE = torch.zeros((max_length, iter))-1
     for n in range(iter):
-        loss_per, _, GAZE_per = generate_one_scanpath_irregular(tgt_pos, tgt_img, src_pos, src_img, new_src_img, tgt_1d_pos, False, model)
+        loss_per, _, GAZE_per = generate_one_scanpath_irregular(tgt_pos, tgt_img, src_pos, src_img, new_src_img, tgt_1d_pos, False, model, max_length)
         GAZE[:, n:(n+1)] = GAZE_per
         loss += loss_per / (length-1)
     loss= loss / iter
@@ -188,12 +188,12 @@ def test_gt_irregular(src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos, model):
     return loss, predicted[:-1], tgt_out[:-1] #,LOGITS_tf[:-1]
 
 
-def test_one_dataset_irregular(batch, model):
+def test_one_dataset_irregular(batch, model, max_len):
     src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos = batch
     src_pos = src_pos.to(DEVICE)
     tgt_pos = tgt_pos.to(DEVICE)
     tgt_1d_pos = tgt_1d_pos.to(DEVICE)
     loss_gt, GAZE_tf, GAZE_gt = test_gt_irregular(src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos, model)
-    loss_max, LOSS, GAZE = test_max_irregular(src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos, model)
-    loss_expect, GAZE_expect = test_expect_irregular(src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos, model)
+    loss_max, LOSS, GAZE = test_max_irregular(src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos, model, max_len)
+    loss_expect, GAZE_expect = test_expect_irregular(src_pos, src_img, tgt_pos, tgt_img, tgt_1d_pos, model, max_len)
     return loss_max, loss_expect, loss_gt, GAZE, GAZE_expect, GAZE_gt

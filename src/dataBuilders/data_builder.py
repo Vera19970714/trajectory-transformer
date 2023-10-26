@@ -155,20 +155,22 @@ class FixDataset(Dataset):
         self.package_sequence = []
         self.args = args
         self.ids = []
-        # todo: change it back!!
-        i=0
+        self.max_len = 0
+
+        #i=0
         for item in raw_data:
             self.package_target.append(item['package_target'])
             self.question_img_feature.append(item['question_img_feature'])
             self.package_sequence.append(item['package_seq'])
             self.ids.append(item['id'])
-            i+=1
-            if i > 10:
-                break
+            if len(item['package_seq']) > self.max_len:
+                self.max_len = len(item['package_seq'])
+            #i+=1
+            #if i > 10:
+            #    break
 
         self.data_total_length = len(self.question_img_feature)
-        
-        print(F'total_len = {self.data_total_length}')
+        print(F'total_len = {self.data_total_length}, ', 'max len=', self.max_len)
         #self.drawTrajectoryDis()
 
     # support indexing such that dataset[i] can be used to get i-th sample
@@ -202,6 +204,7 @@ class SearchDataModule(pl.LightningDataModule):
   def __init__(self, args):
     super().__init__()
     train_set = FixDataset(args, 'Train')
+    self.max_len = train_set.max_len
     val_set = FixDataset(args, 'Valid')
     test_set = FixDataset(args, 'Test')
     if args.training_dataset_choice != 'all' and args.testing_dataset_choice == args.training_dataset_choice:

@@ -15,9 +15,11 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class TransformerModel_Mixed_Irregular(pl.LightningModule):
-    def __init__(self, args):
+    def __init__(self, args, max_len, irregular_max_len):
         super().__init__()
         self.args = args
+        self.max_len = max_len
+        self.irregular_max_len = irregular_max_len
         torch.manual_seed(0)
         TGT_VOCAB_SIZE = 0 #self.args.package_size+ 2#4
         #self.TGT_VOCAB_SIZE = TGT_VOCAB_SIZE
@@ -172,13 +174,13 @@ class TransformerModel_Mixed_Irregular(pl.LightningModule):
         self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('validation_metric_each_epoch', delta, on_epoch=True, prog_bar=True, sync_dist=True)
 
-    def generate_one_scanpath(self, tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb, type, max_length=16):
+    def generate_one_scanpath(self, tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb, type):
         length = tgt_pos.size(0)
         loss = 0
         LOSS = torch.zeros((length - 1, 1)) - 1
-        GAZE = torch.zeros((max_length, 1)) - 1
+        GAZE = torch.zeros((self.max_len, 1)) - 1
 
-        for i in range(1, max_length + 1):
+        for i in range(1, self.max_len + 1):
             if i == 1:
                 tgt_input = tgt_pos[:i, :]
                 tgt_img_input = tgt_img[:, :i, :, :, :]
@@ -253,11 +255,10 @@ class TransformerModel_Mixed_Irregular(pl.LightningModule):
         tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)
         loss = 0
-        max_length = 16
         blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
         new_src_img = torch.cat((src_img[:,1:,:,:], blank), dim=1) #31,300,186,3
         iter = self.args.stochastic_iteration
-        GAZE = torch.zeros((max_length, iter))-1
+        GAZE = torch.zeros((self.max_len, iter))-1
         for n in range(iter):
             loss_per, _, GAZE_per = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, False, type)
             GAZE[:, n:(n+1)] = GAZE_per
@@ -305,7 +306,7 @@ class TransformerModel_Mixed_Irregular(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         if self.args.testing_dataset_choice == 'irregular':
-            loss_max, loss_expect, loss_gt, GAZE, GAZE_expect, GAZE_gt = test_one_dataset_irregular(batch, self.model)
+            loss_max, loss_expect, loss_gt, GAZE, GAZE_expect, GAZE_gt = test_one_dataset_irregular(batch, self.model, self.irregular_max_len)
         else:
             data1, data2 = batch
             if len(data1) == 0:

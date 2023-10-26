@@ -115,15 +115,16 @@ if __name__ == '__main__':
     # make dataloader & model
 
     if args.model == 'Transformer':
-        if args.training_dataset_choice == args.testing_dataset_choice and args.training_dataset_choice != "all":
-            model = TransformerModel(args)
-        elif args.testing_dataset_choice == 'irregular':
-            model = TransformerModel_Mixed_Irregular(args)
-        else:
-            model = TransformerModel_Mixed(args)
         search_data = SearchDataModule(args)
         if args.testing_dataset_choice == 'irregular':
             irregular_data = IrregularShelfModule(args)
+
+        if args.training_dataset_choice == args.testing_dataset_choice and args.training_dataset_choice != "all":
+            model = TransformerModel(args, search_data.max_len)
+        elif args.testing_dataset_choice == 'irregular':
+            model = TransformerModel_Mixed_Irregular(args, search_data.max_len, irregular_data.max_len)
+        else:
+            model = TransformerModel_Mixed(args, search_data.max_len)
     if args.model == 'BaseModel':
         model = BaseModel(args)
         search_data = BaseSearchDataModule(args)
