@@ -125,15 +125,24 @@ class TokenEmbedding(nn.Module):
         return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
 
 class CNNEmbedding(nn.Module):
-    def __init__(self, outputSize):
+    def __init__(self, outputSize, spp):
         super(CNNEmbedding, self).__init__()
+        self.spp = spp
         self.cnn1 = nn.Sequential(nn.Conv2d(3, 16, (5, 5)), nn.ReLU(), nn.MaxPool2d(5))
         self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU())
-        # remove
-        #self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
-        self.fc = nn.Linear(672, outputSize) # yogurt: 1440, unresized wine: 768, spp: 2720
-        # l2: 160, l3: 672, l4: 2720
-        self.sppLayer = SPPLayer(num_levels=3) #
+        if spp == 0:
+            self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
+            self.fc = nn.Linear(1440, outputSize)
+        elif spp == 2:
+            self.sppLayer = SPPLayer(num_levels=2)
+            self.fc = nn.Linear(160, outputSize)
+        elif spp == 3:
+            self.sppLayer = SPPLayer(num_levels=3)
+            self.fc = nn.Linear(672, outputSize)
+        elif spp == 4:
+            self.sppLayer = SPPLayer(num_levels=4)
+            self.fc = nn.Linear(2720, outputSize)
+
         #nn.init.kaiming_normal_(self.fc.weight, mode='fan_in',
         #                        nonlinearity='leaky_relu')
 
@@ -145,8 +154,10 @@ class CNNEmbedding(nn.Module):
             input = x.contiguous().view(-1, w, h, 3).permute(0, 3, 1, 2)
             output = self.cnn1(input) # b, 16, 29, 17
             output = self.cnn2(output) # 112, 32, 9, 5
-            outputs = self.sppLayer(output)
-            #output = torch.flatten(output, start_dim=1, end_dim=-1)
+            if self.spp == 0:
+                output = torch.flatten(output, start_dim=1, end_dim=-1)
+            else:
+                outputs = self.sppLayer(output)
             outputs = self.fc(outputs)
             return outputs.view(b, l, -1)
         else:
@@ -186,6 +197,7 @@ class Seq2SeqTransformer(nn.Module):
                  CAVersion: int,
                  CA_head: int,
                  CA_d_k: int,
+                 spp: int,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer, self).__init__()
         '''self.transformer = Transformer(d_model=emb_size,
@@ -219,7 +231,7 @@ class Seq2SeqTransformer(nn.Module):
         #self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
         #self.positional_encoding_ori = PositionalEncodingOri(emb_size)
 
-        self.cnn_embedding = CNNEmbedding(int(emb_size/2))
+        self.cnn_embedding = CNNEmbedding(int(emb_size/2), spp)
         self.LinearEmbedding = nn.Linear(input_dimension, int(emb_size/2))
 
         if CAVersion == 3:

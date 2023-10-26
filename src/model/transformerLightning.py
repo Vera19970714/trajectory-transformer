@@ -41,7 +41,7 @@ class TransformerModel(pl.LightningModule):
         self.model = Seq2SeqTransformer(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE,
                                          NHEAD, TGT_VOCAB_SIZE, inputDim, FFN_HID_DIM,
                                         args.functionChoice, args.alpha, args.changeX, args.CA_version,
-                                        args.CA_head, args.CA_dk).to(DEVICE).float()
+                                        args.CA_head, args.CA_dk, args.spp).to(DEVICE).float()
         for p in self.model.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)

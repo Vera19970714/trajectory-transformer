@@ -15,7 +15,7 @@ import numpy as np
 import os
 import sys
 sys.path.append('./src/')
-from evaluation.evaluation import Evaluation
+from evaluation.evaluation_model import Evaluation
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -29,8 +29,7 @@ if __name__ == '__main__':
     parser.add_argument('-training_dataset_choice', default='all', type=str)  # wine, yogurt, all
     parser.add_argument('-layout_choice', default=0, type=int)
     parser.add_argument('-target_choice', default=0, type=int)
-    #parser.add_argument('-spp', default=0, type=int) # 0: no spp, 2, 3, 4 represent level
-    # todo: add spplayer and level switch
+    parser.add_argument('-spp', default=0, type=int) # 0: no spp, 2, 3, 4 represent level
     # todo: max length in no time pressure, and irregular, make it automatical
 
     parser.add_argument('-checkpoint', default='./lightning_logs/irregular/lightning_logs/version_0/checkpoints/epoch=0-step=1.ckpt', type=str)
@@ -164,4 +163,4 @@ if __name__ == '__main__':
                    ITERATION=args.stochastic_iteration, TOTAL_PCK=args.package_size)
     e.evaluation()
 
-    # todo: rewrite evaluation
+    # todo: rewrite evaluation for irregular

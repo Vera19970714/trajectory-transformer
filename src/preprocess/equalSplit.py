@@ -91,7 +91,7 @@ class EqualSplit(object):
 
         combined_task_ids = train_task_ids + valid_task_ids + test_task_ids
 
-        file_path = './dataset/processdata/splitlist_equal.txt'
+        file_path = './dataset/processdata/splitlist_all_time_better.txt'
 
         with open(file_path, 'w') as file:
             for task_id in combined_task_ids:
