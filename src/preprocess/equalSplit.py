@@ -8,7 +8,8 @@ import pandas as pd
 
 class EqualSplit(object):
     def __init__(self):
-        datapath = './dataset/processdata/dataset_Q123_mousedel_time_raw'
+        datapath = './dataset/processdata/dataset_Q123_mousedel_no_raw'
+        self.savepath = './dataset/processdata/splitlist_all_no_better.txt'
         with open(datapath, "rb") as fp: 
             raw_data = pickle.load(fp)
 
@@ -46,29 +47,8 @@ class EqualSplit(object):
         assert search_len + refix_len + revisit_len == len(gaze_element)
         return int(target == gaze_element[-1]),len(gaze_element), search_len / len(gaze_element), refix_len / len(gaze_element), revisit_len / len(gaze_element)
 
-    
-    def equalSplit(self):
-        dataset = []
-        number_list = list(range(0, self.data_length))
-        names = ['id','sub_id', 'layout_id', 'correct', 'length','search','refix','revisit']
-        for i in range(self.data_length):
-            res = {name: {} for name in names}
-            res['id'] = number_list[i]
-            res['sub_id'] = self.sub_id[i]
-            res['layout_id'] = self.layout_id[i]
-            res['correct'], res['length'], res['search'], res['refix'],res['revisit'] = self.behavior_utils(self.target[i], self.package_seq[i])
-            dataset.append(res)
-
-        df = pd.DataFrame(dataset)
-        # for group_name, group_data in grouped_data:
-        #     plt.hist(group_data['length'], bins=10, alpha=0.5)
-        #     plt.xlabel('Length')
-        #     plt.ylabel('Frequency')
-        #     plt.title(f'Histogram of Length for Layout ID: {group_name}')
-        #     plt.savefig('./Image/' + f'histogram_{group_name}.png')
-        #     plt.clf()  # Clear the current figure for the next iteration
-
-        grouped_data = df.groupby('layout_id')
+    def group_data(self, df, groupCriteria,random_seed):
+        grouped_data = df.groupby(groupCriteria)
         subject_ids = []
         subject_data = []
         for group_name, group_data in grouped_data:
@@ -76,14 +56,24 @@ class EqualSplit(object):
             subject_data.append(group_data)
 
         train_subjects, remaining_subjects, train_data, remaining_data = train_test_split(
-            subject_ids, subject_data, train_size=0.8, random_state=44)
+            subject_ids, subject_data, train_size=0.8, random_state=random_seed)
         
         valid_subjects, test_subjects, valid_data, test_data = train_test_split(
-            remaining_subjects, remaining_data, test_size=0.5, random_state=44)
+            remaining_subjects, remaining_data, test_size=0.5, random_state=random_seed)
 
         train_data = pd.concat(train_data)
         valid_data = pd.concat(valid_data)
         test_data = pd.concat(test_data)
+
+        # for i in range(len(names)-4):
+        #     print('Training set distribution:')
+        #     print(train_data[names[i+4]].describe())
+
+        #     print('Validation set length distribution:')
+        #     print(valid_data[names[i+4]].describe())
+
+        #     print('Test set length distribution:')
+        #     print(test_data[names[i+4]].describe())
 
         train_task_ids = train_data['id'].tolist()
         valid_task_ids = valid_data['id'].tolist()
@@ -91,23 +81,52 @@ class EqualSplit(object):
 
         combined_task_ids = train_task_ids + valid_task_ids + test_task_ids
 
-        file_path = './dataset/processdata/splitlist_all_time_better.txt'
+        return combined_task_ids
+       
+    def equalSplit(self):
+        dataset_wine = []
+        dataset_shampoo = []
+        dataset_yogurt = []
+        number_list = list(range(0, self.data_length))
+        names = ['id','sub_id', 'task_id', 'layout_id', 'correct', 'length','search','refix','revisit']
+        for i in range(self.data_length):
+            res = {name: {} for name in names}
+            res['id'] = number_list[i]
+            res['sub_id'] = self.sub_id[i]
+            res['task_id'] = self.id[i]
+            res['layout_id'] = self.layout_id[i]
+            res['correct'], res['length'], res['search'], res['refix'],res['revisit'] = self.behavior_utils(self.target[i], self.package_seq[i])
+            if res['task_id'] == 'Q1':
+                dataset_wine.append(res)
+            if res['task_id'] == 'Q2':
+                dataset_shampoo.append(res)
+            if res['task_id'] == 'Q3':
+                dataset_yogurt.append(res)
+            
 
-        with open(file_path, 'w') as file:
-            for task_id in combined_task_ids:
+        df_wine = pd.DataFrame(dataset_wine)
+        df_shampoo = pd.DataFrame(dataset_shampoo)
+        df_yogurt = pd.DataFrame(dataset_yogurt)
+        # for group_name, group_data in grouped_data:
+        #     plt.hist(group_data['length'], bins=10, alpha=0.5)
+        #     plt.xlabel('Length')
+        #     plt.ylabel('Frequency')
+        #     plt.title(f'Histogram of Length for Layout ID: {group_name}')
+        #     plt.savefig('./Image/' + f'histogram_{group_name}.png')
+        #     plt.clf()  # Clear the current figure for the next iteration
+        combined_task_ids_wine = self.group_data(df_wine, 'layout_id', 44)
+        combined_task_ids_shampoo = self.group_data(df_shampoo, 'layout_id', 44)
+        combined_task_ids_yogurt = self.group_data(df_yogurt, 'layout_id', 44)
+
+        combined_task_ids_all = combined_task_ids_wine + combined_task_ids_shampoo + combined_task_ids_yogurt
+
+        with open(self.savepath, 'w') as file:
+            for task_id in combined_task_ids_all:
                 file.write(str(task_id) + '\n')
 
-        print('Task IDs saved to', file_path)
+        print('Task IDs saved to', self.savepath)
         
-        # for i in range(len(names)-3):
-        #     print('Training set distribution:')
-        #     print(train_data[names[i+3]].describe())
-
-        #     print('Validation set length distribution:')
-        #     print(valid_data[names[i+3]].describe())
-
-        #     print('Test set length distribution:')
-        #     print(test_data[names[i+3]].describe())
+        
 
             
 if __name__ == '__main__':
