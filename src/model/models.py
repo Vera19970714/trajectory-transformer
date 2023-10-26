@@ -132,21 +132,40 @@ class CNNEmbedding(nn.Module):
         # remove
         #self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
         self.fc = nn.Linear(672, outputSize) # yogurt: 1440, unresized wine: 768, spp: 2720
-        self.sppLayer = SPPLayer(num_levels=3)
+        # l2: 160, l3: 672, l4: 2720
+        self.sppLayer = SPPLayer(num_levels=3) #
         #nn.init.kaiming_normal_(self.fc.weight, mode='fan_in',
         #                        nonlinearity='leaky_relu')
 
-    def forward(self, tokens: Tensor):
-        # 4, 28, 150, 93, 3
-        b, l = tokens.size()[0], tokens.size()[1]
-        w, h = tokens.size()[2], tokens.size()[3]
-        input = tokens.contiguous().view(-1, w, h, 3).permute(0, 3, 1, 2)
-        output = self.cnn1(input) # b, 16, 29, 17
-        output = self.cnn2(output) # 112, 32, 9, 5
-        output = self.sppLayer(output)
-        #output = torch.flatten(output, start_dim=1, end_dim=-1)
-        output = self.fc(output)
-        return output.view(b, l, -1)
+    def forward(self, x: Tensor, patch_in_batch):
+        if patch_in_batch:
+            # 4, 28, 150, 93, 3
+            b, l = x.size()[0], x.size()[1]
+            w, h = x.size()[2], x.size()[3]
+            input = x.contiguous().view(-1, w, h, 3).permute(0, 3, 1, 2)
+            output = self.cnn1(input) # b, 16, 29, 17
+            output = self.cnn2(output) # 112, 32, 9, 5
+            outputs = self.sppLayer(output)
+            #output = torch.flatten(output, start_dim=1, end_dim=-1)
+            outputs = self.fc(outputs)
+            return outputs.view(b, l, -1)
+        else:
+            b, l = len(x), x[0].size()[0]
+            # w, h = x[0].size()[1], x[0].size()[2]
+            outputs = []
+            for i in range(b):
+                #print(i)
+                tokens = x[i]
+                input = tokens.permute(0, 3, 1, 2)
+                output = self.cnn1(input)  # b, 3, 96, 128 to b, 16, 18, 24
+                output = self.cnn2(output)
+                output = self.sppLayer(output)
+                outputs.append(output)
+            outputs = torch.stack(outputs)
+            outputs = self.fc(outputs)
+            return outputs.view(b, l, -1).transpose(0, 1)
+
+
 
 
 # Seq2Seq Network
@@ -227,8 +246,9 @@ class Seq2SeqTransformer(nn.Module):
                 tgt_mask: Tensor,
                 src_padding_mask: Tensor,
                 tgt_padding_mask: Tensor,
-                memory_key_padding_mask: Tensor):
-        src_cnn_emb = self.cnn_embedding(src_img).transpose(0, 1) #28, 4, 256
+                memory_key_padding_mask: Tensor,
+                patch_in_batch=True):
+        src_cnn_emb = self.cnn_embedding(src_img, patch_in_batch).transpose(0, 1) #28, 4, 256
         #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
         #src_pos_emb = self.LinearEmbedding(src)
 
@@ -246,7 +266,7 @@ class Seq2SeqTransformer(nn.Module):
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well
 
-        tgt_cnn_emb = self.cnn_embedding(tgt_img).transpose(0, 1)  # 28, 4, 256
+        tgt_cnn_emb = self.cnn_embedding(tgt_img, patch_in_batch).transpose(0, 1)  # 28, 4, 256
         #tgt_pos_emb = self.tgt_tok_emb(trg)  # 28, 4, 256
 
         #tgt_pos_emb = self.LinearEmbedding(trg)
@@ -295,7 +315,6 @@ class Cross_Attention(nn.Module):
         out = torch.cat((out, placeholder), dim=-1) / (self.d_k ** 0.5)
         return out.unsqueeze(-1)
 
-
 def generate_square_subsequent_mask(sz):
     mask = (torch.triu(torch.ones((sz, sz), device=DEVICE)) == 1).transpose(0, 1)
     mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
@@ -312,5 +331,8 @@ def create_mask(src, tgt, PAD_IDX):
     src_padding_mask = (src == PAD_IDX).transpose(0, 1)
     tgt_padding_mask = (tgt == PAD_IDX).transpose(0, 1)
     return src_mask, tgt_mask, src_padding_mask, tgt_padding_mask
+
+
+
 
 

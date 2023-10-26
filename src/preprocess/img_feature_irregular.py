@@ -14,18 +14,25 @@ data_dir = './dataset/gaze/irregular.xlsx'
 
 class CUT_PIC_Iregular(object):
     def __init__(self, productshot_choice, file_name):
-            self.productshot = productshot_choice  # yes, no, all
-            self.file_name = file_name
+        self.productshot_choice = productshot_choice  # yes, no, all
+        self.file_name = file_name
 
     def read_excel(self, file_name):
-            xls = pd.ExcelFile(file_name)
-            self.df = pd.read_excel(xls)
+        xls = pd.ExcelFile(file_name)
+        self.df = pd.read_excel(xls)
 
     def crop_img(self, img, y_top, y_bottom, x_left, x_right, dim):
         crop_img = img[y_top:y_bottom, x_left:x_right]
+        dim = (int((x_right-x_left)/2), int((y_bottom-y_top)/2))
         crop_img = cv.resize(crop_img, dim)
+        coord = np.array([(y_top+(y_bottom-y_top)/2)/140, (x_left+(x_right-x_left)/2)/155])
+        self.mapping.append(coord-1)
+        #self.count += 1
+        print('size: ', crop_img.shape, 'center: ', coord)
         crop_img = cv.normalize(crop_img, None, alpha=0, beta=1, norm_type=cv.NORM_MINMAX, dtype=cv.CV_32F)
-        return crop_img
+        self.x += dim[0]
+        self.y += dim[1]
+        return (crop_img, coord)
     
     def cut_pic_irregular(self):
         dataset = []
@@ -38,6 +45,10 @@ class CUT_PIC_Iregular(object):
         package_num = 43
         dim = (84, 224)
         Question_img_feature = []
+        self.x = 0
+        self.y = 0
+        #self.count = 0
+        self.mapping = []
         
         for i in range(1,package_num+1):
             if i==1:
@@ -127,6 +138,8 @@ class CUT_PIC_Iregular(object):
             elif i==43:
                 img_cropped_feature = self.crop_img(question_img, 800, 1024, 1080, 1185, dim)
             Question_img_feature.append(img_cropped_feature)
+
+        print('avg dim: ', self.x/43, self.y/43)
         for key in tqdm(word_dict_sorted):
             dataset_dict = {}
             df1 = df_data[df_data["ID"]==int(key)]
@@ -157,6 +170,10 @@ class CUT_PIC_Iregular(object):
         with open(self.file_name, "wb") as fp:  
             pickle.dump(dataset, fp)
 
+        print(self.mapping)
+        self.mapping.append(np.array([2, 5]))
+        with open("./dataset/processdata/mapping", "wb") as fp:
+            pickle.dump(self.mapping, fp)
         print("Finish...")
 
 

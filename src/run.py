@@ -6,8 +6,10 @@ from pytorch_lightning.utilities.seed import seed_everything
 from pytorch_lightning import loggers as pl_loggers
 from dataBuilders.data_builder import SearchDataModule
 from dataBuilders.data_builder_base import BaseSearchDataModule
+from dataBuilders.data_builder_irregular import IrregularShelfModule
 from model.transformerLightning import TransformerModel
 from model.transformerLightning_mixed import TransformerModel_Mixed
+from model.transformerLightning_mixed_irregular import TransformerModel_Mixed_Irregular
 from benchmark.base_lightning import BaseModel
 import numpy as np
 import os
@@ -23,12 +25,15 @@ if __name__ == '__main__':
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-index_file', default='splitlist_all_time.txt', type=str)
 
-    parser.add_argument('-testing_dataset_choice', default='all', type=str)  # wine, yogurt, all
+    parser.add_argument('-testing_dataset_choice', default='irregular', type=str)  # wine, yogurt, all, irregular
     parser.add_argument('-training_dataset_choice', default='all', type=str)  # wine, yogurt, all
     parser.add_argument('-layout_choice', default=0, type=int)
     parser.add_argument('-target_choice', default=0, type=int)
+    #parser.add_argument('-spp', default=0, type=int) # 0: no spp, 2, 3, 4 represent level
+    # todo: add spplayer and level switch
+    # todo: max length in no time pressure, and irregular, make it automatical
 
-    parser.add_argument('-checkpoint', default='None', type=str)
+    parser.add_argument('-checkpoint', default='./lightning_logs/irregular/lightning_logs/version_0/checkpoints/epoch=0-step=1.ckpt', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
     parser.add_argument('-alpha', type=float, default=0.9)
     parser.add_argument('-functionChoice', default='exp1', type=str) # choices: linear, exp1, exp2, original
@@ -38,7 +43,7 @@ if __name__ == '__main__':
     parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads
     parser.add_argument('-CA_dk', default=512, type=int) # 512, 64, scaling factor in attention matrix
 
-    parser.add_argument('-log_name', default='mixed_raw_spp', type=str)
+    parser.add_argument('-log_name', default='irregular', type=str)
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
     parser.add_argument('-write_output', type=str, default='True')
@@ -54,14 +59,14 @@ if __name__ == '__main__':
     parser.add_argument('-val_check_interval', default=1.0, type=float)
 
     # training settings
-    parser.add_argument('-gpus', default='-1', type=str)
+    parser.add_argument('-gpus', default='0', type=str)
     parser.add_argument('-batch_size', type=int, default=20)
     parser.add_argument('-num_epochs', type=int, default=500)
     parser.add_argument('-random_seed', type=int, default=888)
     parser.add_argument('-early_stop_patience', type=int, default=30)
 
     parser.add_argument('-monitor', type=str, default='validation_metric_each_epoch') #'validation_loss_each_epoch'
-    parser.add_argument('-do_train', type=str, default='True')
+    parser.add_argument('-do_train', type=str, default='False')
     parser.add_argument('-do_test', type=str, default='True')
 
     args = parser.parse_args()
@@ -113,9 +118,13 @@ if __name__ == '__main__':
     if args.model == 'Transformer':
         if args.training_dataset_choice == args.testing_dataset_choice and args.training_dataset_choice != "all":
             model = TransformerModel(args)
+        elif args.testing_dataset_choice == 'irregular':
+            model = TransformerModel_Mixed_Irregular(args)
         else:
             model = TransformerModel_Mixed(args)
         search_data = SearchDataModule(args)
+        if args.testing_dataset_choice == 'irregular':
+            irregular_data = IrregularShelfModule(args)
     if args.model == 'BaseModel':
         model = BaseModel(args)
         search_data = BaseSearchDataModule(args)
@@ -145,11 +154,14 @@ if __name__ == '__main__':
         trainer.test(model=model, dataloaders=search_data.test_loader)
     elif args.do_test == 'True':
         model = model.load_from_checkpoint(args.checkpoint, args=args)
-        trainer.test(model=model, dataloaders=search_data.test_loader)
+        if args.testing_dataset_choice == 'irregular':
+            trainer.test(model=model, dataloaders=irregular_data.test_loader)
+        else:
+            trainer.test(model=model, dataloaders=search_data.test_loader)
 
     e = Evaluation(args.training_dataset_choice, args.testing_dataset_choice, args.output_path,
                    args.data_path, args.index_folder+args.index_file,
                    ITERATION=args.stochastic_iteration, TOTAL_PCK=args.package_size)
     e.evaluation()
 
-
+    # todo: rewrite evaluation

@@ -136,7 +136,7 @@ class FixDataset(Dataset):
         testing_dataset_choice = args.testing_dataset_choice
         training_dataset_choice = args.training_dataset_choice
 
-        assert testing_dataset_choice in ["wine", "yogurt", "all"]
+        assert testing_dataset_choice in ["wine", "yogurt", "all", "irregular"]
         assert training_dataset_choice in ["wine", "yogurt", "all"]
         print('Settings: ', isTrain, training_dataset_choice, testing_dataset_choice)
 
@@ -155,16 +155,16 @@ class FixDataset(Dataset):
         self.package_sequence = []
         self.args = args
         self.ids = []
-
-        #i=0
+        # todo: change it back!!
+        i=0
         for item in raw_data:
             self.package_target.append(item['package_target'])
             self.question_img_feature.append(item['question_img_feature'])
             self.package_sequence.append(item['package_seq'])
             self.ids.append(item['id'])
-            '''i+=1
+            i+=1
             if i > 10:
-                break'''
+                break
 
         self.data_total_length = len(self.question_img_feature)
         
