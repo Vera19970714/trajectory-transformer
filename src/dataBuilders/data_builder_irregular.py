@@ -18,22 +18,25 @@ class IrregularDataset(Dataset):
         self.question_img_feature = []
         self.package_sequence = []
         self.ids = []
+        self.max_len = 0
 
-        # i=0
+        #i=0
+        #print('delete this!!')
         for item in raw_data:
             if item == {}:
                 continue
             self.package_target.append(item['package_target'])
             self.question_img_feature.append(item['question_img_feature'])
             self.package_sequence.append(item['package_seq'])
+            if len(item['package_seq']) > self.max_len:
+                self.max_len = len(item['package_seq'])
             #self.ids.append(item['id'])
             '''i+=1
-            if i > 10:
+            if i > 2:
                 break'''
 
         self.data_total_length = len(self.question_img_feature)
-
-        print(F'final len = {self.data_total_length}')
+        print(F'total_len = {self.data_total_length}, ', 'max len=', self.max_len)
         # self.drawTrajectoryDis()
 
     # support indexing such that dataset[i] can be used to get i-th sample
@@ -53,7 +56,7 @@ class IrregularShelfModule(pl.LightningDataModule):
         super().__init__()
         dataset = IrregularDataset('./dataset/processdata/dataset_irregular_yes')
         collate_fn = Collator_pure(43)
-
+        self.max_len = dataset.max_len
         self.test_loader = DataLoader(dataset=dataset,
                                       batch_size=1,
                                       num_workers=2,

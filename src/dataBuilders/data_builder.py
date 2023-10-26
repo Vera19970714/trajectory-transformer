@@ -158,6 +158,7 @@ class FixDataset(Dataset):
         self.max_len = 0
 
         #i=0
+        #print('change it back')
         for item in raw_data:
             self.package_target.append(item['package_target'])
             self.question_img_feature.append(item['question_img_feature'])
@@ -165,9 +166,9 @@ class FixDataset(Dataset):
             self.ids.append(item['id'])
             if len(item['package_seq']) > self.max_len:
                 self.max_len = len(item['package_seq'])
-            #i+=1
-            #if i > 10:
-            #    break
+            '''i+=1
+            if i > 10:
+                break'''
 
         self.data_total_length = len(self.question_img_feature)
         print(F'total_len = {self.data_total_length}, ', 'max len=', self.max_len)

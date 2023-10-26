@@ -21,18 +21,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q123_mousedel_time_raw', type=str)
+    parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q123_mousedel_time', type=str)
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
-    parser.add_argument('-index_file', default='splitlist_all_time.txt', type=str)
+    parser.add_argument('-index_file', default='splitlist_all_time_better.txt', type=str) # all_time_better
 
-    parser.add_argument('-testing_dataset_choice', default='irregular', type=str)  # wine, yogurt, all, irregular
+    parser.add_argument('-testing_dataset_choice', default='all', type=str)  # wine, yogurt, all, irregular
     parser.add_argument('-training_dataset_choice', default='all', type=str)  # wine, yogurt, all
     parser.add_argument('-layout_choice', default=0, type=int)
     parser.add_argument('-target_choice', default=0, type=int)
     parser.add_argument('-spp', default=0, type=int) # 0: no spp, 2, 3, 4 represent level
-    # todo: test spp and auto max lenv and evaluation for irregular
+    # todo: check target accuracy for irregular
 
-    parser.add_argument('-checkpoint', default='./lightning_logs/irregular/lightning_logs/version_0/checkpoints/epoch=0-step=1.ckpt', type=str)
+    parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
     parser.add_argument('-alpha', type=float, default=0.9)
     parser.add_argument('-functionChoice', default='exp1', type=str) # choices: linear, exp1, exp2, original
@@ -58,14 +58,14 @@ if __name__ == '__main__':
     parser.add_argument('-val_check_interval', default=1.0, type=float)
 
     # training settings
-    parser.add_argument('-gpus', default='0', type=str)
+    parser.add_argument('-gpus', default='-1', type=str)
     parser.add_argument('-batch_size', type=int, default=20)
     parser.add_argument('-num_epochs', type=int, default=500)
     parser.add_argument('-random_seed', type=int, default=888)
     parser.add_argument('-early_stop_patience', type=int, default=30)
 
     parser.add_argument('-monitor', type=str, default='validation_metric_each_epoch') #'validation_loss_each_epoch'
-    parser.add_argument('-do_train', type=str, default='False')
+    parser.add_argument('-do_train', type=str, default='True')
     parser.add_argument('-do_test', type=str, default='True')
 
     args = parser.parse_args()
@@ -153,10 +153,11 @@ if __name__ == '__main__':
         trainer.fit(model, search_data.train_loader, search_data.val_loader)
         trainer.test(model=model, dataloaders=search_data.test_loader)
     elif args.do_test == 'True':
-        model = model.load_from_checkpoint(args.checkpoint, args=args)
         if args.testing_dataset_choice == 'irregular':
+            model = model.load_from_checkpoint(args.checkpoint, args=args, max_len=search_data.max_len, irregular_max_len=irregular_data.max_len)
             trainer.test(model=model, dataloaders=irregular_data.test_loader)
         else:
+            model = model.load_from_checkpoint(args.checkpoint, args=args, max_len=search_data.max_len)
             trainer.test(model=model, dataloaders=search_data.test_loader)
 
     e = Evaluation(args.training_dataset_choice, args.testing_dataset_choice, args.output_path,

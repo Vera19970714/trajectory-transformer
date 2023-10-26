@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import sys
 sys.path.append('./src/')
-from evaluation.evaluation import behavior
+from evaluation.evaluation_model import behavior
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

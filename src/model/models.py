@@ -155,7 +155,7 @@ class CNNEmbedding(nn.Module):
             output = self.cnn1(input) # b, 16, 29, 17
             output = self.cnn2(output) # 112, 32, 9, 5
             if self.spp == 0:
-                output = torch.flatten(output, start_dim=1, end_dim=-1)
+                outputs = torch.flatten(output, start_dim=1, end_dim=-1)
             else:
                 outputs = self.sppLayer(output)
             outputs = self.fc(outputs)
