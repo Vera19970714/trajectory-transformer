@@ -30,7 +30,7 @@ if __name__ == '__main__':
     parser.add_argument('-layout_choice', default=0, type=int)
     parser.add_argument('-target_choice', default=0, type=int)
     parser.add_argument('-spp', default=0, type=int) # 0: no spp, 2, 3, 4 represent level
-    # todo: max length in no time pressure, and irregular, make it automatical
+    # todo: test spp and auto max lenv and evaluation for irregular
 
     parser.add_argument('-checkpoint', default='./lightning_logs/irregular/lightning_logs/version_0/checkpoints/epoch=0-step=1.ckpt', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
@@ -161,7 +161,6 @@ if __name__ == '__main__':
 
     e = Evaluation(args.training_dataset_choice, args.testing_dataset_choice, args.output_path,
                    args.data_path, args.index_folder+args.index_file,
-                   ITERATION=args.stochastic_iteration, TOTAL_PCK=args.package_size)
+                   ITERATION=args.stochastic_iteration)
     e.evaluation()
 
-    # todo: rewrite evaluation for irregular

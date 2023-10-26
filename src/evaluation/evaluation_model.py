@@ -44,11 +44,9 @@ def behavior(result_array, target, gaze):
 
 class Evaluation(object):
     def __init__(self, training_dataset_choice, testing_dataset_choice, evaluation_url,
-                 datapath, indexFile,
-                 ITERATION=100, TOTAL_PCK=27):
+                 datapath, indexFile, ITERATION=100):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
         self.ITERATION = ITERATION
-        self.TOTAL_PCK = TOTAL_PCK
         index_folder = './dataset/processdata/'
         gaze_gt = evaluation_url+'/gaze_gt.csv'
         gaze_max = evaluation_url+'/gaze_max.csv'
@@ -56,9 +54,11 @@ class Evaluation(object):
 
         #datapath = './dataset/processdata/dataset_Q123_mousedel_time'
         #indexFile = './dataset/processdata/splitlist_all_time.txt'
-
-        raw_data = randsplit(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice)
-
+        if testing_dataset_choice == 'irregular':
+            with open(datapath, "rb") as fp:
+                raw_data = pickle.load(fp)
+        else:
+            raw_data = randsplit(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice)
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
@@ -92,8 +92,6 @@ class Evaluation(object):
         print('*'*20)
         print('correct Target \t avg.len \t avg.search \t avg.refix \t avg.revisit \t overlap \t delta')
         models = ['gt', 'single', 'multi']
-        if self.showBenchmark:
-            models.extend(['random', 'resnet', 'rgb', 'saliency'])
         for i in models:
             res[i][6] = torch.sum(torch.abs(res[i][:5] - res['gt'][:5]) / res['gt'][:5]) / 5
             print(i, ': ', res[i])
@@ -102,7 +100,6 @@ class Evaluation(object):
 
 if __name__ == '__main__':
     ITERATION = 100
-    TOTAL_PCK = 22
     '''cross_dataset = 'Pure'  # DONOT USE choices: None, Pure, Mixed, Cross, Combine
     isSplitValid = 'True'
     testing_dataset_choice = 'wine'  # choices: yogurt, shampoo, combine'''
@@ -111,5 +108,5 @@ if __name__ == '__main__':
 
     evaluation_url = './dataset/checkEvaluation/wine'
 
-    e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url, ITERATION, TOTAL_PCK)
+    e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url, ITERATION)
     e.evaluation()
