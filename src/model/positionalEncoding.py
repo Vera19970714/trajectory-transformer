@@ -271,7 +271,12 @@ class PositionalEncoding2DUpdated(nn.Module):
         channels = int(np.ceil(channels / 4) * 2)
         self.channels = channels
         inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
-        #inv_freq = (torch.arange(0, channels, 2).float())**(0.8) / channels
+
+        '''inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels)) # original
+        inv_freq = (torch.arange(0, channels, 2).float()) ** alpha / channels # exp1
+        inv_freq = (torch.arange(0, channels, 2).float() / channels) ** alpha # exp2
+        inv_freq = (torch.arange(0, channels, 2).float()) * alpha / channels # linear'''
+
         self.register_buffer("inv_freq", inv_freq)
         self.register_buffer("cached_penc", None)
         self.changeX = changeX
@@ -431,7 +436,7 @@ def draw1Dheatmap():
     plt.show()
 
 
-def runDifferentDecoderPE():
+'''def runDifferentDecoderPE():
     # run decoder 1) p1=img concat 3D, 2) p1=img add 3D, 3) p1=(img add 3D)*projection 4) p1=img 5) p1=3D
 
     lw = torch.from_numpy(np.load('dataset/PE/linearWeight.npy'))  # 256,256
@@ -446,7 +451,7 @@ def runDifferentDecoderPE():
     p1 = torch.matmul(p1, lw)
     p2 = onedpositional_encoding(p1)
 
-    computeDotProductDistribution(p1.squeeze(1), p2.squeeze(1))
+    computeDotProductDistribution(p1.squeeze(1), p2.squeeze(1))'''
 
 if __name__ == '__main__':
     '''G = 3
@@ -455,6 +460,8 @@ if __name__ == '__main__':
     enc = LearnableFourierPositionalEncoding(G, M, 768, 32, 768, 10)
     pex = enc(x)
     print(pex.shape)'''
-    draw1Dheatmap()
+
+    #draw1Dheatmap()
+    #draw2Dheatmap()
 
 
