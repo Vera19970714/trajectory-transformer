@@ -10,6 +10,7 @@ from scipy.special import softmax
 import sys
 sys.path.append('./src/')
 from dataBuilders.data_builder import *
+from evaluation.evaluation_full import Evaluation
 from tqdm import tqdm
 import matplotlib.image
 import pySaliencyMap
@@ -19,14 +20,13 @@ import matplotlib.pyplot as plt
 import random
 
 
-
 class Benchmark(object):
-    def __init__(self, training_dataset_choice, testing_dataset_choice, minLen=1,
+    def __init__(self, training_dataset_choice, testing_dataset_choice, saveFolder, datapath, indexFile, dispath,minLen=1,
                  ITERATION=100):
-        datapath = './dataset/processdata/dataset_Q123_mousedel_time'
-        indexFile = './dataset/processdata/splitlist_all.txt'
-        self.saveFolder = './dataset/checkEvaluation/'
-        self.file_name = './dataset/processdata/benchmark_dis_time'
+        # datapath = './dataset/processdata/dataset_Q123_mousedel_time'
+        # indexFile = './dataset/processdata/splitlist_all_time.txt'
+        self.saveFolder = saveFolder
+        self.saveFile = dispath
         self.training_dataset_choice = training_dataset_choice
         self.testing_dataset_choice = testing_dataset_choice
         self.ITERATION = ITERATION
@@ -91,25 +91,26 @@ class Benchmark(object):
         each_length_wine_test = []
         each_length_yogurt_train= []
         each_length_yogurt_test = []
+        whole_length = []
         for i in tqdm(range(self.data_length_train)):
             if self.training_dataset_choice == 'pure':
                 if self.testing_dataset_choice == 'wine':
                     each_length_wine_train.append(len(self.package_seq_train[i]))
                 elif self.testing_dataset_choice == 'yogurt':
                     each_length_yogurt_train.append(len(self.package_seq_train[i]))
-            elif self.training_dataset_choice == 'mixed':      
+            elif self.training_dataset_choice == 'all':      
                 if self.id_train[i] == 'Q1':
                     each_length_wine_train.append(len(self.package_seq_train[i]))
                 elif self.id_train[i] == 'Q3':
                     each_length_yogurt_train.append(len(self.package_seq_train[i]))
-
+            # whole_length.append(len(self.package_seq_train[i])
         for i in tqdm(range(self.data_length)):
             if self.training_dataset_choice == 'pure':
                 if self.testing_dataset_choice == 'wine':
                     each_length_wine_test.append(len(self.package_seq[i]))
                 elif self.testing_dataset_choice == 'yogurt':
                     each_length_yogurt_test.append(len(self.package_seq[i]))
-            elif self.training_dataset_choice == 'mixed':      
+            elif self.training_dataset_choice == 'all':      
                 if self.id[i] == 'Q1':
                     each_length_wine_test.append(len(self.package_seq[i]))
                 elif self.id[i] == 'Q3':
@@ -160,7 +161,7 @@ class Benchmark(object):
                 elif self.testing_dataset_choice == 'yogurt':
                     each_length.append(len(self.package_seq_train[i]))
                     fixation_yogurt[self.package_seq_train[i]] += 1
-            elif self.training_dataset_choice == 'mixed':
+            elif self.training_dataset_choice == 'all':
                 each_length.append(len(self.package_seq_train[i]))
                 if self.id_train[i] == 'Q1':
                     # print(self.package_seq[i])
@@ -212,7 +213,7 @@ class Benchmark(object):
         feature_dis = feature_dis / np.sum(feature_dis)
         feature_dis = np.array(feature_dis).reshape(-1)
         gaze = []
-        x = randint(0, 100)
+        x = randint(0, 101)
         while x >= endPro or len(gaze) < self.minLen:
             ind = np.random.choice(TOTAL_PCK,1,p=feature_dis)
             gaze.append(ind)
@@ -244,7 +245,7 @@ class Benchmark(object):
     def benchmark(self):
         random_gaze, center_gaze, saliency_gaze, rgb_gaze= pd.DataFrame(), pd.DataFrame(), pd.DataFrame(),pd.DataFrame()
         avg_length, fixation_wine, fixation_yogurt = self.hyper_cal(bandwidth = 0.0217)
-        end_prob = 1 / (avg_length) * 100
+        end_prob = 1 / (avg_length+1) * 100
         fixation_wine = fixation_wine.reshape(-1)
         fixation_yogurt = fixation_yogurt.reshape(-1)
         fixation_wine = fixation_wine / np.sum(fixation_wine)
@@ -263,7 +264,7 @@ class Benchmark(object):
                     rowNum = 3
                     columNum = 9
                     center_dis = fixation_yogurt
-            elif self.training_dataset_choice == 'mixed':
+            elif self.training_dataset_choice == 'all':
                 if self.id[i] == 'Q1':
                     TOTAL_PCK = 22
                     rowNum = 2
@@ -306,8 +307,14 @@ class Benchmark(object):
         
 
 if __name__ == '__main__':
-    training_dataset_choice = 'mixed'
-    testing_dataset_choice = 'wine'
-
-    b = Benchmark(training_dataset_choice, testing_dataset_choice)
+    training_dataset_choice = 'all'
+    testing_dataset_choice = 'all'
+    saveFolder = './dataset/checkEvaluation/'
+    logFile = 'mixed_pe_exp1_alpha9'
+    datapath = './dataset/processdata/dataset_Q123_mousedel_time'
+    indexFile = './dataset/processdata/splitlist_all_time.txt'
+    dispath = './dataset/processdata/benchmark_dis_time'
+    b = Benchmark(training_dataset_choice, testing_dataset_choice, saveFolder, datapath, indexFile, dispath)
     b.benchmark()
+    e = Evaluation(training_dataset_choice, testing_dataset_choice, saveFolder+logFile, datapath, indexFile, dispath)
+    e.evaluation()
