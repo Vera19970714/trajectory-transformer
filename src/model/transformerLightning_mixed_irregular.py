@@ -146,11 +146,11 @@ class TransformerModel_Mixed_Irregular(pl.LightningModule):
         if len(data1)==0:
             loss, GAZE = self.valid_one_dataset(data2, 1)
             gt = data2[2][1:,:][:-1]
-            target = data2[0][0]
+            target = data2[0][-1]
         else:
             loss, GAZE = self.valid_one_dataset(data1, 0)
             gt = data1[2][1:,:][:-1]
-            target = data1[0][0]
+            target = data1[0][-1]
 
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss': loss, 'GAZE': GAZE,  'GAZE_gt': gt,  'target': target}

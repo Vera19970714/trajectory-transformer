@@ -127,7 +127,7 @@ class TransformerModel(pl.LightningModule):
         tgt_img = tgt_img.to(DEVICE)
         loss, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'loss': loss, 'GAZE': GAZE, 'GAZE_gt': tgt_pos[1:,:][:-1],'target':src_pos[0]}
+        return {'loss': loss, 'GAZE': GAZE, 'GAZE_gt': tgt_pos[1:,:][:-1],'target':src_pos[-1]}
 
     def validation_epoch_end(self, validation_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
