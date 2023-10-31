@@ -224,9 +224,15 @@ class Seq2SeqTransformer(nn.Module):
         elif posOption == 3:
             self.twodSin = getSinPositional(2, int(emb_size/2))
         elif posOption == 4:'''
-        self.threedSin = getSinPositional(3, int(emb_size/2), functionChoice,
-                 alpha, changeX=changeX)
-
+        self.threedSin_wine = getSinPositional(3, int(emb_size/2), functionChoice,
+                 alpha, 'wine', changeX=changeX)  # 1, 3, 9, 2, 256
+        self.threedSin_yogurt = getSinPositional(3, int(emb_size / 2), functionChoice,
+                 alpha, 'yogurt', changeX=changeX)
+        self.threedSin = getSinPositional(3, int(emb_size / 2), functionChoice, alpha, 'all', changeX=changeX)
+        if functionChoice == 'original_update':
+            # finetune original embedding
+            self.threedSin_wine = finetune_embedding(self.threedSin_wine, 'wine')
+            self.threedSin_yogurt = finetune_embedding(self.threedSin_yogurt, 'yogurt')
         #self.posOption = posOption
         #self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
         #self.positional_encoding_ori = PositionalEncodingOri(emb_size)
@@ -259,7 +265,14 @@ class Seq2SeqTransformer(nn.Module):
                 src_padding_mask: Tensor,
                 tgt_padding_mask: Tensor,
                 memory_key_padding_mask: Tensor,
+                dataset=None,
                 patch_in_batch=True):
+        if dataset is None:
+            threed_pe = self.threedSin
+        elif dataset == 0:
+            threed_pe = self.threedSin_yogurt
+        elif dataset == 1:
+            threed_pe = self.threedSin_wine
         src_cnn_emb = self.cnn_embedding(src_img, patch_in_batch).transpose(0, 1) #28, 4, 256
         #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
         #src_pos_emb = self.LinearEmbedding(src)
@@ -273,7 +286,7 @@ class Seq2SeqTransformer(nn.Module):
         elif self.posOption == 3:
             src_pos_emb = calculate2DPositional(self.twodSin, src).to(DEVICE)
         elif self.posOption == 4:'''
-        src_pos_emb = calculate3DPositional(self.threedSin, src).to(DEVICE)
+        src_pos_emb = calculate3DPositional(threed_pe, src).to(DEVICE)
 
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well

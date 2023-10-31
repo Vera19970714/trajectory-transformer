@@ -127,7 +127,7 @@ class PositionalEncoding3D(nn.Module):
         if channels % 2:
             channels += 1
         self.channels = channels
-        if functionChoice == 'original':
+        if functionChoice == 'original' or functionChoice == 'original_update':
             inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
         elif functionChoice == 'exp1':
             inv_freq = (torch.arange(0, channels, 2).float()) ** alpha / channels
@@ -186,13 +186,18 @@ def getFourierPositional(dimension, embed):
     enc = LearnableFourierPositionalEncoding(G, M, F, H, D, Gamma)
     return enc
 
-def getSinPositional(dimension, embed, functionChoice, alpha, changeX):
+def getSinPositional(dimension, embed, functionChoice, alpha, dataset, changeX):
     '''if dimension == 2:
         enc = PositionalEncoding2D(embed)
         x = enc(torch.randn(1, 3, 9, embed))'''
     if dimension == 3:
         enc = PositionalEncoding3D(embed, changeX, functionChoice, alpha)
-        x = enc(torch.randn(1, 20, 20, 2, embed))
+        if dataset == 'wine':
+            x = enc(torch.randn(1, 2, 11, 2, embed))
+        elif dataset == 'yogurt':
+            x = enc(torch.randn(1, 3, 9, 2, embed))
+        elif dataset == 'all':
+            x = enc(torch.randn(1, 5, 15, 2, embed))
         return x
 
 def calculate2DPositional(x, src):
@@ -216,6 +221,25 @@ def calculate3DPositional(x, src):
             res[i, j] = x[0, a[0], a[1], a[2]]
     return res
 
+
+def finetune_embedding(emb, dataset, order=15): # 1, 3, 9, 2, 256
+    if dataset == 'wine':
+        center = emb[0, 0, 5]
+    elif dataset == 'yogurt':
+        center = emb[0, 1, 4]
+
+    new_emb = torch.zeros((emb.size())).to(DEVICE)
+    for a in range(emb.size()[0]):
+        for b in range(emb.size()[1]):
+            for c in range(emb.size()[2]):
+                for d in range(emb.size()[3]):
+                    old_emb = emb[a, b, c, d]
+
+                    a = getCosSim(old_emb, center)
+                    target_sim = a ** order
+                    result = minimize(loss_function, emb, args=(emb, center, target_sim))
+                    new_emb[a, b, c, d] = result.x
+    return new_emb
 
 def getCosSim(a, b):
     cos_sim = dot(a, b) / (norm(a) * norm(b))

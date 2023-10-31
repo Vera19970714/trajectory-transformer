@@ -67,7 +67,7 @@ class TransformerModel_Mixed(pl.LightningModule):
 
         logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img,
-                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask, type)
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn[type](logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         return loss
@@ -182,7 +182,7 @@ class TransformerModel_Mixed(pl.LightningModule):
 
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
-                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask, type)
                 # the first token cannot be end token
                 logits = logits[:, :, :-2]  # discard padding prob
                 if getMaxProb:
@@ -209,7 +209,7 @@ class TransformerModel_Mixed(pl.LightningModule):
                 src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos, type)
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
-                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask, type)
                 logits = logits[:, :, :-1]  # discard padding prob
                 if getMaxProb:
                     _, predicted = torch.max(logits[-1, :, :], 1)
@@ -277,7 +277,7 @@ class TransformerModel_Mixed(pl.LightningModule):
 
         logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img_input,
-                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask, type)
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn[type](logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         _, predicted = torch.max(logits, 2)

@@ -35,7 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
     parser.add_argument('-alpha', type=float, default=0.9)
-    parser.add_argument('-functionChoice', default='exp1', type=str) # choices: linear, exp1, exp2, original
+    parser.add_argument('-functionChoice', default='original_update', type=str) # choices: linear, exp1, exp2, original, original_update
     parser.add_argument('-changeX', default='None', type=str) # None, False, True
     parser.add_argument('-CA_version', default=3, type=int)  # valid values atm: 0, 3
     # 0: no cross attention, 1: add padding to input, 2: extra FC stream, 3: add pad prob in logits
@@ -79,7 +79,7 @@ if __name__ == '__main__':
             args.package_size = 27
             args.shelf_row = 3
             args.shelf_col = 9
-    else:
+    else: # zero=yogurt, one=wine
         args.package_size = np.array([27, 22])
         args.shelf_row = np.array([3, 2])
         args.shelf_col = np.array([9, 11])
