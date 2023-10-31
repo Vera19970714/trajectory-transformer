@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # data path and output files
     parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q123_mousedel_time', type=str)
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
-    parser.add_argument('-index_file', default='splitlist_all_time_better.txt', type=str) # all_time_better
+    parser.add_argument('-index_file', default='splitlist_all_time.txt', type=str) # all_time_better
 
     parser.add_argument('-testing_dataset_choice', default='all', type=str)  # wine, yogurt, all, irregular
     parser.add_argument('-training_dataset_choice', default='all', type=str)  # wine, yogurt, all
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
     parser.add_argument('-alpha', type=float, default=0.9)
     parser.add_argument('-functionChoice', default='exp1', type=str) # choices: linear, exp1, exp2, original
-    parser.add_argument('-changeX', default='True', type=str) # None, False, True
+    parser.add_argument('-changeX', default='None', type=str) # None, False, True
     parser.add_argument('-CA_version', default=3, type=int)  # valid values atm: 0, 3
     # 0: no cross attention, 1: add padding to input, 2: extra FC stream, 3: add pad prob in logits
     parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads

@@ -6,6 +6,7 @@ from numpy import dot
 from numpy.linalg import norm
 import matplotlib.pyplot as plt
 from torch import Tensor
+from scipy.optimize import minimize
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class LearnableFourierPositionalEncoding(nn.Module):
@@ -115,24 +116,6 @@ class PositionalEncoding2D(nn.Module):
         return self.cached_penc
 
 
-class PositionalEncodingPermute2D(nn.Module):
-    def __init__(self, channels):
-        """
-        Accepts (batchsize, ch, x, y) instead of (batchsize, x, y, ch)
-        """
-        super(PositionalEncodingPermute2D, self).__init__()
-        self.penc = PositionalEncoding2D(channels)
-
-    def forward(self, tensor):
-        tensor = tensor.permute(0, 2, 3, 1)
-        enc = self.penc(tensor)
-        return enc.permute(0, 3, 1, 2)
-
-    @property
-    def org_channels(self):
-        return self.penc.org_channels
-
-
 class PositionalEncoding3D(nn.Module):
     def __init__(self, channels, changeX, functionChoice, alpha):
         """
@@ -194,24 +177,6 @@ class PositionalEncoding3D(nn.Module):
         return self.cached_penc
 
 
-class PositionalEncodingPermute3D(nn.Module):
-    def __init__(self, channels):
-        """
-        Accepts (batchsize, ch, x, y, z) instead of (batchsize, x, y, z, ch)
-        """
-        super(PositionalEncodingPermute3D, self).__init__()
-        self.penc = PositionalEncoding3D(channels)
-
-    def forward(self, tensor):
-        tensor = tensor.permute(0, 2, 3, 4, 1)
-        enc = self.penc(tensor)
-        return enc.permute(0, 4, 1, 2, 3)
-
-    @property
-    def org_channels(self):
-        return self.penc.org_channels
-
-
 def getFourierPositional(dimension, embed):
     G = 1
     M = dimension
@@ -222,13 +187,13 @@ def getFourierPositional(dimension, embed):
     return enc
 
 def getSinPositional(dimension, embed, functionChoice, alpha, changeX):
-    if dimension == 2:
+    '''if dimension == 2:
         enc = PositionalEncoding2D(embed)
-        x = enc(torch.randn(1, 3, 9, embed))
-    elif dimension == 3:
+        x = enc(torch.randn(1, 3, 9, embed))'''
+    if dimension == 3:
         enc = PositionalEncoding3D(embed, changeX, functionChoice, alpha)
-        x = enc(torch.randn(1, 3, 9, 2, embed))
-    return x
+        x = enc(torch.randn(1, 20, 20, 2, embed))
+        return x
 
 def calculate2DPositional(x, src):
     #x: 1, 3, 9, 256; src: 28, 1, 3
@@ -248,10 +213,7 @@ def calculate3DPositional(x, src):
     for i in range(src.size()[0]):
         for j in range(src.size()[1]):
             a = src[i, j].long()
-            try:
-                res[i, j] = x[0, a[0], a[1], a[2]]
-            except:
-                pass
+            res[i, j] = x[0, a[0], a[1], a[2]]
     return res
 
 
@@ -373,13 +335,18 @@ class PositionalEncoding(nn.Module):
         return self.dropout(token_embedding + self.pos_embedding[:token_embedding.size(0), :])
 
 
+def loss_function(new_a, a, b, target_sim):
+    new_sim = getCosSim(new_a, b)
+    return (new_sim ** 2 - target_sim) ** 2
+
+
 def draw2Dheatmap():
     import seaborn as sns
     import matplotlib.pylab as plt
 
     embed = 256
-    totali = 50
-    totalj = 50
+    totali = 12
+    totalj = 12
     enc = PositionalEncoding2DUpdated(embed, changeX=None)
     x = enc(torch.randn(1, totali, totalj, embed)).numpy()[0]  # 50, 50, 100
     center = x[int(totali / 2), int(totalj / 2)]
@@ -390,6 +357,14 @@ def draw2Dheatmap():
             emb = x[i][j]
             # emb = getFakeFourier(np.array([i, j]), W)
             a = getCosSim(emb, center)
+
+            # add updated version:
+            '''order = 15
+            target_sim = a ** order
+            result = minimize(loss_function, emb, args=(emb, center, target_sim))
+            updated_emb = result.x
+            a = getCosSim(updated_emb, center)'''
+
             simMatrix[i][j] = a
 
     heat_map = sns.heatmap(simMatrix, linewidth=1, annot=False)
@@ -401,9 +376,9 @@ def draw1Dheatmap():
     import matplotlib.pylab as plt
 
     embed = 256
-    totali = 15
-    totalj = 50
-    def getLine(choice, alpha):
+    totali = 12
+
+    def getLine(choice, alpha, update=False, order=15):
         enc = PositionalEncoding(embed, 0, choice, alpha).pos_embedding
         x = enc[:totali, 0].numpy()  # 50, 50, 100
         ref = x[int(totali/2)]
@@ -411,12 +386,26 @@ def draw1Dheatmap():
         # W = np.random.normal(0, 1, size=(2, 50))
         for i in range(1, totali):
             emb = x[i]
+
+            # original
             a = getCosSim(emb, ref)
             # a = getCosSim(emb, x[i-1])
+
+            if update:
+                # new version
+                order = order
+                target_sim = a ** order
+                result = minimize(loss_function, emb, args=(emb, ref, target_sim))
+                updated_emb = result.x
+                a = getCosSim(updated_emb, ref)
+
             simMatrix[0, i] = a
         return simMatrix[0, 1:]
 
     line9 = getLine('original', 0.9)
+    line9_update = getLine('original', 0.9, True)
+    line9_update2 = getLine('original', 0.9, True, 5)
+    line9_update3 = getLine('original', 0.9, True, 30)
     line8 = getLine('exp1', 0.9)
     line7 = getLine('exp1', 0.7)
     line6 = getLine('exp1', 0.5)
@@ -426,12 +415,15 @@ def draw1Dheatmap():
     #print(simMatrix[0])
     #sns.heatmap(simMatrix[:, 1:], linewidth=1, annot=False)
     # plt.hist(simMatrix[0, 1:])
-    plt.plot(line4, label='exp2, 0.9')
-    plt.plot(line5, label='linear, 0.9')
+    #plt.plot(line4, label='exp2, 0.9')
+    #plt.plot(line5, label='linear, 0.9')
     plt.plot(line6, label='exp1, 0.5')
     plt.plot(line7, label='exp1, 0.7')
     plt.plot(line8, label='exp1, 0.9')
     plt.plot(line9, label='original')
+    plt.plot(line9_update2, label='original update 5')
+    plt.plot(line9_update, label='original update 15')
+    plt.plot(line9_update3, label='original update 30')
     plt.legend()
     plt.show()
 
@@ -462,6 +454,6 @@ if __name__ == '__main__':
     print(pex.shape)'''
 
     #draw1Dheatmap()
-    #draw2Dheatmap()
+    draw2Dheatmap()
 
 
