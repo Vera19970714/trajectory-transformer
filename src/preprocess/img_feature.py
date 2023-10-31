@@ -128,7 +128,7 @@ class CUT_PIC(object):
     
 
 if __name__ == '__main__':
-    CUT_PIC = CUT_PIC('raw', "./dataset/processdata/dataset_Q123_mousedel_time_raw")
+    CUT_PIC = CUT_PIC('resize', "./dataset/processdata/dataset_Q123_mousedel_time")
     CUT_PIC.cut_pic()
     # results: Q2 size 453, Q3 size 439
 

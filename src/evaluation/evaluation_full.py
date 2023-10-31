@@ -8,18 +8,21 @@ from itertools import groupby
 from dictances import bhattacharyya
 from scipy.stats import wasserstein_distance
 import torch
-from saliency_evaluation import *
 import sys
 sys.path.append('./src/')
 from dataBuilders.data_builder import randsplit
+from evaluation.saliency_evaluation import *
 
 
-def behavior(result_array, target, gaze):
+def behavior(result_array, target, gaze, benchmark=False):
     for i in range(len(gaze)):
         if len(gaze[i]) == 0:
             print('GAZE LENGTH IS ZERO')
             continue
         gaze_element = gaze[i][~np.isnan(gaze[i])]
+        if benchmark:
+            if len(gaze_element) > 1:
+                gaze_element = gaze_element[:-1]
         if len(gaze_element) == 0:
             print('replacing it...')
             gaze_element = gaze[i-1][~np.isnan(gaze[i-1])]
@@ -63,7 +66,7 @@ def benchmark_losses(saliency_dis,heatmap_gt,result_array,ITERATION):
 
 class Evaluation(object):
     def __init__(self, training_dataset_choice, testing_dataset_choice, evaluation_url,
-                 ITERATION=100, showBenchmark=True):
+                 datapath, indexFile, dispath, ITERATION=100, showBenchmark=True):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
         self.ITERATION = ITERATION
         self.showBenchmark = showBenchmark
@@ -77,14 +80,10 @@ class Evaluation(object):
             gaze_saliency = './dataset/checkEvaluation/gaze_saliency.csv'
             gaze_rgb = './dataset/checkEvaluation/gaze_rgb_similarity.csv'
             gaze_center = './dataset/checkEvaluation/gaze_center.csv'
-
-        datapath = './dataset/processdata/dataset_Q123_mousedel_time'
-        indexFile = './dataset/processdata/splitlist_all.txt'
-        dispath = './dataset/processdata/benchmark_dis_time'
+            # dispath = './dataset/processdata/benchmark_dis_time'
         
         raw_data = randsplit(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice)
-        with open(dispath, "rb") as fp:
-            self.dis_data = pickle.load(fp)
+        
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
@@ -102,6 +101,8 @@ class Evaluation(object):
         self.gaze_expect = np.array(pd.read_csv(gaze_expect))
 
         if showBenchmark:
+            with open(dispath, "rb") as fp:
+                self.dis_data = pickle.load(fp)
             self.gaze_random = np.array(pd.read_csv(gaze_random))
             self.gaze_saliency = np.array(pd.read_csv(gaze_saliency))
             self.gaze_rgb = np.array(pd.read_csv(gaze_rgb))
@@ -115,25 +116,23 @@ class Evaluation(object):
                'single': torch.zeros(8), 'multi': torch.zeros(8)}
 
         for i in range(self.data_length):
-            center_dis = self.dis_data[i]['center_dis']
-            saliency_dis = self.dis_data[i]['saliency_dis']
-            rgb_dis = self.dis_data[i]['rgb_dis']
+            
 
             behavior(res['gt'], self.target[i], self.gaze_gt[i:(i+1)])
             behavior(res['single'], self.target[i], self.gaze_max[i:(i + 1)])
             behavior(res['multi'], self.target[i], self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
             if self.showBenchmark:
-                behavior(res['random'], self.target[i],self.gaze_random[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
-                behavior(res['center'], self.target[i], self.gaze_center[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
-                behavior(res['rgb'], self.target[i], self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
-                behavior(res['saliency'], self.target[i], self.gaze_saliency[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
+                behavior(res['random'], self.target[i],self.gaze_random[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
+                behavior(res['center'], self.target[i], self.gaze_center[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
+                behavior(res['rgb'], self.target[i], self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
+                behavior(res['saliency'], self.target[i], self.gaze_saliency[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
             
             if self.training_dataset_choice == 'pure':
                 if self.testing_dataset_choice == 'wine':
                     TOTAL_PCK = 22
                 elif self.testing_dataset_choice == 'yogurt':
                     TOTAL_PCK = 27
-            elif self.training_dataset_choice == 'mixed':
+            elif self.training_dataset_choice == 'all':
                 if self.ids[i] == 'Q1':
                     TOTAL_PCK = 22
                 elif self.ids[i] == 'Q3':
@@ -148,6 +147,9 @@ class Evaluation(object):
             
             if self.showBenchmark:
                 random_dis = np.ones(TOTAL_PCK) / TOTAL_PCK
+                center_dis = self.dis_data[i]['center_dis']
+                saliency_dis = self.dis_data[i]['saliency_dis']
+                rgb_dis = self.dis_data[i]['rgb_dis']
                 benchmark_losses(random_dis, heatmap_gt,res['random'],self.ITERATION)
                 benchmark_losses(center_dis, heatmap_gt,res['center'],self.ITERATION)
                 benchmark_losses(saliency_dis, heatmap_gt,res['saliency'],self.ITERATION)
@@ -175,8 +177,8 @@ class Evaluation(object):
 
 if __name__ == '__main__':
     ITERATION = 100
-    training_dataset_choice = 'mixed'
-    testing_dataset_choice = 'yogurt'
+    training_dataset_choice = 'all'
+    testing_dataset_choice = 'all'
 
     evaluation_url = './dataset/checkEvaluation/mixed_pe_exp1_alpha9'
 
