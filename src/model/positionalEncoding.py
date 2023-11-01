@@ -234,11 +234,11 @@ def finetune_embedding(emb, dataset, order=15): # 1, 3, 9, 2, 256
             for c in range(emb.size()[2]):
                 for d in range(emb.size()[3]):
                     old_emb = emb[a, b, c, d]
-
-                    a = getCosSim(old_emb, center)
-                    target_sim = a ** order
-                    result = minimize(loss_function, emb, args=(emb, center, target_sim))
-                    new_emb[a, b, c, d] = result.x
+                    old_sim = getCosSim(old_emb, center[d])
+                    target_sim = old_sim ** order
+                    result = minimize(loss_function, old_emb, args=(old_emb, center[d], target_sim))
+                    emb_res = torch.from_numpy(result.x).to(DEVICE)
+                    new_emb[a, b, c, d] = emb_res
     return new_emb
 
 def getCosSim(a, b):

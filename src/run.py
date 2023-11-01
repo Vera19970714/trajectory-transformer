@@ -125,7 +125,7 @@ if __name__ == '__main__':
             model = TransformerModel_Mixed_Irregular(args, search_data.max_len, irregular_data.max_len)
         else:
             model = TransformerModel_Mixed(args, search_data.max_len)
-    if args.model == 'BaseModel':
+    elif args.model == 'BaseModel':
         model = BaseModel(args)
         search_data = BaseSearchDataModule(args)
     else:
