@@ -192,12 +192,12 @@ def getSinPositional(dimension, embed, functionChoice, alpha, dataset, changeX):
         x = enc(torch.randn(1, 3, 9, embed))'''
     if dimension == 3:
         enc = PositionalEncoding3D(embed, changeX, functionChoice, alpha)
-        if dataset == 'wine':
-            x = enc(torch.randn(1, 2, 11, 2, embed))
-        elif dataset == 'yogurt':
-            x = enc(torch.randn(1, 3, 9, 2, embed))
-        elif dataset == 'all':
+        '''if dataset == 'wine':
             x = enc(torch.randn(1, 3, 11, 2, embed))
+        elif dataset == 'yogurt':
+            x = enc(torch.randn(1, 3, 11, 2, embed))
+        elif dataset == 'all':'''
+        x = enc(torch.randn(1, 3, 11, 2, embed))
         return x
 
 def calculate2DPositional(x, src):
