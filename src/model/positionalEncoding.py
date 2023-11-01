@@ -197,7 +197,7 @@ def getSinPositional(dimension, embed, functionChoice, alpha, dataset, changeX):
         elif dataset == 'yogurt':
             x = enc(torch.randn(1, 3, 9, 2, embed))
         elif dataset == 'all':
-            x = enc(torch.randn(1, 5, 15, 2, embed))
+            x = enc(torch.randn(1, 3, 11, 2, embed))
         return x
 
 def calculate2DPositional(x, src):

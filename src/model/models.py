@@ -200,12 +200,6 @@ class Seq2SeqTransformer(nn.Module):
                  spp: int,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer, self).__init__()
-        '''self.transformer = Transformer(d_model=emb_size,
-                                       nhead=nhead,
-                                       num_encoder_layers=num_encoder_layers,
-                                       num_decoder_layers=num_decoder_layers,
-                                       dim_feedforward=dim_feedforward,
-                                       dropout=dropout)'''
         encoder_layer = nn.TransformerEncoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                    dropout=dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)
@@ -224,15 +218,17 @@ class Seq2SeqTransformer(nn.Module):
         elif posOption == 3:
             self.twodSin = getSinPositional(2, int(emb_size/2))
         elif posOption == 4:'''
-        self.threedSin_wine = getSinPositional(3, int(emb_size/2), functionChoice,
-                 alpha, 'wine', changeX=changeX)  # 1, 3, 9, 2, 256
-        self.threedSin_yogurt = getSinPositional(3, int(emb_size / 2), functionChoice,
-                 alpha, 'yogurt', changeX=changeX)
-        self.threedSin = getSinPositional(3, int(emb_size / 2), functionChoice, alpha, 'all', changeX=changeX)
+        self.functionChoice = functionChoice
         if functionChoice == 'original_update':
+            self.threedSin_wine = getSinPositional(3, int(emb_size / 2), functionChoice,
+                                                   alpha, 'wine', changeX=changeX)  # 1, 3, 9, 2, 256
+            self.threedSin_yogurt = getSinPositional(3, int(emb_size / 2), functionChoice,
+                                                     alpha, 'yogurt', changeX=changeX)
             # finetune original embedding
             self.threedSin_wine = finetune_embedding(self.threedSin_wine, 'wine')
             self.threedSin_yogurt = finetune_embedding(self.threedSin_yogurt, 'yogurt')
+        else:
+            self.threedSin = getSinPositional(3, int(emb_size / 2), functionChoice, alpha, 'all', changeX=changeX)
         #self.posOption = posOption
         #self.visual_positional_encoding = VisualPositionalEncoding(emb_size, dropout=dropout)
         #self.positional_encoding_ori = PositionalEncodingOri(emb_size)
@@ -267,12 +263,15 @@ class Seq2SeqTransformer(nn.Module):
                 memory_key_padding_mask: Tensor,
                 dataset=None,
                 patch_in_batch=True):
-        if dataset is None:
+        if self.functionChoice != 'original_update':
             threed_pe = self.threedSin
-        elif dataset == 0:
-            threed_pe = self.threedSin_yogurt
-        elif dataset == 1:
-            threed_pe = self.threedSin_wine
+        else:
+            if dataset is None:
+                threed_pe = self.threedSin
+            elif dataset == 0:
+                threed_pe = self.threedSin_yogurt
+            elif dataset == 1:
+                threed_pe = self.threedSin_wine
         src_cnn_emb = self.cnn_embedding(src_img, patch_in_batch).transpose(0, 1) #28, 4, 256
         #src_pos_emb = self.src_tok_emb(src) # 28, 4, 256
         #src_pos_emb = self.LinearEmbedding(src)
