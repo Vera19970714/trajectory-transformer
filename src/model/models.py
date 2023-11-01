@@ -294,7 +294,7 @@ class Seq2SeqTransformer(nn.Module):
         #tgt_pos_emb = self.tgt_tok_emb(trg)  # 28, 4, 256
 
         #tgt_pos_emb = self.LinearEmbedding(trg)
-        tgt_pos_emb = calculate3DPositional(self.threedSin, trg).to(DEVICE)
+        tgt_pos_emb = calculate3DPositional(threed_pe, trg).to(DEVICE)
 
         tgt_emb = torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
         tgt_emb = self.onedpositional_encoding(tgt_emb)

@@ -31,12 +31,13 @@ if __name__ == '__main__':
     parser.add_argument('-target_choice', default=0, type=int)
     parser.add_argument('-spp', default=0, type=int) # 0: no spp, 2, 3, 4 represent level
     # todo: check target accuracy for irregular
+    # todo: debug, changeX=True with new PE
 
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
     parser.add_argument('-alpha', type=float, default=0.9)
     parser.add_argument('-functionChoice', default='exp1', type=str) # choices: linear, exp1, exp2, original, original_update
-    parser.add_argument('-changeX', default='True', type=str) # None, False, True
+    parser.add_argument('-changeX', default='None', type=str) # None, False, True
     parser.add_argument('-CA_version', default=3, type=int)  # valid values atm: 0, 3
     # 0: no cross attention, 1: add padding to input, 2: extra FC stream, 3: add pad prob in logits
     parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads
