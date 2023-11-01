@@ -218,7 +218,8 @@ def calculate3DPositional(x, src):
     for i in range(src.size()[0]):
         for j in range(src.size()[1]):
             a = src[i, j].long()
-            res[i, j] = x[0, a[0], a[1], a[2]]
+            if a[0] != 3:
+                res[i, j] = x[0, a[0], a[1], a[2]]
     return res
 
 
