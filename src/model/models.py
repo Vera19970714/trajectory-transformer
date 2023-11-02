@@ -267,7 +267,12 @@ class Seq2SeqTransformer(nn.Module):
             threed_pe = self.threedSin
         else:
             if dataset is None:
-                threed_pe = self.threedSin
+                #threed_pe = self.threedSin
+                shelf_len = src.size()[0]
+                if shelf_len == 23:
+                    threed_pe = self.threedSin_wine
+                elif shelf_len == 28:
+                    threed_pe = self.threedSin_yogurt
             elif dataset == 0:
                 threed_pe = self.threedSin_yogurt
             elif dataset == 1:
