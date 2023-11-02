@@ -384,15 +384,15 @@ def draw2Dheatmap():
             a = getCosSim(emb, center)
 
             # add updated version:
-            '''order = 15
+            order = 15
             target_sim = a ** order
             result = minimize(loss_function, emb, args=(emb, center, target_sim))
             updated_emb = result.x
-            a = getCosSim(updated_emb, center)'''
+            a = getCosSim(updated_emb, center)
 
             simMatrix[i][j] = a
 
-    heat_map = sns.heatmap(simMatrix, linewidth=1, annot=False)
+    heat_map = sns.heatmap(simMatrix, linewidth=1, annot=False, vmin=0, vmax=1)
     plt.show()
 
 
@@ -401,7 +401,7 @@ def draw1Dheatmap():
     import matplotlib.pylab as plt
 
     embed = 256
-    totali = 12
+    totali = 250
 
     def getLine(choice, alpha, update=False, order=15):
         enc = PositionalEncoding(embed, 0, choice, alpha).pos_embedding
@@ -440,15 +440,17 @@ def draw1Dheatmap():
     #print(simMatrix[0])
     #sns.heatmap(simMatrix[:, 1:], linewidth=1, annot=False)
     # plt.hist(simMatrix[0, 1:])
-    #plt.plot(line4, label='exp2, 0.9')
-    #plt.plot(line5, label='linear, 0.9')
-    plt.plot(line6, label='exp1, 0.5')
-    plt.plot(line7, label='exp1, 0.7')
+    plt.plot(line4, label='exp2, 0.9')
+    plt.plot(line5, label='linear, 0.9')
+    #plt.plot(line6, label='exp1, 0.5')
+    #plt.plot(line7, label='exp1, 0.7')
     plt.plot(line8, label='exp1, 0.9')
     plt.plot(line9, label='original')
-    plt.plot(line9_update2, label='original update 5')
-    plt.plot(line9_update, label='original update 15')
-    plt.plot(line9_update3, label='original update 30')
+    plt.plot(line9_update2, label='original_update 5')
+    plt.plot(line9_update, label='original_update 15')
+    #plt.plot(line9_update3, label='original_update 30')
+    plt.xlabel('index')
+    plt.ylabel('cos sim')
     plt.legend()
     plt.show()
 
@@ -478,7 +480,7 @@ if __name__ == '__main__':
     pex = enc(x)
     print(pex.shape)'''
 
-    #draw1Dheatmap()
-    draw2Dheatmap()
+    draw1Dheatmap()
+    #draw2Dheatmap()
 
 
