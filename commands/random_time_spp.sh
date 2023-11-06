@@ -11,7 +11,7 @@ python3 src/run.py -index_file splitlist_all_time.txt -spp 3 \
 python3 src/run.py -index_file splitlist_all_time.txt -spp 3 \
  -data_path ./dataset/processdata/dataset_Q123_mousedel_time_raw \
  -log_name train_yogurt_test_yogurt_random_time_spp -testing_dataset_choice yogurt -training_dataset_choice yogurt \
-  > train_yogurt_test_yogurt_random_time_spp
+  > train_yogurt_test_yogurt_random_time_spp.txt
   
 python3 src/run.py -index_file splitlist_all_time.txt -spp 3 \
  -data_path ./dataset/processdata/dataset_Q123_mousedel_time_raw \

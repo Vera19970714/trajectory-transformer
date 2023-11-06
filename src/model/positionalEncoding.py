@@ -396,8 +396,7 @@ def draw2Dheatmap():
     plt.show()
 
 
-def draw1Dheatmap():
-    import seaborn as sns
+def draw1Dheatmap_different_functions():
     import matplotlib.pylab as plt
 
     embed = 256
@@ -455,6 +454,65 @@ def draw1Dheatmap():
     plt.show()
 
 
+def draw1Dheatmap_different_center():
+    import matplotlib.pylab as plt
+    embed = 256
+    totali = 12
+
+    def getLine(choice, alpha, center, update=False, order=15):
+        enc = PositionalEncoding(embed, 0, choice, alpha).pos_embedding
+        x = enc[:totali, 0].numpy()  # 50, 50, 100
+        ref = x[center]
+        simMatrix = np.zeros((1, totali))
+        # W = np.random.normal(0, 1, size=(2, 50))
+        for i in range(1, totali):
+            emb = x[i]
+
+            # original
+            a = getCosSim(emb, ref)
+            # a = getCosSim(emb, x[i-1])
+
+            if update:
+                # new version
+                order = order
+                target_sim = a ** order
+                result = minimize(loss_function, emb, args=(emb, ref, target_sim))
+                updated_emb = result.x
+                a = getCosSim(updated_emb, ref)
+
+            simMatrix[0, i] = a
+        return simMatrix[0, 1:]
+
+    choice = False # True=original_update, False=original
+    line1 = getLine('original', 0.9, 3, choice)
+    line2 = getLine('original', 0.9, 6, choice)
+    line3 = getLine('original', 0.9, 9, choice)
+
+    plt.plot(line1, label='ref=3')
+    plt.plot(line2, label='ref=6')
+    plt.plot(line3, label='ref=9')
+    plt.xlabel('index')
+    plt.ylabel('cos sim')
+    plt.legend()
+    plt.show()
+
+def draw1DMag():
+    def mag(x):
+        return math.sqrt(sum(i ** 2 for i in x))
+    import matplotlib.pylab as plt
+    embed = 256
+    totali = 100
+    choice = 'original'
+    alpha = 0
+    enc = PositionalEncoding(embed, 0, choice, alpha).pos_embedding
+    x = enc[:totali, 0].numpy()  # 12, 256
+    mags = []
+    for i in range(totali):
+        embedding = x[i]
+        mags.append(mag(embedding))
+    plt.plot(mags)
+    plt.show()
+
 '''def runDifferentDecoderPE():
     # run decoder 1) p1=img concat 3D, 2) p1=img add 3D, 3) p1=(img add 3D)*projection 4) p1=img 5) p1=3D
 
@@ -480,7 +538,8 @@ if __name__ == '__main__':
     pex = enc(x)
     print(pex.shape)'''
 
-    draw1Dheatmap()
+    #draw1Dheatmap_different_center()
+    draw1DMag()
     #draw2Dheatmap()
 
 
