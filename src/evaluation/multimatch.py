@@ -33,8 +33,15 @@ def calcangle(x1, x2):
             np.dot(x1, x2) / (np.linalg.norm(x1) * np.linalg.norm(x2))))
     return angle
 
+def idx2pos(scanpath,col_num):
+    pos = []
+    for i in range(np.shape(scanpath)[0]):
+        fixation_X = scanpath[i] % col_num
+        fixation_Y = scanpath[i] // col_num
+        pos.append([fixation_X,fixation_Y])
+    return pos       
 
-def gen_scanpath_structure(data):
+def gen_scanpath_structure(data,col_num):
     """Transform a fixation vector into a vector based scanpath representation.
 
     Takes an nx3 fixation vector (start_x, start_y, duration) in the form of
@@ -54,10 +61,9 @@ def gen_scanpath_structure(data):
 
     :return: eyedata: array-like, list of lists, vector-based scanpath representation
     """
-
+    data = idx2pos(data,col_num)
     fixation_x = []
     fixation_y = []
-    fixation_dur = []
     saccade_x = []
     saccade_y = []
     saccade_lenx = []
@@ -70,7 +76,6 @@ def gen_scanpath_structure(data):
     for i in range(0, length):
         fixation_x.append(data[i][0])
         fixation_y.append(data[i][1])
-        fixation_dur.append(data[i][2])
     # fixations are the start coordinates for saccades
     for i in range(0, length - 1):
         saccade_x.append(data[i][0])
@@ -86,7 +91,6 @@ def gen_scanpath_structure(data):
     eyedata = collections.OrderedDict()
     eyedata['fixation_x'] = fixation_x
     eyedata['fixation_y'] = fixation_y
-    eyedata['fixation_dur'] = fixation_dur
     eyedata['saccade_x'] = saccade_x
     eyedata['saccade_y'] = saccade_y
     eyedata['saccade_lenx'] = saccade_lenx
@@ -812,13 +816,12 @@ def getunnormalised(data1,
     DirSim = np.median(cal_angulardifference(*args))
     LenSim = np.median(cal_lengthdifference(*args))
     PosSim = np.median(cal_positiondifference(*args))
-    DurSim = np.median(cal_durationdifference(*args))
-    unnormalised = [VecSim, DirSim, LenSim, PosSim, DurSim]
+    unnormalised = [VecSim, DirSim, LenSim, PosSim]
     return unnormalised
 
 
 def normaliseresults(unnormalised,
-                     sz=[1280, 720]
+                     sz
                      ):
     """Normalize similarity measures.
 
@@ -847,15 +850,15 @@ def normaliseresults(unnormalised,
     LengthSimilarity = 1 - unnormalised[2] / math.sqrt(sz[0] ** 2 + sz[1] ** 2)
     PositionSimilarity = 1 - unnormalised[3] / math.sqrt(sz[0] ** 2 + sz[1] ** 2)
     # no normalisazion necessary, already done
-    DurationSimilarity = 1 - unnormalised[4]
     normalresults = [VectorSimilarity, DirectionSimilarity, LengthSimilarity,
-                     PositionSimilarity, DurationSimilarity]
+                     PositionSimilarity]
     return normalresults
 
 
 def docomparison(fixation_vectors1,
                  fixation_vectors2,
-                 sz=[1280, 720],
+                 col_num,
+                 row_num,
                  grouping=False,
                  TDir=0.0,
                  TDur=0.0,
@@ -887,8 +890,8 @@ def docomparison(fixation_vectors1,
     # check if fixation vectors/scanpaths are long enough
     if (len(fixation_vectors1) >= 3) & (len(fixation_vectors2) >= 3):
         # get the data into a geometric representation
-        subj1 = gen_scanpath_structure(fixation_vectors1)
-        subj2 = gen_scanpath_structure(fixation_vectors2)
+        subj1 = gen_scanpath_structure(fixation_vectors1,col_num)
+        subj2 = gen_scanpath_structure(fixation_vectors2, col_num)
         if grouping:
             # simplify the data
             subj1 = simplify_scanpath(subj1, TAmp, TDir, TDur)
@@ -904,7 +907,7 @@ def docomparison(fixation_vectors1,
         path, dist = dijkstra(weightedGraph, 0, szM[0] * szM[1] - 1)
         # compute similarities on alinged scanpaths and normalize them
         unnormalised = getunnormalised(subj1, subj2, path, M_assignment)
-        normal = normaliseresults(unnormalised, sz)
+        normal = normaliseresults(unnormalised, [col_num,row_num])
         scanpathcomparisons.append(normal)
     # return nan as result if at least one scanpath it too short
     else:
@@ -912,91 +915,8 @@ def docomparison(fixation_vectors1,
     return scanpathcomparisons
 
 
-# def main(args=sys.argv):
-#     import argparse
-
-#     parser = argparse.ArgumentParser(
-#         prog='multimatch', )
-
-#     parser.add_argument(
-#         'input1', metavar='<datafile>',
-#         help="""Eyemovement data of scanpath 1. Should be a tab separated
-#          file with columns corresponding to x-coordinates, y-coordinates, and
-#          fixation duration in seconds.""")
-#     parser.add_argument(
-#         'input2', metavar='<datafile>',
-#         help="""Eyemovement data of scanpath 2. Should be a tab separated
-#         file with columns corresponding to x-coordinates, y-coordinates, and
-#         fixation duration in seconds.""")
-#     parser.add_argument(
-#         '--screensize', nargs='+', metavar='<screensize>', default=[1280, 720],
-#         help="""screensize: Resolution of screen in px, should be supplied as
-#         --screensize 1000 800 for a screen of resolution [1000, 800]. The
-#         default is 1280 x 720px.""")
-#     parser.add_argument(
-#         '--direction-threshold', type=float, metavar='<TDir>', default=0.0,
-#         help="""Threshold for direction based grouping in degree (example: 45.0).
-#          Two consecutive saccades with an angle below TDir and short fixations will
-#          be grouped together to reduce scanpath complexity. If 0: no
-#          simplification will be performed.""")
-#     parser.add_argument(
-#         '--amplitude-threshold', type=float, metavar='<TAmp>', default=0.0,
-#         help="""Threshold for amplitude based grouping in pixel (example: 140.0).
-#         Two consecutive saccades shorter than TAmp and short fixations will be
-#         grouped together to reduce scanpath complexity. If 0: no simplification
-#         will be performed.""")
-#     parser.add_argument(
-#         '--duration-threshold', type=float, metavar='<TDur>', default=0.0,
-#         help="""Threshold for fixation duration during amplitude and direction
-#         based grouping, in seconds.""")
-
-#     args = parser.parse_args()
-
-#     data1 = np.recfromcsv(args.input1,
-#                           delimiter='\t',
-#                           dtype={'names': ('start_x', 'start_y', 'duration'),
-#                                  'formats': ('f8', 'f8', 'f8')})
-#     data2 = np.recfromcsv(args.input2,
-#                           delimiter='\t',
-#                           dtype={'names': ('start_x', 'start_y', 'duration'),
-#                                  'formats': ('f8', 'f8', 'f8')})
-
-#     TDir = args.direction_threshold
-#     TAmp = args.amplitude_threshold
-#     TDur = args.duration_threshold
-#     if args.screensize:
-#         sz = [float(i) for i in args.screensize]
-#         if len(sz) != 2:
-#             print('I expected two floats after --screensize, such as --screensize 1280 720.'
-#                   'However, I got {}. I will default to a screensize of 1280 x 720.'.format(args.screensize))
-#             sz = [1280, 720]
-
-#     if (TDir != 0) and (TAmp != 0):
-#         grouping = True
-#         print(
-#             'Scanpath comparison is done with simplification. Two consecutive saccades shorter than {}px and '
-#             'with an angle smaller than {} degrees are grouped together if intermediate fixations are shorter '
-#             'than {} seconds.'.format(TAmp, TDir, TDur))
-#     else:
-#         grouping = False
-#         print('Scanpath comparison is done without any simplification.')
-
-#     result = docomparison(data1,
-#                           data2,
-#                           sz=sz,
-#                           grouping=grouping,
-#                           TDir=TDir,
-#                           TDur=TDur,
-#                           TAmp=TAmp)
-#     print('Vector similarity = ', result[0][0])
-#     print('Direction similarity = ', result[0][1])
-#     print('Length similarity = ', result[0][2])
-#     print('Position similarity = ', result[0][3])
-#     print('Duration similarity = ', result[0][4])
-
-
-# if __name__ == '__main__':
-#     import argparse
-
-#     # execution
-#     main()
+if __name__ == '__main__':
+    predict = [1,2,3,10]
+    gt = [3,6,9]
+    results = docomparison(predict,gt,9,3)
+    print(results)
