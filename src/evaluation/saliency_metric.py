@@ -15,7 +15,7 @@ def saliency_map_metric(logits, tgt_pos):
 		saliency_map = logits[i]
 		fixation_map = np.zeros(package_size)
 		fixation_map[tgt_pos[i]] = 1
-		nss = NSS(saliency_map, fixation_map)
+		nss = SIM(saliency_map, fixation_map)
 		nss_total += nss
 	return nss_total/seq_len
 
@@ -153,13 +153,13 @@ def SIM(saliency_map1, saliency_map2):
 	'''
 	map1 = np.array(saliency_map1, copy=False)
 	map2 = np.array(saliency_map2, copy=False)
-	if map1.shape != map2.shape:
+	'''if map1.shape != map2.shape:
 		map1 = resize(map1, map2.shape, order=3, mode='nearest') # bi-cubic/nearest is what Matlab imresize() does by default
 	# Normalize the two maps to have values between [0,1] and sum up to 1
 	map1 = normalize(map1, method='range')
 	map2 = normalize(map2, method='range')
 	map1 = normalize(map1, method='sum')
-	map2 = normalize(map2, method='sum')
+	map2 = normalize(map2, method='sum')'''
 	# Compute histogram intersection
 	intersection = np.minimum(map1, map2)
 	return np.sum(intersection)
@@ -226,4 +226,40 @@ def infogain(s_map,gt,baseline_map):
 
 	return np.mean(temp)
 
-#def SS():
+
+def zero_one_similarity(a, b):
+    if a == b:
+        return 1.0
+    else:
+        return 0.0
+
+
+def nw_matching(pred_string, gt_string, gap=0.0):
+    # NW string matching with zero_one_similarity
+    F = np.zeros((len(pred_string) + 1, len(gt_string) + 1), dtype=np.float32)
+    for i in range(1 + len(pred_string)):
+        F[i, 0] = gap * i
+    for j in range(1 + len(gt_string)):
+        F[0, j] = gap * j
+    for i in range(1, 1 + len(pred_string)):
+        for j in range(1, 1 + len(gt_string)):
+            a = pred_string[i - 1]
+            b = gt_string[j - 1]
+            match = F[i - 1, j - 1] + zero_one_similarity(a, b)
+            delete = F[i - 1, j] + gap
+            insert = F[i, j - 1] + gap
+            F[i, j] = np.max([match, delete, insert])
+    score = F[len(pred_string), len(gt_string)]
+    return score / max(len(pred_string), len(gt_string))
+
+def compare_multi_gazes(gt, gaze):
+	# gt: gt_len, 1; gaze: pred_len, num
+	gt = gt.detach().cpu().numpy()[:, 0]
+	gaze = gaze.detach().cpu().numpy()
+	total_ss = 0
+	total_gaze = gaze.shape[1]
+	for i in range(total_gaze):
+		gaze_ = gaze[:, i]
+		ss = nw_matching(gaze_, gt)
+		total_ss += ss
+	return total_ss / total_gaze
