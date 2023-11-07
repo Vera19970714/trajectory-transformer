@@ -2,7 +2,7 @@ from skimage.transform import resize
 import numpy as np
 from skimage import img_as_float
 from skimage import exposure
-import cv2 as cv
+#import cv2 as cv
 
 def saliency_map_metric(logits, tgt_pos):
 	# logits: seq_len, package_size
@@ -164,8 +164,8 @@ def SIM(saliency_map1, saliency_map2):
 	intersection = np.minimum(map1, map2)
 	return np.sum(intersection)
 
-def EMD(saliency_map1, saliency_map2, sub_sample=1/32.0):
-	'''
+'''def EMD(saliency_map1, saliency_map2, sub_sample=1/32.0):
+	
 	Earth Mover's Distance measures the distance between two probability distributions
 	by how much transformation one distribution would need to undergo to match another
 	(EMD=0 for identical distributions).
@@ -177,7 +177,6 @@ def EMD(saliency_map1, saliency_map2, sub_sample=1/32.0):
 	Returns
 	-------
 	EMD : float, positive
-	'''
 	map2 = np.array(saliency_map2, copy=False)
 	# Reduce image size for efficiency of calculation
 	map2 = resize(map2, np.round(np.array(map2.shape)*sub_sample), order=3, mode='nearest')
@@ -198,7 +197,7 @@ def EMD(saliency_map1, saliency_map2, sub_sample=1/32.0):
 	signature2 = cv.CreateMat(r*c, 3, cv.CV_32FC1)
 	cv.Convert(cv.fromarray(np.c_[map1.ravel(), x.ravel(), y.ravel()]), signature1)
 	cv.Convert(cv.fromarray(np.c_[map2.ravel(), x.ravel(), y.ravel()]), signature2)
-	return cv.CalcEMD2(signature2, signature1, cv.CV_DIST_L2)
+	return cv.CalcEMD2(signature2, signature1, cv.CV_DIST_L2)'''
 
 def normalize_map(s_map):
 	# normalize the salience map (as done in MIT code)
