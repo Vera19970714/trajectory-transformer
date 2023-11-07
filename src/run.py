@@ -64,7 +64,7 @@ if __name__ == '__main__':
     parser.add_argument('-random_seed', type=int, default=888)
     parser.add_argument('-early_stop_patience', type=int, default=30)
 
-    parser.add_argument('-monitor', type=str, default='validation_metric_each_epoch') #'validation_loss_each_epoch'
+    parser.add_argument('-monitor', type=str, default='validation_delta_each_epoch') #'validation_loss_each_epoch'
     parser.add_argument('-do_train', type=str, default='True')
     parser.add_argument('-do_test', type=str, default='True')
 
