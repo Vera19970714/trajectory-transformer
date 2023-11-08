@@ -254,11 +254,11 @@ def nw_matching(pred_string, gt_string, gap=0.0):
 def compare_multi_gazes(gt, gaze):
 	# gt: gt_len, 1; gaze: pred_len, num
 	gt = gt.detach().cpu().numpy()[:, 0]
-	gaze = gaze.detach().cpu().numpy()
+	gaze = gaze #.detach().cpu().numpy()
 	total_ss = 0
 	total_gaze = gaze.shape[1]
 	for i in range(total_gaze):
-		gaze_ = gaze[:, i]
+		gaze_ = gaze[:, i].detach().cpu().numpy()
 		ss = nw_matching(gaze_, gt)
 		total_ss += ss
 	return total_ss / total_gaze
