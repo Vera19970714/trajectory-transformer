@@ -102,7 +102,7 @@ if __name__ == '__main__':
         mode = 'max'
     # # save checkpoint & early stopping & learning rate decay & learning rate monitor
     checkpoint_callback = ModelCheckpoint(monitor=args.monitor,
-                                          save_last=True,
+                                          save_last=False,
                                           save_top_k=1,
                                           mode=mode,)
 
@@ -111,7 +111,7 @@ if __name__ == '__main__':
                             min_delta=0.00,
                             patience=args.early_stop_patience,
                             verbose=False,
-                            mode='min'
+                            mode=mode
                             )
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
