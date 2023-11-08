@@ -11,6 +11,7 @@ import sys
 sys.path.append('./src/')
 from dataBuilders.data_builder import *
 from evaluation.evaluation_full import Evaluation
+from evaluation.saliency_metric import SIM
 from tqdm import tqdm
 import matplotlib.image
 import pySaliencyMap
@@ -18,8 +19,7 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.special import logsumexp
 import matplotlib.pyplot as plt
 import random
-
-
+   
 class Benchmark(object):
     def __init__(self, training_dataset_choice, testing_dataset_choice, saveFolder, datapath, indexFile, dispath,minLen=1,
                  ITERATION=100):
@@ -250,7 +250,10 @@ class Benchmark(object):
         fixation_yogurt = fixation_yogurt.reshape(-1)
         fixation_wine = fixation_wine / np.sum(fixation_wine)
         fixation_yogurt = fixation_yogurt / np.sum(fixation_yogurt)
-        dis_all = []
+        sim_random = []
+        sim_center = []
+        sim_saliency = []
+        sim_rgb = []
         for i in tqdm(range(self.data_length)):
             dis_dict = {}
             if self.training_dataset_choice == 'pure':
@@ -275,10 +278,13 @@ class Benchmark(object):
                     rowNum = 3
                     columNum = 9
                     center_dis = fixation_yogurt
-            
+                    
             package_target = self.package_target[i]
             img_feature = self.question_img_feature[i]
-            
+            gt = self.package_seq[i][~np.isnan(self.package_seq[i])]
+            heatmap_gt = np.zeros(TOTAL_PCK)
+            for element in gt:
+                heatmap_gt[int(element)] = 1
 
             for n in range(self.ITERATION):
                 random_gaze_each = self.random(end_prob,TOTAL_PCK)
@@ -290,20 +296,21 @@ class Benchmark(object):
                 center_gaze = pd.concat([center_gaze, pd.DataFrame(center_gaze_each)],axis=0)
                 saliency_gaze = pd.concat([saliency_gaze, pd.DataFrame(saliency_gaze_each)],axis=0)
                 rgb_gaze = pd.concat([rgb_gaze, pd.DataFrame(rgb_gaze_each)],axis=0)
-
-            dis_dict['saliency_dis'] = saliency_dis
-            dis_dict['rgb_dis'] =  rgb_dis
-            dis_dict['center_dis'] =  center_dis
-            dis_all.append(dis_dict)
-                
+            
+            sim_random.append(SIM(np.ones(TOTAL_PCK) / TOTAL_PCK,heatmap_gt))
+            sim_center.append(SIM(center_dis,heatmap_gt))
+            sim_saliency.append(SIM(saliency_dis,heatmap_gt))
+            sim_rgb.append(SIM(rgb_dis,heatmap_gt))
 
         random_gaze.to_csv(self.saveFolder + 'gaze_random.csv', index=False)
         center_gaze.to_csv(self.saveFolder + 'gaze_center.csv', index=False)
         saliency_gaze.to_csv(self.saveFolder + 'gaze_saliency.csv', index=False)
         rgb_gaze.to_csv(self.saveFolder + 'gaze_rgb_similarity.csv', index=False)
 
-        with open(self.file_name, "wb") as fp:  # Pickling
-            pickle.dump(dis_all, fp)
+        print('sim_random:', np.mean(random_gaze))
+        print('sim_center:', np.mean(sim_center))
+        print('sim_saliency:', np.mean(sim_saliency))
+        print('sim_rgb:', np.mean(sim_rgb))
         
 
 if __name__ == '__main__':

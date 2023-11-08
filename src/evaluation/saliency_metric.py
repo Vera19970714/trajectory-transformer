@@ -3,6 +3,7 @@ import numpy as np
 from skimage import img_as_float
 from skimage import exposure
 #import cv2 as cv
+from evaluation.multimatch import *
 
 def saliency_map_metric(logits, tgt_pos):
 	# logits: seq_len, package_size
@@ -262,3 +263,15 @@ def compare_multi_gazes(gt, gaze):
 		ss = nw_matching(gaze_, gt)
 		total_ss += ss
 	return total_ss / total_gaze
+
+def compare_mm(gt, gaze,col_num, row_num):
+	# gt: gt_len, 1; gaze: num, pred_len
+	gt = gt.detach().cpu().numpy()[:, 0]
+	gaze = gaze #.detach().cpu().numpy()
+	total_mm = 0
+	total_gaze = len(gaze)
+	for i in range(total_gaze):
+		gaze_ = gaze[i].detach().cpu().numpy()
+		mm = docomparison(gaze_,gt,col_num,row_num)
+		total_mm += np.mean(mm)
+	return total_mm / total_gaze

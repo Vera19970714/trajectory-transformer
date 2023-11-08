@@ -11,7 +11,8 @@ import torch
 import sys
 sys.path.append('./src/')
 from dataBuilders.data_builder import randsplit
-from evaluation.saliency_evaluation import *
+from evaluation.saliency_metric import nw_matching
+from evaluation.multimatch import docomparison
 
 
 def behavior(result_array, target, gaze, benchmark=False):
@@ -46,22 +47,10 @@ def behavior(result_array, target, gaze, benchmark=False):
         result_array[3] += (refix_len / len(gaze_element))
         result_array[4] += (revisit_len / len(gaze_element))
 
-
-def losses(heatmap_gt, gaze, result_array, TOTAL_PCK):
-    for i in range(len(gaze)):
-        single = gaze[i][~np.isnan(gaze[i])]
-        heatmap_single = torch.zeros(TOTAL_PCK)
-        for element in single:
-            heatmap_single[int(element)] = 1
-        heatmap_single = heatmap_single / heatmap_single.sum()
-        # result_array[6] += np.minimum(heatmap_single, heatmap_gt).sum()
-        result_array[6] += AUC_Judd(heatmap_single, heatmap_gt)
-        result_array[7] += NSS(heatmap_single, heatmap_gt)
-        
-def benchmark_losses(saliency_dis,heatmap_gt,result_array,ITERATION):
+def string_distance(result_array,gaze,gt,ITERATION,col_num,row_num):
     for i in range(ITERATION):
-        result_array[6] += AUC_Judd(saliency_dis, heatmap_gt)
-        result_array[7] += NSS(saliency_dis, heatmap_gt)
+        result_array[6] += nw_matching(gaze[i], gt)
+        result_array[7] += np.mean(docomparison(gaze[i], gt,col_num, row_num))
 
 
 class Evaluation(object):
@@ -116,7 +105,24 @@ class Evaluation(object):
                'single': torch.zeros(8), 'multi': torch.zeros(8)}
 
         for i in range(self.data_length):
-            
+            if self.training_dataset_choice == 'pure':
+                if self.testing_dataset_choice == 'wine':
+                    TOTAL_PCK = 22
+                    col_num = 11
+                    row_num = 2
+                elif self.testing_dataset_choice == 'yogurt':
+                    TOTAL_PCK = 27
+                    col_num = 9
+                    row_num = 3
+                elif self.training_dataset_choice == 'all':
+                    if self.ids[i] == 'Q1':
+                        TOTAL_PCK = 22
+                        col_num = 11
+                        row_num = 2
+                    elif self.ids[i] == 'Q3':
+                        TOTAL_PCK = 27
+                        col_num = 9
+                        row_num = 3
 
             behavior(res['gt'], self.target[i], self.gaze_gt[i:(i+1)])
             behavior(res['single'], self.target[i], self.gaze_max[i:(i + 1)])
@@ -126,35 +132,12 @@ class Evaluation(object):
                 behavior(res['center'], self.target[i], self.gaze_center[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
                 behavior(res['rgb'], self.target[i], self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
                 behavior(res['saliency'], self.target[i], self.gaze_saliency[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
-            
-            if self.training_dataset_choice == 'pure':
-                if self.testing_dataset_choice == 'wine':
-                    TOTAL_PCK = 22
-                elif self.testing_dataset_choice == 'yogurt':
-                    TOTAL_PCK = 27
-            elif self.training_dataset_choice == 'all':
-                if self.ids[i] == 'Q1':
-                    TOTAL_PCK = 22
-                elif self.ids[i] == 'Q3':
-                    TOTAL_PCK = 27
-           
-            gt = self.gaze_gt[i][~np.isnan(self.gaze_gt[i])]
-            heatmap_gt = torch.zeros(TOTAL_PCK)
-            for element in gt:
-                heatmap_gt[int(element)] = 1
-            losses(heatmap_gt, self.gaze_max[i:(i + 1)], res['single'], TOTAL_PCK)
-            losses(heatmap_gt, self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)], res['multi'], TOTAL_PCK)
-            
-            if self.showBenchmark:
-                random_dis = np.ones(TOTAL_PCK) / TOTAL_PCK
-                center_dis = self.dis_data[i]['center_dis']
-                saliency_dis = self.dis_data[i]['saliency_dis']
-                rgb_dis = self.dis_data[i]['rgb_dis']
-                benchmark_losses(random_dis, heatmap_gt,res['random'],self.ITERATION)
-                benchmark_losses(center_dis, heatmap_gt,res['center'],self.ITERATION)
-                benchmark_losses(saliency_dis, heatmap_gt,res['saliency'],self.ITERATION)
-                benchmark_losses(rgb_dis, heatmap_gt,res['rgb'],self.ITERATION)
-
+                
+                string_distance(res['random'],self.gaze_random[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],self.ITERATION,col_num,row_num)
+                string_distance(res['center'],self.gaze_center[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],self.ITERATION,col_num,row_num)
+                string_distance(res['rgb'],self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],self.ITERATION,col_num,row_num)
+                string_distance(res['saliency'],self.gaze_saliency[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],self.ITERATION,col_num,row_num)
+                
         res['gt'] = res['gt'] / self.data_length
         res['single'] = res['single'] / self.data_length
         res['multi'] = res['multi'] / self.data_length / self.ITERATION
@@ -165,7 +148,7 @@ class Evaluation(object):
             res['saliency'] = res['saliency'] / self.data_length / self.ITERATION
 
         print('*'*20)
-        print('correct Target \t avg.len \t avg.search \t avg.refix \t avg.revisit \t delta \t AUC \t NSS')
+        print('correct Target \t avg.len \t avg.search \t avg.refix \t avg.revisit \t delta \t SS \t MM')
         models = ['gt', 'single', 'multi']
         if self.showBenchmark:
             models.extend(['random','center', 'saliency', 'rgb'])
