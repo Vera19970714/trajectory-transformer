@@ -97,11 +97,14 @@ if __name__ == '__main__':
     # set logger
     logger = pl_loggers.TensorBoardLogger(f'./lightning_logs/{args.log_name}')
 
+    mode = 'min'
+    if args.monitor == 'validation_sim_each_epoch':
+        mode = 'max'
     # # save checkpoint & early stopping & learning rate decay & learning rate monitor
     checkpoint_callback = ModelCheckpoint(monitor=args.monitor,
                                           save_last=True,
                                           save_top_k=1,
-                                          mode='min',)
+                                          mode=mode,)
 
     early_stop_callback = EarlyStopping(
                             monitor=args.monitor,
