@@ -21,12 +21,11 @@ import matplotlib.pyplot as plt
 import random
    
 class Benchmark(object):
-    def __init__(self, training_dataset_choice, testing_dataset_choice, saveFolder, datapath, indexFile, dispath,minLen=1,
+    def __init__(self, training_dataset_choice, testing_dataset_choice, saveFolder, datapath, indexFile,minLen=1,
                  ITERATION=100):
         # datapath = './dataset/processdata/dataset_Q123_mousedel_time'
         # indexFile = './dataset/processdata/splitlist_all_time.txt'
         self.saveFolder = saveFolder
-        self.saveFile = dispath
         self.training_dataset_choice = training_dataset_choice
         self.testing_dataset_choice = testing_dataset_choice
         self.ITERATION = ITERATION
@@ -140,7 +139,7 @@ class Benchmark(object):
             x = randint(0, 100)
         gaze = np.stack(gaze).reshape(1, -1)
 
-        return  gaze
+        return gaze
         
 
     def hyper_cal(self, bandwidth, eps = 1e-20):
@@ -281,7 +280,7 @@ class Benchmark(object):
                     
             package_target = self.package_target[i]
             img_feature = self.question_img_feature[i]
-            gt = self.package_seq[i][~np.isnan(self.package_seq[i])]
+            gt = self.package_seq[i]
             heatmap_gt = np.zeros(TOTAL_PCK)
             for element in gt:
                 heatmap_gt[int(element)] = 1
@@ -301,13 +300,14 @@ class Benchmark(object):
             sim_center.append(SIM(center_dis,heatmap_gt))
             sim_saliency.append(SIM(saliency_dis,heatmap_gt))
             sim_rgb.append(SIM(rgb_dis,heatmap_gt))
-
+        # print(random_gaze)
+        # exit()
         random_gaze.to_csv(self.saveFolder + 'gaze_random.csv', index=False)
         center_gaze.to_csv(self.saveFolder + 'gaze_center.csv', index=False)
         saliency_gaze.to_csv(self.saveFolder + 'gaze_saliency.csv', index=False)
         rgb_gaze.to_csv(self.saveFolder + 'gaze_rgb_similarity.csv', index=False)
 
-        print('sim_random:', np.mean(random_gaze))
+        print('sim_random:', np.mean(sim_random))
         print('sim_center:', np.mean(sim_center))
         print('sim_saliency:', np.mean(sim_saliency))
         print('sim_rgb:', np.mean(sim_rgb))
@@ -320,8 +320,7 @@ if __name__ == '__main__':
     logFile = 'mixed_pe_exp1_alpha9'
     datapath = './dataset/processdata/dataset_Q123_mousedel_time'
     indexFile = './dataset/processdata/splitlist_all_time.txt'
-    dispath = './dataset/processdata/benchmark_dis_time'
-    b = Benchmark(training_dataset_choice, testing_dataset_choice, saveFolder, datapath, indexFile, dispath)
+    b = Benchmark(training_dataset_choice, testing_dataset_choice, saveFolder, datapath, indexFile)
     b.benchmark()
-    e = Evaluation(training_dataset_choice, testing_dataset_choice, saveFolder+logFile, datapath, indexFile, dispath)
+    e = Evaluation(training_dataset_choice, testing_dataset_choice, saveFolder+logFile, datapath, indexFile)
     e.evaluation()

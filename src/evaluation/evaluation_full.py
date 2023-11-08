@@ -48,14 +48,16 @@ def behavior(result_array, target, gaze, benchmark=False):
         result_array[4] += (revisit_len / len(gaze_element))
 
 def string_distance(result_array,gaze,gt,ITERATION,col_num,row_num):
+    gt = gt[~np.isnan(gt)]
     for i in range(ITERATION):
-        result_array[6] += nw_matching(gaze[i], gt)
-        result_array[7] += np.mean(docomparison(gaze[i], gt,col_num, row_num))
+        gaze_element = gaze[i][~np.isnan(gaze[i])]
+        result_array[6] += nw_matching(gaze_element, gt)
+        result_array[7] += np.mean(docomparison(gaze_element, gt,col_num, row_num))
 
 
 class Evaluation(object):
     def __init__(self, training_dataset_choice, testing_dataset_choice, evaluation_url,
-                 datapath, indexFile, dispath, ITERATION=100, showBenchmark=True):
+                 datapath, indexFile, ITERATION=100, showBenchmark=True):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
         self.ITERATION = ITERATION
         self.showBenchmark = showBenchmark
@@ -69,7 +71,6 @@ class Evaluation(object):
             gaze_saliency = './dataset/checkEvaluation/gaze_saliency.csv'
             gaze_rgb = './dataset/checkEvaluation/gaze_rgb_similarity.csv'
             gaze_center = './dataset/checkEvaluation/gaze_center.csv'
-            # dispath = './dataset/processdata/benchmark_dis_time'
         
         raw_data = randsplit(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice)
         
@@ -90,8 +91,6 @@ class Evaluation(object):
         self.gaze_expect = np.array(pd.read_csv(gaze_expect))
 
         if showBenchmark:
-            with open(dispath, "rb") as fp:
-                self.dis_data = pickle.load(fp)
             self.gaze_random = np.array(pd.read_csv(gaze_random))
             self.gaze_saliency = np.array(pd.read_csv(gaze_saliency))
             self.gaze_rgb = np.array(pd.read_csv(gaze_rgb))
@@ -114,16 +113,15 @@ class Evaluation(object):
                     TOTAL_PCK = 27
                     col_num = 9
                     row_num = 3
-                elif self.training_dataset_choice == 'all':
-                    if self.ids[i] == 'Q1':
-                        TOTAL_PCK = 22
-                        col_num = 11
-                        row_num = 2
-                    elif self.ids[i] == 'Q3':
-                        TOTAL_PCK = 27
-                        col_num = 9
-                        row_num = 3
-
+            elif self.training_dataset_choice == 'all':
+                if self.ids[i] == 'Q1':
+                    TOTAL_PCK = 22
+                    col_num = 11
+                    row_num = 2
+                elif self.ids[i] == 'Q3':
+                    TOTAL_PCK = 27
+                    col_num = 9
+                    row_num = 3
             behavior(res['gt'], self.target[i], self.gaze_gt[i:(i+1)])
             behavior(res['single'], self.target[i], self.gaze_max[i:(i + 1)])
             behavior(res['multi'], self.target[i], self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
@@ -132,7 +130,6 @@ class Evaluation(object):
                 behavior(res['center'], self.target[i], self.gaze_center[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
                 behavior(res['rgb'], self.target[i], self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
                 behavior(res['saliency'], self.target[i], self.gaze_saliency[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
-                
                 string_distance(res['random'],self.gaze_random[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],self.ITERATION,col_num,row_num)
                 string_distance(res['center'],self.gaze_center[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],self.ITERATION,col_num,row_num)
                 string_distance(res['rgb'],self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],self.ITERATION,col_num,row_num)
