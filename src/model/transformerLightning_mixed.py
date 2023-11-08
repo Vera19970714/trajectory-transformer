@@ -309,7 +309,7 @@ class TransformerModel_Mixed(pl.LightningModule):
         loss_gt, GAZE_tf, GAZE_gt, LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img, type)
         sim = saliency_map_metric(LOGITS_tf, GAZE_gt[:, 0])
         loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img, type)
-        ss_max = compare_multi_gazes(GAZE_gt, GAZE)
+        ss_max = compare_multi_gazes(GAZE_gt, [GAZE[:, 0]])
         loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img, type)
         ss_exp = compare_multi_gazes(GAZE_gt, GAZE_expect)
         return loss_max, loss_expect, loss_gt, GAZE, GAZE_expect, GAZE_gt, sim, ss_max, ss_exp
