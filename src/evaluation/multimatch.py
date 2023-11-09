@@ -614,7 +614,7 @@ def cal_angulardifference(data1,
         # which saccade indices correspond to path?
         i, j = np.where(M_assignment == path[k])
         # extract the angle
-        spT = [theta1[np.asscalar(i)], theta2[np.asscalar(j)]]
+        spT = [theta1[np.ndarray.item(i)], theta2[np.ndarray.item(j)]]
         for t in range(0, len(spT)):
             # get results in range -pi, pi
             if spT[t] < 0:
@@ -738,8 +738,8 @@ def cal_positiondifference(data1,
     # calculate position differences along path
     for k in range(0, len(path)):
         i, j = np.where(M_assignment == path[k])
-        posdiff.append(math.sqrt((x1[np.asscalar(i)] - x2[np.asscalar(j)]) ** 2 +
-                                 (y1[np.asscalar(i)] - y2[np.asscalar(j)]) ** 2))
+        posdiff.append(math.sqrt((x1[np.ndarray.item(i)] - x2[np.ndarray.item(j)]) ** 2 +
+                                 (y1[np.ndarray.item(i)] - y2[np.ndarray.item(j)]) ** 2))
     return posdiff
 
 
@@ -777,8 +777,8 @@ def cal_vectordifferencealongpath(data1,
     # calculate vector differences along path
     for k in range(0, len(path)):
         i, j = np.where(M_assignment == path[k])
-        vectordiff.append(np.sqrt((x1[np.asscalar(i)] - x2[np.asscalar(j)]) ** 2 +
-                                  (y1[np.asscalar(i)] - y2[np.asscalar(j)]) ** 2))
+        vectordiff.append(np.sqrt((x1[np.ndarray.item(i)] - x2[np.ndarray.item(j)]) ** 2 +
+                                  (y1[np.ndarray.item(i)] - y2[np.ndarray.item(j)]) ** 2))
     return vectordiff
 
 
@@ -888,45 +888,46 @@ def docomparison(fixation_vectors1,
     # initialize result vector
     scanpathcomparisons = []
     # check if fixation vectors/scanpaths are long enough
-    if len(fixation_vectors1) < 3:
-        fixation_vectors_new1 = np.ones(3, dtype=np.float32)
+    '''if len(fixation_vectors1) < 3:
+        fixation_vectors_new1 = np.zeros(3, dtype=np.float32)
         fixation_vectors_new1[:len(fixation_vectors1)] = fixation_vectors1
     else:
-        fixation_vectors_new1 = np.ones(len(fixation_vectors1), dtype=np.float32)
-        fixation_vectors_new1[:] = fixation_vectors1
+        fixation_vectors_new1 = fixation_vectors1
 
     if len(fixation_vectors2) < 3:
-        fixation_vectors_new2 = np.ones((3), dtype=np.float32)
+        fixation_vectors_new2 = np.zeros(3, dtype=np.float32)
         fixation_vectors_new2[:len(fixation_vectors2)] = fixation_vectors2
     else:
-        fixation_vectors_new2 = np.ones(len(fixation_vectors2), dtype=np.float32)
-        fixation_vectors_new2[:] = fixation_vectors2
+        fixation_vectors_new2 = fixation_vectors2'''
 
-    # get the data into a geometric representation
-    subj1 = gen_scanpath_structure(fixation_vectors_new1,col_num)
-    subj2 = gen_scanpath_structure(fixation_vectors_new2, col_num)
-    if grouping:
-        # simplify the data
-        subj1 = simplify_scanpath(subj1, TAmp, TDir, TDur)
-        subj2 = simplify_scanpath(subj2, TAmp, TDir, TDur)
-    # create M, a matrix of all vector pairings length differences (weights)
-    M = cal_vectordifferences(subj1, subj2)
-    # initialize a matrix of size M for a matrix of nodes
-    szM = np.shape(M)
-    M_assignment = np.arange(szM[0] * szM[1]).reshape(szM[0], szM[1])
-    # create a weighted graph of all possible connections per Node, and their weight
-    weightedGraph = createdirectedgraph(szM, M, M_assignment)
-    # find the shortest path (= lowest sum of weights) through the graph
-    path, dist = dijkstra(weightedGraph, 0, szM[0] * szM[1] - 1)
-    # compute similarities on alinged scanpaths and normalize them
-    unnormalised = getunnormalised(subj1, subj2, path, M_assignment)
-    normal = normaliseresults(unnormalised, [col_num,row_num])
-    scanpathcomparisons.append(normal)
+    if (len(fixation_vectors1) >= 3) & (len(fixation_vectors2) >= 3):
+        # get the data into a geometric representation
+        subj1 = gen_scanpath_structure(fixation_vectors1,col_num)
+        subj2 = gen_scanpath_structure(fixation_vectors2, col_num)
+        if grouping:
+            # simplify the data
+            subj1 = simplify_scanpath(subj1, TAmp, TDir, TDur)
+            subj2 = simplify_scanpath(subj2, TAmp, TDir, TDur)
+        # create M, a matrix of all vector pairings length differences (weights)
+        M = cal_vectordifferences(subj1, subj2)
+        # initialize a matrix of size M for a matrix of nodes
+        szM = np.shape(M)
+        M_assignment = np.arange(szM[0] * szM[1]).reshape(szM[0], szM[1])
+        # create a weighted graph of all possible connections per Node, and their weight
+        weightedGraph = createdirectedgraph(szM, M, M_assignment)
+        # find the shortest path (= lowest sum of weights) through the graph
+        path, dist = dijkstra(weightedGraph, 0, szM[0] * szM[1] - 1)
+        # compute similarities on alinged scanpaths and normalize them
+        unnormalised = getunnormalised(subj1, subj2, path, M_assignment)
+        normal = normaliseresults(unnormalised, [col_num,row_num])
+        scanpathcomparisons.append(normal)
+    else:
+        scanpathcomparisons.append(np.repeat(np.nan, 4))
     return scanpathcomparisons
 
 
 if __name__ == '__main__':
-    predict = [1,2,3,10]
-    gt = [3,6,9]
+    predict = [0,13,8]
+    gt = [4,4,4,4]
     results = docomparison(predict,gt,9,3)
     print(results)

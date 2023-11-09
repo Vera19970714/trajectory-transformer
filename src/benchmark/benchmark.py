@@ -30,7 +30,6 @@ class Benchmark(object):
         self.testing_dataset_choice = testing_dataset_choice
         self.ITERATION = ITERATION
         self.minLen = minLen
-        
 
         raw_data = randsplit(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice)
         raw_data_train = randsplit(datapath, indexFile, 'Train', testing_dataset_choice, training_dataset_choice)
@@ -51,7 +50,6 @@ class Benchmark(object):
             self.question_img_feature.append(item['question_img_feature'])
 
         # for compute hyperparameter
-        
         self.id_train = []
         self.package_seq_train = []
         for item in raw_data_train:
@@ -131,15 +129,8 @@ class Benchmark(object):
         self.plot_hist(wine_train, wine_test, yogurt_train, yogurt_test)
 
     def random(self, endPro, TOTAL_PCK):
-        gaze = []
-        x = randint(0, 100)
-        while x >= endPro or len(gaze)<self.minLen:
-            ind = randint(0, TOTAL_PCK-1)
-            gaze.append(ind)
-            x = randint(0, 100)
-        gaze = np.stack(gaze).reshape(1, -1)
-
-        return gaze
+        random_dist = np.ones(TOTAL_PCK) / TOTAL_PCK
+        return self.sample_gaze_from_distri(endPro, random_dist, TOTAL_PCK)
         
 
     def hyper_cal(self, bandwidth, eps = 1e-20):
@@ -153,20 +144,23 @@ class Benchmark(object):
         fixation_wine = np.zeros(TOTAL_PCK_wine)
         fixation_yogurt = np.zeros(TOTAL_PCK_yogurt)
         for i in tqdm(range(self.data_length_train)):
-            if self.training_dataset_choice == 'pure':
+            if self.training_dataset_choice == self.testing_dataset_choice and self.testing_dataset_choice != 'all':
                 if self.testing_dataset_choice == 'wine':
                     each_length.append(len(self.package_seq_train[i]))
                     fixation_wine[self.package_seq_train[i]] += 1
                 elif self.testing_dataset_choice == 'yogurt':
                     each_length.append(len(self.package_seq_train[i]))
                     fixation_yogurt[self.package_seq_train[i]] += 1
-            elif self.training_dataset_choice == 'all':
+            elif self.training_dataset_choice == self.testing_dataset_choice == 'all':
                 each_length.append(len(self.package_seq_train[i]))
                 if self.id_train[i] == 'Q1':
                     # print(self.package_seq[i])
                     fixation_wine[self.package_seq_train[i]] += 1
                 elif self.id_train[i] == 'Q3':
                     fixation_yogurt[self.package_seq_train[i]] += 1
+            else:
+                print('not implemented')
+                quit()
         avg_length =np.mean(each_length)
         fixation_wine = gaussian_filter(fixation_wine.reshape(rowNum_wine,columNum_wine), [bandwidth*rowNum_wine, bandwidth*columNum_wine])
         fixation_wine *= (1-eps)
@@ -177,18 +171,23 @@ class Benchmark(object):
         fixation_yogurt = gaussian_filter(fixation_yogurt.reshape(rowNum_yogurt,columNum_yogurt), [bandwidth*rowNum_yogurt, bandwidth*columNum_yogurt])
         fixation_yogurt *= (1-eps)
         fixation_yogurt += eps * 1.0/(rowNum_yogurt*columNum_yogurt)
+        #plt.imshow(fixation_yogurt)
         fixation_yogurt = np.log(fixation_yogurt)
         fixation_yogurt -= logsumexp(fixation_yogurt)
-        
+        # todo: 1. this is not distribution, 2. gaussian filter not working, radius too small
         return avg_length, fixation_wine, fixation_yogurt
     
 
     def center(self, endPro, center_dis, TOTAL_PCK):
-    # using https://github.com/Davidelanz/saliency_prediction/blob/main/CreateCenterbias.ipynb'''
+        # using https://github.com/Davidelanz/saliency_prediction/blob/main/CreateCenterbias.ipynb'''
+        return self.sample_gaze_from_distri(endPro, center_dis, TOTAL_PCK)
+
+    def sample_gaze_from_distri(self, avg_len, distri, TOTAL_PCK):
+        endPro = avg_len # 7.67
         gaze = []
         x = randint(0, 100)
         while x >= endPro or len(gaze) < self.minLen:
-            ind = np.random.choice(TOTAL_PCK,1,p=center_dis)
+            ind = np.random.choice(TOTAL_PCK, 1, p=distri)
             gaze.append(ind)
             x = randint(0, 100)
         gaze = np.stack(gaze).reshape(1, -1)
@@ -211,13 +210,7 @@ class Benchmark(object):
         # feature_dis = softmax(feature_dis).reshape(-1)
         feature_dis = feature_dis / np.sum(feature_dis)
         feature_dis = np.array(feature_dis).reshape(-1)
-        gaze = []
-        x = randint(0, 101)
-        while x >= endPro or len(gaze) < self.minLen:
-            ind = np.random.choice(TOTAL_PCK,1,p=feature_dis)
-            gaze.append(ind)
-            x = randint(0, 100)
-        gaze = np.stack(gaze).reshape(1, -1)
+        gaze = self.sample_gaze_from_distri(endPro, feature_dis, TOTAL_PCK)
         return feature_dis, gaze
 
     def rgb_similarity(self, endPro, TOTAL_PCK, package_target, img_feature):
@@ -231,23 +224,18 @@ class Benchmark(object):
         # feature_dis = softmax(feature_dis).reshape(-1)
         feature_dis = feature_dis/ np.sum(feature_dis)
         feature_dis = np.array(feature_dis).reshape(-1)
-        gaze = []
-        x = randint(0, 100)
-        while x >= endPro or len(gaze) < self.minLen:
-            ind = np.random.choice(TOTAL_PCK,1,p=feature_dis)
-            gaze.append(ind)
-            x = randint(0, 100)
-        gaze = np.stack(gaze).reshape(1, -1)
+        gaze = self.sample_gaze_from_distri(endPro, feature_dis, TOTAL_PCK)
         return feature_dis, gaze
     
 
     def benchmark(self):
         random_gaze, center_gaze, saliency_gaze, rgb_gaze= pd.DataFrame(), pd.DataFrame(), pd.DataFrame(),pd.DataFrame()
-        avg_length, fixation_wine, fixation_yogurt = self.hyper_cal(bandwidth = 0.0217)
-        end_prob = 1 / (avg_length+1) * 100
+        avg_length, fixation_wine, fixation_yogurt = self.hyper_cal(bandwidth = 0.0217) # todo: wrong bandwidth value
+        #end_prob = 1 / (avg_length+1) * 100
+        end_prob = avg_length
         fixation_wine = fixation_wine.reshape(-1)
         fixation_yogurt = fixation_yogurt.reshape(-1)
-        fixation_wine = fixation_wine / np.sum(fixation_wine)
+        fixation_wine = fixation_wine / np.sum(fixation_wine) # todo: cannot divide sum of log density
         fixation_yogurt = fixation_yogurt / np.sum(fixation_yogurt)
         sim_random = []
         sim_center = []
@@ -255,7 +243,7 @@ class Benchmark(object):
         sim_rgb = []
         for i in tqdm(range(self.data_length)):
             dis_dict = {}
-            if self.training_dataset_choice == 'pure':
+            if self.training_dataset_choice == self.testing_dataset_choice and self.testing_dataset_choice != 'all':
                 if self.testing_dataset_choice == 'wine':
                     TOTAL_PCK = 22
                     rowNum = 2
@@ -266,7 +254,7 @@ class Benchmark(object):
                     rowNum = 3
                     columNum = 9
                     center_dis = fixation_yogurt
-            elif self.training_dataset_choice == 'all':
+            elif self.training_dataset_choice == self.testing_dataset_choice == 'all':
                 if self.id[i] == 'Q1':
                     TOTAL_PCK = 22
                     rowNum = 2
@@ -282,8 +270,7 @@ class Benchmark(object):
             img_feature = self.question_img_feature[i]
             gt = self.package_seq[i]
             heatmap_gt = np.zeros(TOTAL_PCK)
-            for element in gt:
-                heatmap_gt[int(element)] = 1
+            heatmap_gt[np.array(gt)] = 1
 
             for n in range(self.ITERATION):
                 random_gaze_each = self.random(end_prob,TOTAL_PCK)
@@ -295,7 +282,7 @@ class Benchmark(object):
                 center_gaze = pd.concat([center_gaze, pd.DataFrame(center_gaze_each)],axis=0)
                 saliency_gaze = pd.concat([saliency_gaze, pd.DataFrame(saliency_gaze_each)],axis=0)
                 rgb_gaze = pd.concat([rgb_gaze, pd.DataFrame(rgb_gaze_each)],axis=0)
-            
+            # todo: compare the same distribution with heatmap generated from each (only) fixation
             sim_random.append(SIM(np.ones(TOTAL_PCK) / TOTAL_PCK,heatmap_gt))
             sim_center.append(SIM(center_dis,heatmap_gt))
             sim_saliency.append(SIM(saliency_dis,heatmap_gt))
@@ -314,7 +301,7 @@ class Benchmark(object):
         
 
 if __name__ == '__main__':
-    training_dataset_choice = 'all'
+    '''training_dataset_choice = 'all'
     testing_dataset_choice = 'all'
     saveFolder = './dataset/checkEvaluation/'
     logFile = 'mixed_pe_exp1_alpha9'
@@ -323,4 +310,27 @@ if __name__ == '__main__':
     b = Benchmark(training_dataset_choice, testing_dataset_choice, saveFolder, datapath, indexFile)
     b.benchmark()
     e = Evaluation(training_dataset_choice, testing_dataset_choice, saveFolder+logFile, datapath, indexFile)
-    e.evaluation()
+    e.evaluation()'''
+
+    def sample_gaze_from_distri(avg_len, distri, TOTAL_PCK):
+        # todo: change parameter name
+        end_prob = 1 / (avg_len + 1) * 100
+        gaze = []
+        x = randint(0, 100)
+        minLen = 1
+        while x >= end_prob or len(gaze) < minLen:
+            ind = np.random.choice(TOTAL_PCK, 1, p=distri)
+            gaze.append(np.ndarray.item(ind))
+            x = randint(0, 100)
+        gaze = np.stack(gaze).reshape(1, -1)
+        return gaze
+
+    TOTAL_PCK = 22
+    avg_length = 10 # 100, 50000: 8.40, 101, 50000: 8.48
+    random_dist = np.ones(TOTAL_PCK) / TOTAL_PCK
+    total_len = 0
+    number = 10000
+    for i in range(number):
+        gaze = sample_gaze_from_distri(avg_length, random_dist, TOTAL_PCK)
+        total_len += gaze.shape[1]
+    print(total_len/number)

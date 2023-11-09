@@ -21,9 +21,9 @@ def behavior(result_array, target, gaze, benchmark=False):
             print('GAZE LENGTH IS ZERO')
             continue
         gaze_element = gaze[i][~np.isnan(gaze[i])]
-        if benchmark:
-            if len(gaze_element) > 1:
-                gaze_element = gaze_element[:-1]
+        #if benchmark:
+        #    if len(gaze_element) > 1:
+        #        gaze_element = gaze_element[:-1]
         if len(gaze_element) == 0:
             print('replacing it...')
             gaze_element = gaze[i-1][~np.isnan(gaze[i-1])]
@@ -51,6 +51,7 @@ def string_distance(result_array,gaze,gt,ITERATION,col_num,row_num):
     gt = gt[~np.isnan(gt)]
     for i in range(ITERATION):
         gaze_element = gaze[i][~np.isnan(gaze[i])]
+        # todo: multimatch show seperate four values, check nan values from scanpath<3
         result_array[6] += nw_matching(gaze_element, gt)
         result_array[7] += np.mean(docomparison(gaze_element, gt,col_num, row_num))
 
@@ -73,7 +74,6 @@ class Evaluation(object):
             gaze_center = './dataset/checkEvaluation/gaze_center.csv'
         
         raw_data = randsplit(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice)
-        
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
