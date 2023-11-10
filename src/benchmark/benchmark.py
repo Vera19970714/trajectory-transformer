@@ -183,13 +183,14 @@ class Benchmark(object):
         return self.sample_gaze_from_distri(endPro, center_dis, TOTAL_PCK)
 
     def sample_gaze_from_distri(self, avg_len, distri, TOTAL_PCK):
-        endPro = avg_len # 7.67
+        end_prob = 1 / avg_len * 10000
         gaze = []
-        x = randint(0, 100)
-        while x >= endPro or len(gaze) < self.minLen:
+        x = randint(0, 10000)
+        minLen = 1
+        while x >= end_prob or len(gaze) < minLen:
             ind = np.random.choice(TOTAL_PCK, 1, p=distri)
-            gaze.append(ind)
-            x = randint(0, 100)
+            gaze.append(np.ndarray.item(ind))
+            x = randint(0, 10000)
         gaze = np.stack(gaze).reshape(1, -1)
         return gaze
 
@@ -232,7 +233,6 @@ class Benchmark(object):
         random_gaze, center_gaze, saliency_gaze, rgb_gaze= pd.DataFrame(), pd.DataFrame(), pd.DataFrame(),pd.DataFrame()
         avg_length, fixation_wine, fixation_yogurt = self.hyper_cal(bandwidth = 0.0217) # todo: wrong bandwidth value
         #end_prob = 1 / (avg_length+1) * 100
-        end_prob = avg_length
         fixation_wine = fixation_wine.reshape(-1)
         fixation_yogurt = fixation_yogurt.reshape(-1)
         fixation_wine = fixation_wine / np.sum(fixation_wine) # todo: cannot divide sum of log density
@@ -273,10 +273,10 @@ class Benchmark(object):
             heatmap_gt[np.array(gt)] = 1
 
             for n in range(self.ITERATION):
-                random_gaze_each = self.random(end_prob,TOTAL_PCK)
-                center_gaze_each = self.center(end_prob, center_dis, TOTAL_PCK)
-                saliency_dis, saliency_gaze_each = self.saliency(end_prob,TOTAL_PCK,rowNum, columNum, img_feature)
-                rgb_dis, rgb_gaze_each = self.rgb_similarity(end_prob,TOTAL_PCK, package_target,img_feature)
+                random_gaze_each = self.random(avg_length,TOTAL_PCK)
+                center_gaze_each = self.center(avg_length, center_dis, TOTAL_PCK)
+                saliency_dis, saliency_gaze_each = self.saliency(avg_length,TOTAL_PCK,rowNum, columNum, img_feature)
+                rgb_dis, rgb_gaze_each = self.rgb_similarity(avg_length,TOTAL_PCK, package_target,img_feature)
                 
                 random_gaze = pd.concat([random_gaze, pd.DataFrame(random_gaze_each)],axis=0)
                 center_gaze = pd.concat([center_gaze, pd.DataFrame(center_gaze_each)],axis=0)
@@ -313,23 +313,22 @@ if __name__ == '__main__':
     e.evaluation()'''
 
     def sample_gaze_from_distri(avg_len, distri, TOTAL_PCK):
-        # todo: change parameter name
-        end_prob = 1 / (avg_len + 1) * 100
+        end_prob = 1 / avg_len * 10000
         gaze = []
-        x = randint(0, 100)
+        x = randint(0, 10000)
         minLen = 1
         while x >= end_prob or len(gaze) < minLen:
             ind = np.random.choice(TOTAL_PCK, 1, p=distri)
             gaze.append(np.ndarray.item(ind))
-            x = randint(0, 100)
+            x = randint(0, 10000)
         gaze = np.stack(gaze).reshape(1, -1)
         return gaze
 
     TOTAL_PCK = 22
-    avg_length = 10 # 100, 50000: 8.40, 101, 50000: 8.48
+    avg_length = 7.23
     random_dist = np.ones(TOTAL_PCK) / TOTAL_PCK
     total_len = 0
-    number = 10000
+    number = 30000
     for i in range(number):
         gaze = sample_gaze_from_distri(avg_length, random_dist, TOTAL_PCK)
         total_len += gaze.shape[1]
