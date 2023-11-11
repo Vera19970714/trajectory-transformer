@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 num_rows, num_columns = 11, 86
 sigma = 2.5
 learning_rate = 0.01
-num_iterations = 10000
+num_iterations = 10 #000
 tolerance = 1e-3
 
 W = nn.Parameter(torch.randn(num_rows, num_columns))
@@ -54,3 +55,5 @@ pass_rate = validation_matrix.float().mean().item()
 print(f'pass rate: {pass_rate:.2%}')
 print('cos_sim_Matrix:', cosine_sim_matrix)
 print('Val_Matrix:', validation_matrix)
+W = W.detach().cpu().numpy()
+np.save('learned_PE.npy', W)
