@@ -13,22 +13,22 @@ sys.path.append('./src/')
 from dataBuilders.data_builder import randsplit
 from evaluation.saliency_metric import nw_matching
 from evaluation.multimatch import docomparison
+from tqdm import tqdm
+from tabulate import tabulate
 
 
 def behavior(result_array, target, gaze, benchmark=False):
+    behavior = {'correct':[],'length': [], 'search': [], 'refix': [], 'revisit': []}
     for i in range(len(gaze)):
         if len(gaze[i]) == 0:
             print('GAZE LENGTH IS ZERO')
             continue
         gaze_element = gaze[i][~np.isnan(gaze[i])]
-        #if benchmark:
-        #    if len(gaze_element) > 1:
-        #        gaze_element = gaze_element[:-1]
         if len(gaze_element) == 0:
             print('replacing it...')
             gaze_element = gaze[i-1][~np.isnan(gaze[i-1])]
-        result_array[0] += int(target == gaze_element[-1])
-        result_array[1] += len(gaze_element)
+        behavior['correct'].append(int(target == gaze_element[-1]))
+        behavior['length'].append(len(gaze_element))
         search_len = 0
         refix_len = 0
         revisit_len = 0
@@ -43,17 +43,35 @@ def behavior(result_array, target, gaze, benchmark=False):
                 refix_len += (subiterator_len - 1)
             previous_visited.append(k)
         assert search_len + refix_len + revisit_len == len(gaze_element)
-        result_array[2] += (search_len / len(gaze_element))
-        result_array[3] += (refix_len / len(gaze_element))
-        result_array[4] += (revisit_len / len(gaze_element))
+        behavior['search'].append(search_len / len(gaze_element))
+        behavior['refix'].append(refix_len / len(gaze_element))
+        behavior['revisit'].append(revisit_len / len(gaze_element))
+    result_array[0] += np.mean(behavior['correct'])   
+    result_array[1] += np.mean(behavior['length']) 
+    result_array[2] += np.mean(behavior['search']) 
+    result_array[3] += np.mean(behavior['refix']) 
+    result_array[4] += np.mean(behavior['revisit']) 
 
 def string_distance(result_array,gaze,gt,ITERATION,col_num,row_num):
     gt = gt[~np.isnan(gt)]
+    distance = {'SS':[],'VectorSimilarity': [], 'DirectionSimilarity': [], 'LengthSimilarity': [], 'PositionSimilarity': [],'Average':[]}
     for i in range(ITERATION):
         gaze_element = gaze[i][~np.isnan(gaze[i])]
-        # todo: multimatch show seperate four values, check nan values from scanpath<3
-        result_array[6] += nw_matching(gaze_element, gt)
-        result_array[7] += np.mean(docomparison(gaze_element, gt,col_num, row_num))
+        scanpathcomparisons = docomparison(gaze_element, gt,col_num, row_num)[0]
+        distance['SS'].append(nw_matching(gaze_element, gt))
+        distance['VectorSimilarity'].append(scanpathcomparisons[0])
+        distance['DirectionSimilarity'].append(scanpathcomparisons[1])
+        distance['LengthSimilarity'].append(scanpathcomparisons[2])
+        distance['PositionSimilarity'].append(scanpathcomparisons[3])
+        distance['Average'].append(np.mean(scanpathcomparisons))
+    
+    result_array[6] += np.mean(distance['SS'])   
+    result_array[7] += np.nanmean(distance['VectorSimilarity']) 
+    result_array[8] += np.nanmean(distance['DirectionSimilarity']) 
+    result_array[9] += np.nanmean(distance['LengthSimilarity']) 
+    result_array[10] += np.nanmean(distance['PositionSimilarity']) 
+    result_array[11] += np.nanmean(distance['Average']) 
+        
 
 
 class Evaluation(object):
@@ -99,12 +117,12 @@ class Evaluation(object):
 
     def evaluation(self):
         # 7 stands for: correct target, avg.length, avg.search, avg.refix, avg.revisit, distance, heatmap overlapping
-        res = {'gt': torch.zeros(8), 'random': torch.zeros(8), 'center': torch.zeros(8),
-               'rgb': torch.zeros(8), 'saliency': torch.zeros(8), #'tf': torch.zeros(5),
-               'single': torch.zeros(8), 'multi': torch.zeros(8)}
+        res = {'gt': torch.zeros(12), 'random': torch.zeros(12), 'center': torch.zeros(12),
+               'rgb': torch.zeros(12), 'saliency': torch.zeros(12), #'tf': torch.zeros(5),
+               'single': torch.zeros(12), 'multi': torch.zeros(12)}
 
-        for i in range(self.data_length):
-            if self.training_dataset_choice == 'pure':
+        for i in tqdm(range(self.data_length)):
+            if self.training_dataset_choice == self.testing_dataset_choice and self.testing_dataset_choice != 'all':
                 if self.testing_dataset_choice == 'wine':
                     TOTAL_PCK = 22
                     col_num = 11
@@ -113,7 +131,7 @@ class Evaluation(object):
                     TOTAL_PCK = 27
                     col_num = 9
                     row_num = 3
-            elif self.training_dataset_choice == 'all':
+            elif self.training_dataset_choice == self.testing_dataset_choice == 'all':
                 if self.ids[i] == 'Q1':
                     TOTAL_PCK = 22
                     col_num = 11
@@ -122,6 +140,10 @@ class Evaluation(object):
                     TOTAL_PCK = 27
                     col_num = 9
                     row_num = 3
+            else:
+                print('not implemented')
+                quit()
+                
             behavior(res['gt'], self.target[i], self.gaze_gt[i:(i+1)])
             behavior(res['single'], self.target[i], self.gaze_max[i:(i + 1)])
             behavior(res['multi'], self.target[i], self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
@@ -137,18 +159,20 @@ class Evaluation(object):
                 
         res['gt'] = res['gt'] / self.data_length
         res['single'] = res['single'] / self.data_length
-        res['multi'] = res['multi'] / self.data_length / self.ITERATION
+        res['multi'] = res['multi'] / self.data_length 
         if self.showBenchmark:
-            res['random'] = res['random'] / self.data_length / self.ITERATION
-            res['center'] = res['center'] / self.data_length / self.ITERATION
-            res['rgb'] = res['rgb'] / self.data_length / self.ITERATION
-            res['saliency'] = res['saliency'] / self.data_length / self.ITERATION
+            res['random'] = res['random'] / self.data_length 
+            res['center'] = res['center'] / self.data_length 
+            res['rgb'] = res['rgb'] / self.data_length 
+            res['saliency'] = res['saliency'] / self.data_length
 
         print('*'*20)
-        print('correct Target \t avg.len \t avg.search \t avg.refix \t avg.revisit \t delta \t SS \t MM')
-        models = ['gt', 'single', 'multi']
+        print('correct Target \t avg.len \t avg.search \t avg.refix \t avg.revisit \t delta \t SS \t VecSim \t DirSim \t LenSim \t PosSim \t AvgMM')
+        models = ['gt', 'single', 'multi'] 
         if self.showBenchmark:
             models.extend(['random','center', 'saliency', 'rgb'])
+
+        
         for i in models:
             res[i][5] = torch.sum(torch.abs(res[i][:5] - res['gt'][:5]) / res['gt'][:5]) / 5
             print(i, ': ', res[i])
