@@ -6,7 +6,7 @@ import numpy as np
 num_rows, num_columns = 11, 86
 sigma = 2.5
 learning_rate = 0.01
-num_iterations = 10 #000
+num_iterations = 10000
 tolerance = 1e-3
 
 W = nn.Parameter(torch.randn(num_rows, num_columns))

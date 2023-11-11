@@ -58,7 +58,7 @@ if __name__ == '__main__':
     parser.add_argument('-val_check_interval', default=1.0, type=float)
 
     # training settings
-    parser.add_argument('-gpus', default='0', type=str)
+    parser.add_argument('-gpus', default='-1', type=str)
     parser.add_argument('-batch_size', type=int, default=20)
     parser.add_argument('-num_epochs', type=int, default=500)
     parser.add_argument('-random_seed', type=int, default=888)
