@@ -8,7 +8,8 @@ sigma = 2.5
 learning_rate = 0.01
 num_iterations = 10000
 tolerance = 1e-3
-
+# mag of every vector is similar,
+# initialized by original PE,
 W = nn.Parameter(torch.randn(num_rows, num_columns))
 
 optimizer = torch.optim.Adam([W], lr=learning_rate)
