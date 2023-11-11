@@ -9,6 +9,7 @@ import numpy as np
 import sys
 sys.path.append('./src/')
 from evaluation.evaluation_model import behavior
+from evaluation.saliency_metric import saliency_map_metric, nw_matching, compare_multi_gazes
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -61,6 +62,13 @@ class TransformerModel(pl.LightningModule):
             #print('-' * 10)
 
     def training_step(self, batch, batch_idx):
+        loss = self.train_batch_teacher_forcing(batch)
+        #self.log_gradients_in_model(self.total_step)
+        self.total_step += 1
+        self.log('training_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+        return {'loss': loss, }
+
+    def train_batch_teacher_forcing(self, batch, return_logits=False):
         src_pos, src_img, tgt_pos, tgt_img = batch
         # src_pos(28, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
         src_pos = src_pos.to(DEVICE)
@@ -77,10 +85,10 @@ class TransformerModel(pl.LightningModule):
                             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-        #self.log_gradients_in_model(self.total_step)
-        self.total_step += 1
-        self.log('training_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'loss': loss, }
+        if return_logits:
+            logits_new = F.softmax(logits[:, 0, :], dim=0)
+            return logits_new
+        return loss
 
     def training_epoch_end(self, training_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in training_step_outputs]).mean()
@@ -125,12 +133,18 @@ class TransformerModel(pl.LightningModule):
         src_img = src_img.to(DEVICE)
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
+        logits = self.train_one_dataset(batch)
+        sim = saliency_map_metric(logits, batch[2][1:, 0])
         loss, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
+        gt = batch[2][1:,:][:-1]
+        ss = nw_matching(gt[:, 0].detach().cpu().numpy(), GAZE[:, 0].detach().cpu().numpy())
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'loss': loss, 'GAZE': GAZE, 'GAZE_gt': tgt_pos[1:,:][:-1],'target':src_pos[-1]}
+        return {'loss': loss, 'GAZE': GAZE, 'GAZE_gt': tgt_pos[1:,:][:-1],'target':src_pos[-1], 'sim': sim, 'ss': ss}
 
     def validation_epoch_end(self, validation_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
+        avg_sim = np.stack([x['sim'] for x in validation_step_outputs]).mean()
+        avg_ss = np.stack([x['ss'] for x in validation_step_outputs]).mean()
         res_gt, res_max = torch.zeros(6).to(DEVICE), torch.zeros(6).to(DEVICE)
         i = 0
         for output in validation_step_outputs:
@@ -143,9 +157,12 @@ class TransformerModel(pl.LightningModule):
         res_gt = res_gt / i
         res_max = res_max / i
         res_max[5] = torch.mean(torch.abs(res_max[:5] - res_gt[:5]) / res_gt[:5])
-        print('delta: ', res_max[5])
+        delta = res_max[5]
+        #print('delta: ', res_max[5])
         self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('validation_metric_each_epoch', res_max[5], on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('validation_delta_each_epoch', delta, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('validation_sim_each_epoch', avg_sim, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('validation_ss_each_epoch', avg_ss, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def generate_one_scanpath(self, tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb):
         length = tgt_pos.size(0)
@@ -261,9 +278,9 @@ class TransformerModel(pl.LightningModule):
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         _, predicted = torch.max(logits, 2)
-        #LOGITS_tf=soft(logits).squeeze(1)
+        LOGITS_tf = soft(logits).squeeze(1)
         print(predicted.view(-1))
-        return loss,predicted[:-1],tgt_out[:-1] #,LOGITS_tf[:-1]
+        return loss,predicted[:-1],tgt_out[:-1],LOGITS_tf[:-1]
 
     def test_step(self, batch, batch_idx):
         src_pos, src_img, tgt_pos, tgt_img = batch
@@ -274,11 +291,14 @@ class TransformerModel(pl.LightningModule):
 
         loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
-        loss_gt, GAZE_tf, GAZE_gt = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
+        loss_gt, GAZE_tf, GAZE_gt, LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
+        sim = saliency_map_metric(LOGITS_tf, GAZE_gt[:, 0])
+        ss_max = compare_multi_gazes(GAZE_gt, [GAZE[:, 0]])
+        ss_exp = compare_multi_gazes(GAZE_gt, GAZE_expect)
         self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         if self.args.write_output == 'True':
             return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt,'LOSS': LOSS, 'GAZE': GAZE, 'GAZE_tf': GAZE_tf,
-                    'GAZE_gt': GAZE_gt, 'GAZE_expect': GAZE_expect}
+                    'GAZE_gt': GAZE_gt, 'GAZE_expect': GAZE_expect, 'sim': sim, 'ss_max': ss_max, 'ss_exp': ss_exp}
         else:
             return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt}
 
@@ -325,6 +345,13 @@ class TransformerModel(pl.LightningModule):
 
             avg_loss = torch.stack([x['loss_gt'].cpu().detach() for x in test_step_outputs]).mean()
             self.log('test_loss_gt_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+
+            avg_sim = np.stack([x['sim'] for x in test_step_outputs]).mean()
+            self.log('test_sim', avg_sim, on_epoch=True, prog_bar=True, sync_dist=True)
+            avg_ss_max = np.stack([x['ss_max'] for x in test_step_outputs]).mean()
+            self.log('test_ss_max', avg_ss_max, on_epoch=True, prog_bar=True, sync_dist=True)
+            avg_ss_exp = np.stack([x['ss_exp'] for x in test_step_outputs]).mean()
+            self.log('test_ss_exp', avg_ss_exp, on_epoch=True, prog_bar=True, sync_dist=True)
         else:
             avg_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
             self.log('test_loss_max_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
