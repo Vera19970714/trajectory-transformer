@@ -52,10 +52,10 @@ def behavior(result_array, target, gaze, benchmark=False):
     result_array[3] += np.mean(behavior['refix']) 
     result_array[4] += np.mean(behavior['revisit']) 
 
-def string_distance(result_array,gaze,gt,ITERATION,col_num,row_num):
+def string_distance(result_array,gaze,gt,col_num,row_num):
     gt = gt[~np.isnan(gt)]
     distance = {'SS':[],'VectorSimilarity': [], 'DirectionSimilarity': [], 'LengthSimilarity': [], 'PositionSimilarity': [],'Average':[]}
-    for i in range(ITERATION):
+    for i in range(len(gaze)):
         gaze_element = gaze[i][~np.isnan(gaze[i])]
         scanpathcomparisons = docomparison(gaze_element, gt,col_num, row_num)[0]
         distance['SS'].append(nw_matching(gaze_element, gt))
@@ -147,15 +147,18 @@ class Evaluation(object):
             behavior(res['gt'], self.target[i], self.gaze_gt[i:(i+1)])
             behavior(res['single'], self.target[i], self.gaze_max[i:(i + 1)])
             behavior(res['multi'], self.target[i], self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
+            string_distance(res['single'],self.gaze_max[i:(i + 1)],self.gaze_gt[i:(i+1)],col_num,row_num)
+            string_distance(res['multi'],self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],col_num,row_num)
+
             if self.showBenchmark:
                 behavior(res['random'], self.target[i],self.gaze_random[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
                 behavior(res['center'], self.target[i], self.gaze_center[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
                 behavior(res['rgb'], self.target[i], self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
                 behavior(res['saliency'], self.target[i], self.gaze_saliency[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
-                string_distance(res['random'],self.gaze_random[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],self.ITERATION,col_num,row_num)
-                string_distance(res['center'],self.gaze_center[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],self.ITERATION,col_num,row_num)
-                string_distance(res['rgb'],self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],self.ITERATION,col_num,row_num)
-                string_distance(res['saliency'],self.gaze_saliency[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],self.ITERATION,col_num,row_num)
+                string_distance(res['random'],self.gaze_random[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],col_num,row_num)
+                string_distance(res['center'],self.gaze_center[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],col_num,row_num)
+                string_distance(res['rgb'],self.gaze_rgb[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],col_num,row_num)
+                string_distance(res['saliency'],self.gaze_saliency[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],col_num,row_num)
                 
         res['gt'] = res['gt'] / self.data_length
         res['single'] = res['single'] / self.data_length
