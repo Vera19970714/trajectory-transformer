@@ -200,6 +200,7 @@ def getSinPositional(dimension, embed, functionChoice, alpha, dataset, changeX):
         x = enc(torch.randn(1, 3, 11, 2, embed))
         return x
 
+
 def calculate2DPositional(x, src):
     #x: 1, 3, 9, 256; src: 28, 1, 3
     tgt = x[:, src[0, :, 0].long(), src[0, :, 1].long(), :] # 1, 256
@@ -223,6 +224,17 @@ def calculate3DPositional(x, src):
     return res
 
 
+def calculate3DPositional_learned(pe, src, emb):
+    # pe: 15, 86; src: 28, b, 3; output: 28, b, 256
+    res = torch.zeros((src.size()[0], src.size()[1], emb))
+    for i in range(src.size()[0]):
+        for j in range(src.size()[1]):
+            a = src[i, j].long()
+            pe_ = torch.cat((pe[a[0]], pe[a[1]], pe[a[2]]), dim=0)[:emb]
+            res[i, j] = pe_
+    return res
+
+
 def finetune_embedding(emb, dataset, order=15): # 1, 3, 9, 2, 256
     if dataset == 'wine':
         center = emb[0, 0, 5]
@@ -241,6 +253,7 @@ def finetune_embedding(emb, dataset, order=15): # 1, 3, 9, 2, 256
                     emb_res = torch.from_numpy(result.x).to(DEVICE)
                     new_emb[a, b, c, d] = emb_res
     return new_emb
+
 
 def getCosSim(a, b):
     cos_sim = dot(a, b) / (norm(a) * norm(b))
@@ -502,7 +515,7 @@ def draw1DMag():
     import matplotlib.pylab as plt
     embed = 256
     totali = 100
-    choice = 'original'
+    choice = 'exp1'
     alpha = 0
     enc = PositionalEncoding(embed, 0, choice, alpha).pos_embedding
     x = enc[:totali, 0].numpy()  # 12, 256
@@ -510,8 +523,10 @@ def draw1DMag():
     for i in range(totali):
         embedding = x[i]
         mags.append(mag(embedding))
+    print(mags)
     plt.plot(mags)
     plt.show()
+
 
 '''def runDifferentDecoderPE():
     # run decoder 1) p1=img concat 3D, 2) p1=img add 3D, 3) p1=(img add 3D)*projection 4) p1=img 5) p1=3D

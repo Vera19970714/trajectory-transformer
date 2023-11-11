@@ -35,7 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
     parser.add_argument('-alpha', type=float, default=0.9)
-    parser.add_argument('-functionChoice', default='original_update', type=str) # choices: linear, exp1, exp2, original, original_update
+    parser.add_argument('-functionChoice', default='learned', type=str) # choices: linear, exp1, exp2, original, original_update, learned
     parser.add_argument('-changeX', default='None', type=str) # None, False, True
     parser.add_argument('-CA_version', default=3, type=int)  # valid values atm: 0, 3
     # 0: no cross attention, 1: add padding to input, 2: extra FC stream, 3: add pad prob in logits
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     parser.add_argument('-random_seed', type=int, default=888)
     parser.add_argument('-early_stop_patience', type=int, default=30)
 
-    parser.add_argument('-monitor', type=str, default='validation_delta_each_epoch') #'validation_loss_each_epoch'
+    parser.add_argument('-monitor', type=str, default='validation_sim_each_epoch') #'validation_loss_each_epoch'
     parser.add_argument('-do_train', type=str, default='True')
     parser.add_argument('-do_test', type=str, default='True')
 

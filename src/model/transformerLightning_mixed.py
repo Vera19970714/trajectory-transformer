@@ -9,8 +9,7 @@ import numpy as np
 import sys
 sys.path.append('./src/')
 from evaluation.evaluation_model import behavior
-from evaluation.saliency_metric import saliency_map_metric, nw_matching, compare_multi_gazes, compare_mm
-from evaluation.multimatch import docomparison
+from evaluation.saliency_metric import saliency_map_metric, nw_matching, compare_multi_gazes
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -142,32 +141,27 @@ class TransformerModel_Mixed(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         data1, data2 = batch
         if len(data1)==0:
-            type = 1
             logits = self.train_one_dataset(data2, 1, True)
             loss, GAZE = self.valid_one_dataset(data2, 1)
             gt = data2[2][1:,:][:-1]
             target = data2[0][-1]
             sim = saliency_map_metric(logits, data2[2][1:,0])
             ss = nw_matching(gt[:,0].detach().cpu().numpy(), GAZE[:,0].detach().cpu().numpy())
-            mm = np.mean(docomparison(gt[:,0].detach().cpu().numpy(), GAZE[:,0].detach().cpu().numpy(),self.args.shelf_col[type],self.args.shelf_row[type]))
         else:
-            type = 0
             logits = self.train_one_dataset(data1, 0, True)
             loss, GAZE = self.valid_one_dataset(data1, 0)
             gt = data1[2][1:,:][:-1]
             target = data1[0][-1]
             sim = saliency_map_metric(logits, data1[2][1:,0])
             ss = nw_matching(gt[:,0].detach().cpu().numpy(), GAZE[:,0].detach().cpu().numpy())
-            mm = np.mean(docomparison(gt[:,0].detach().cpu().numpy(), GAZE[:,0].detach().cpu().numpy(),self.args.shelf_col[type],self.args.shelf_row[type]))
-        
+
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'loss': loss, 'GAZE': GAZE,  'GAZE_gt': gt,  'target': target, 'sim': sim, 'ss': ss, 'mm': mm}
+        return {'loss': loss, 'GAZE': GAZE,  'GAZE_gt': gt,  'target': target, 'sim': sim, 'ss': ss}
 
     def validation_epoch_end(self, validation_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
         avg_sim = np.stack([x['sim'] for x in validation_step_outputs]).mean()
         avg_ss = np.stack([x['ss'] for x in validation_step_outputs]).mean()
-        avg_mm = np.stack([x['mm'] for x in validation_step_outputs]).mean()
         res_gt, res_max = torch.zeros(6).to(DEVICE), torch.zeros(6).to(DEVICE)
         i = 0
         for output in validation_step_outputs:
@@ -187,7 +181,6 @@ class TransformerModel_Mixed(pl.LightningModule):
         self.log('validation_delta_each_epoch', delta, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('validation_sim_each_epoch', avg_sim, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('validation_ss_each_epoch', avg_ss, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('validation_mm_each_epoch', avg_mm, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def generate_one_scanpath(self, tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb, type):
         length = tgt_pos.size(0)
@@ -317,25 +310,23 @@ class TransformerModel_Mixed(pl.LightningModule):
         sim = saliency_map_metric(LOGITS_tf, GAZE_gt[:, 0])
         loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img, type)
         ss_max = compare_multi_gazes(GAZE_gt, [GAZE[:, 0]])
-        mm_max = compare_mm(GAZE_gt, [GAZE[:, 0]],self.args.shelf_col[type],self.args.shelf_row[type])
         loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img, type)
         ss_exp = compare_multi_gazes(GAZE_gt, GAZE_expect)
-        mm_exp = compare_mm(GAZE_gt, GAZE_expect,self.args.shelf_col[type],self.args.shelf_row[type])
-        return loss_max, loss_expect, loss_gt, GAZE, GAZE_expect, GAZE_gt, sim, ss_max, ss_exp, mm_max, mm_exp
+        return loss_max, loss_expect, loss_gt, GAZE, GAZE_expect, GAZE_gt, sim, ss_max, ss_exp
 
     def test_step(self, batch, batch_idx):
         data1, data2 = batch
         if len(data1) == 0:
-            loss_max, loss_expect, loss_gt, GAZE, GAZE_expect, GAZE_gt, sim, ss_max, ss_exp, mm_max, mm_exp\
+            loss_max, loss_expect, loss_gt, GAZE, GAZE_expect, GAZE_gt, sim, ss_max, ss_exp \
                 = self.test_one_dataset(data2, 1)
         else:
-            loss_max, loss_expect, loss_gt, GAZE, GAZE_expect, GAZE_gt, sim, ss_max, ss_exp, mm_max, mm_exp\
+            loss_max, loss_expect, loss_gt, GAZE, GAZE_expect, GAZE_gt, sim, ss_max, ss_exp \
                 = self.test_one_dataset(data1, 0)
 
         self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt,
                 'GAZE': GAZE, 'GAZE_gt': GAZE_gt, 'GAZE_expect': GAZE_expect, 'sim':sim,
-                'ss_max': ss_max, 'ss_exp': ss_exp, 'mm_max': mm_max, 'mm_exp': mm_exp}
+                'ss_max': ss_max, 'ss_exp': ss_exp}
 
     def test_epoch_end(self, test_step_outputs):
         all_loss, all_gaze, all_gaze_gt, all_gaze_expect = \
@@ -370,10 +361,6 @@ class TransformerModel_Mixed(pl.LightningModule):
         self.log('test_ss_max', avg_ss_max, on_epoch=True, prog_bar=True, sync_dist=True)
         avg_ss_exp = np.stack([x['ss_exp'] for x in test_step_outputs]).mean()
         self.log('test_ss_exp', avg_ss_exp, on_epoch=True, prog_bar=True, sync_dist=True)
-        avg_mm_max = np.stack([x['mm_max'] for x in test_step_outputs]).mean()
-        self.log('test_mm_max', avg_mm_max, on_epoch=True, prog_bar=True, sync_dist=True)
-        avg_mm_exp = np.stack([x['mm_exp'] for x in test_step_outputs]).mean()
-        self.log('test_mm_exp', avg_ss_exp, on_epoch=True, prog_bar=True, sync_dist=True)
 
 
     def configure_optimizers(self):

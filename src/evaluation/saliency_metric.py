@@ -11,14 +11,14 @@ def saliency_map_metric(logits, tgt_pos):
 	logits = logits.detach().cpu().numpy()
 	tgt_pos = tgt_pos.detach().cpu().numpy()
 	seq_len, package_size = logits.shape[0], logits.shape[1]
-	nss_total = 0
+	sim_total = 0
 	for i in range(seq_len):
 		saliency_map = logits[i]
 		fixation_map = np.zeros(package_size)
 		fixation_map[tgt_pos[i]] = 1
-		nss = SIM(saliency_map, fixation_map)
-		nss_total += nss
-	return nss_total/seq_len
+		sim = SIM(saliency_map, fixation_map)
+		sim_total += sim
+	return sim_total/seq_len
 
 def normalize(x, method='standard', axis=None):
     '''Normalizes the input with specified method.
