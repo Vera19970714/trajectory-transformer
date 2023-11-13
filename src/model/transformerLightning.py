@@ -133,7 +133,7 @@ class TransformerModel(pl.LightningModule):
         src_img = src_img.to(DEVICE)
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
-        logits = self.train_one_dataset(batch)
+        logits = self.train_batch_teacher_forcing(batch, True)
         sim = saliency_map_metric(logits, batch[2][1:, 0])
         loss, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         gt = batch[2][1:,:][:-1]
