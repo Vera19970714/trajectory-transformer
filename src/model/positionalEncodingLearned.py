@@ -3,16 +3,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 from positionalEncoding import *
 
+sigma = 2.5 # try 1.5, 2
+# W1:Random; W2:Original; W3:Original with order 15
+choice = 1
+
 num_rows, num_columns = 11, 86
-sigma = 2.5
 learning_rate = 0.01
 num_iterations = 10000
 tolerance = 1e-3
 
 enc = PositionalEncoding(num_columns, 0, 'original', 0.9, maxlen=num_rows).pos_embedding
 enc = enc.reshape(11, 86)
-# W1:Random; W2:Original; W3:Original with order 15
-choice = 1
+
 if choice == 1:
     W = nn.Parameter(enc)
 elif choice == 2:
@@ -118,6 +120,6 @@ print("Norms of each row:", norms)
 
 W = W.detach().cpu().numpy()
 if choice == 1:
-    np.save('learned_PE_random.npy', W)
+    np.save('learned_PE_random_'+str(sigma)+'.npy', W)
 elif choice == 2:
-    np.save('learned_PE_init.npy', W)
+    np.save('learned_PE_init_'+str(sigma)+'.npy', W)

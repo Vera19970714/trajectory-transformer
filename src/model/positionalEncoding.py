@@ -413,7 +413,8 @@ def draw1Dheatmap_different_functions():
     import matplotlib.pylab as plt
 
     embed = 256
-    totali = 250
+    totali = 12
+    #sigma = 2.5
 
     def getLine(choice, alpha, update=False, order=15):
         enc = PositionalEncoding(embed, 0, choice, alpha).pos_embedding
@@ -421,7 +422,7 @@ def draw1Dheatmap_different_functions():
         ref = x[int(totali/2)]
         simMatrix = np.zeros((1, totali))
         # W = np.random.normal(0, 1, size=(2, 50))
-        for i in range(1, totali):
+        for i in range(totali):
             emb = x[i]
 
             # original
@@ -439,28 +440,41 @@ def draw1Dheatmap_different_functions():
             simMatrix[0, i] = a
         return simMatrix[0, 1:]
 
+    def getGaussianSim(sigma):
+        ref = int(totali/2)
+        simMatrix = np.zeros((totali))
+        for i in range(totali):
+            simMatrix[i] = np.exp(-((i - ref) ** 2) / (2 * sigma ** 2))
+        return simMatrix[1:]
+
     line9 = getLine('original', 0.9)
     line9_update = getLine('original', 0.9, True)
-    line9_update2 = getLine('original', 0.9, True, 5)
-    line9_update3 = getLine('original', 0.9, True, 30)
-    line8 = getLine('exp1', 0.9)
-    line7 = getLine('exp1', 0.7)
-    line6 = getLine('exp1', 0.5)
-    line5 = getLine('linear', 0.9)
-    line4 = getLine('exp2', 0.9)
+    gau = getGaussianSim(2.5)
+    gau2 = getGaussianSim(2)
+    gau3 = getGaussianSim(1.5)
+    #line9_update2 = getLine('original', 0.9, True, 5)
+    #line9_update3 = getLine('original', 0.9, True, 30)
+    #line8 = getLine('exp1', 0.9)
+    #line7 = getLine('exp1', 0.7)
+    #line6 = getLine('exp1', 0.5)
+    #line5 = getLine('linear', 0.9)
+    #line4 = getLine('exp2', 0.9)
     #sns.heatmap(simMatrix, linewidth=1, annot=False)
     #print(simMatrix[0])
     #sns.heatmap(simMatrix[:, 1:], linewidth=1, annot=False)
     # plt.hist(simMatrix[0, 1:])
-    plt.plot(line4, label='exp2, 0.9')
-    plt.plot(line5, label='linear, 0.9')
+    #plt.plot(line4, label='exp2, 0.9')
+    #plt.plot(line5, label='linear, 0.9')
     #plt.plot(line6, label='exp1, 0.5')
     #plt.plot(line7, label='exp1, 0.7')
-    plt.plot(line8, label='exp1, 0.9')
+    #plt.plot(line8, label='exp1, 0.9')
     plt.plot(line9, label='original')
-    plt.plot(line9_update2, label='original_update 5')
+    #plt.plot(line9_update2, label='original_update 5')
     plt.plot(line9_update, label='original_update 15')
     #plt.plot(line9_update3, label='original_update 30')
+    plt.plot(gau3, label='Gaussian 1.5')
+    plt.plot(gau2, label='Gaussian 2')
+    plt.plot(gau, label='Gaussian 2.5')
     plt.xlabel('index')
     plt.ylabel('cos sim')
     plt.legend()
@@ -513,9 +527,9 @@ def draw1DMag():
     def mag(x):
         return math.sqrt(sum(i ** 2 for i in x))
     import matplotlib.pylab as plt
-    embed = 256
-    totali = 100
-    choice = 'exp1'
+    embed = 64
+    totali = 10
+    choice = 'original'
     alpha = 0
     enc = PositionalEncoding(embed, 0, choice, alpha).pos_embedding
     x = enc[:totali, 0].numpy()  # 12, 256
@@ -524,8 +538,8 @@ def draw1DMag():
         embedding = x[i]
         mags.append(mag(embedding))
     print(mags)
-    plt.plot(mags)
-    plt.show()
+    #plt.plot(mags)
+    #plt.show()
 
 
 '''def runDifferentDecoderPE():
@@ -554,7 +568,8 @@ if __name__ == '__main__':
     print(pex.shape)'''
 
     #draw1Dheatmap_different_center()
-    draw1DMag()
+    #draw1DMag()
     #draw2Dheatmap()
+    draw1Dheatmap_different_functions()
 
 
