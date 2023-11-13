@@ -412,8 +412,8 @@ def draw2Dheatmap():
 def draw1Dheatmap_different_functions():
     import matplotlib.pylab as plt
 
-    embed = 256
-    totali = 12
+    embed = 86
+    totali = 11
     #sigma = 2.5
 
     def getLine(choice, alpha, update=False, order=15):
@@ -447,11 +447,27 @@ def draw1Dheatmap_different_functions():
             simMatrix[i] = np.exp(-((i - ref) ** 2) / (2 * sigma ** 2))
         return simMatrix[1:]
 
+    def getLearnedPE():
+        enc = np.load('src/model/learned_PE_random_2.npy') # 11, 86
+        x = enc[:totali]  # 11,86
+        ref = x[int(totali/2)]
+        simMatrix = np.zeros((1, totali))
+        for i in range(totali):
+            emb = x[i]
+
+            # original
+            a = getCosSim(emb, ref)
+            # a = getCosSim(emb, x[i-1])
+
+            simMatrix[0, i] = a
+        return simMatrix[0, 1:]
+
     line9 = getLine('original', 0.9)
     line9_update = getLine('original', 0.9, True)
     gau = getGaussianSim(2.5)
     gau2 = getGaussianSim(2)
     gau3 = getGaussianSim(1.5)
+    learned = getLearnedPE()
     #line9_update2 = getLine('original', 0.9, True, 5)
     #line9_update3 = getLine('original', 0.9, True, 30)
     #line8 = getLine('exp1', 0.9)
@@ -475,6 +491,7 @@ def draw1Dheatmap_different_functions():
     plt.plot(gau3, label='Gaussian 1.5')
     plt.plot(gau2, label='Gaussian 2')
     plt.plot(gau, label='Gaussian 2.5')
+    plt.plot(learned, label='Learned PE')
     plt.xlabel('index')
     plt.ylabel('cos sim')
     plt.legend()
@@ -538,8 +555,8 @@ def draw1DMag():
         embedding = x[i]
         mags.append(mag(embedding))
     print(mags)
-    #plt.plot(mags)
-    #plt.show()
+    plt.plot(mags)
+    plt.show()
 
 
 '''def runDifferentDecoderPE():
