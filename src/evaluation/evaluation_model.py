@@ -44,7 +44,7 @@ def behavior(result_array, target, gaze):
 
 class Evaluation(object):
     def __init__(self, training_dataset_choice, testing_dataset_choice, evaluation_url,
-                 datapath, indexFile, ITERATION=100):
+                 datapath, indexFile, ITERATION=100, hasExpectedFile=True):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
         self.ITERATION = ITERATION
         index_folder = './dataset/processdata/'
@@ -72,7 +72,9 @@ class Evaluation(object):
         self.gaze_gt = np.array(pd.read_csv(gaze_gt))
         #self.gaze_tf = np.array(pd.read_csv(gaze_tf))
         self.gaze_max = np.array(pd.read_csv(gaze_max))
-        self.gaze_expect = np.array(pd.read_csv(gaze_expect))
+        self.hasExpectedFile = hasExpectedFile
+        if hasExpectedFile:
+            self.gaze_expect = np.array(pd.read_csv(gaze_expect))
 
     def evaluation(self):
         # 7 stands for: correct target, avg.length, avg.search, avg.refix, avg.revisit, distance, heatmap overlapping
@@ -83,7 +85,8 @@ class Evaluation(object):
         for i in range(self.data_length):
             behavior(res['gt'], self.target[i], self.gaze_gt[i:(i+1)])
             behavior(res['single'], self.target[i], self.gaze_max[i:(i + 1)])
-            behavior(res['multi'], self.target[i], self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
+            if self.hasExpectedFile:
+                behavior(res['multi'], self.target[i], self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
 
         res['gt'] = res['gt'] / self.data_length
         res['single'] = res['single'] / self.data_length

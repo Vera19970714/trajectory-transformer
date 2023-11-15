@@ -34,6 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('-spp', default=0, type=int) # 0: no spp, 2, 3, 4 represent level
     # todo: check target accuracy for irregular
     # todo: layout/target choice should be unified
+    # todo: add evaluation
 
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
@@ -119,7 +120,7 @@ if __name__ == '__main__':
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
     # make dataloader & model
-
+    hasExpectedFile = True
     if args.model == 'Transformer':
         search_data = SearchDataModule(args)
         if args.testing_dataset_choice == 'irregular':
@@ -137,6 +138,7 @@ if __name__ == '__main__':
     elif args.model == 'Gazeformer':
         search_data = GazeformerDataModule(args)
         model = TransformerModel_Gazeformer(args, 20)
+        hasExpectedFile = False
     else:
         print('Invalid model')
 
@@ -171,6 +173,6 @@ if __name__ == '__main__':
 
     e = Evaluation(args.training_dataset_choice, args.testing_dataset_choice, args.output_path,
                    args.data_path, args.index_folder+args.index_file,
-                   ITERATION=args.stochastic_iteration)
+                   ITERATION=args.stochastic_iteration, hasExpectedFile=hasExpectedFile)
     e.evaluation()
 

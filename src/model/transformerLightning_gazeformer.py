@@ -60,7 +60,7 @@ class TransformerModel_Gazeformer(pl.LightningModule):
         # databuilder output: src 10, 640, 2048; firstfix: 10, 2; task: 10, 768; token_prob: 7,10,2;
         # input: first_fix: b, 2, src_img: b, 640, 2048, task_img: b, 15, 2048,
         first_fix = tgt_input_2d[0, :, :2].long()
-        end_logits, xs, ys = self.model(first_fix, src_img, tgt_img)
+        end_logits, xs_out, ys_out = self.model(first_fix, src_img, tgt_img)
                             #src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
         # output: 10,b,2; 10,b,1; 10,b,1
         gt = tgt_pos[1:]  # 8, 1
@@ -73,8 +73,8 @@ class TransformerModel_Gazeformer(pl.LightningModule):
             gt_ = gt_[:end_token]
             gtx = gt_ // self.args.shelf_col[type]
             gty = torch.remainder(gt_, self.args.shelf_col[type])
-            xs_ = xs[:end_token, i, 0]  # 10,
-            ys_ = ys[:end_token, i, 0]  # 10
+            xs_ = xs_out[:end_token, i, 0]  # 10,
+            ys_ = ys_out[:end_token, i, 0]  # 10
             logit_gt = torch.zeros(((end_token+1))).type(torch.LongTensor).to(DEVICE)
             logit_gt[-1] = 1
             loss += self.loss_fn_token(logit_, logit_gt)
@@ -82,6 +82,15 @@ class TransformerModel_Gazeformer(pl.LightningModule):
             loss += self.loss_fn_xy(xs_, gtx)
             loss += self.loss_fn_xy(ys_, gty)
             if return_gaze:
+                end_lo = torch.argmax(end_logits[:, 0, :], axis=-1)[1:] #10, 1, 2
+                end_index = torch.where(end_lo == 1)[0]
+                if len(end_index) == 0:
+                    end_index = end_lo.size()[0]
+                else:
+                    end_index = end_index[0]
+                end_index += 1 # first one cannot be ending
+                xs_ = xs_out[:end_token, i, 0]  # 10,
+                ys_ = ys_out[:end_token, i, 0]
                 xs_ = torch.round(torch.clamp(xs_, min=0, max=self.args.shelf_col[type]).unsqueeze(-1))
                 ys_ = torch.round(torch.clamp(ys_, min=0, max=self.args.shelf_row[type]).unsqueeze(-1))
                 xy = xs_ * self.args.shelf_col[type] + ys_
@@ -211,8 +220,7 @@ class TransformerModel_Gazeformer(pl.LightningModule):
                 'ss_max': ss, 'ss_exp': 0}
 
     def test_epoch_end(self, test_step_outputs):
-        all_loss, all_gaze, all_gaze_gt, all_gaze_expect = \
-            pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        all_gaze, all_gaze_gt = pd.DataFrame(), pd.DataFrame()
         for output in test_step_outputs:
             gazes = output['GAZE'].cpu().detach().numpy().T
             all_gaze = pd.concat([all_gaze, pd.DataFrame(gazes)],axis=0)
@@ -221,7 +229,6 @@ class TransformerModel_Gazeformer(pl.LightningModule):
 
         all_gaze.reset_index().drop(['index'],axis=1)
         all_gaze_gt.reset_index().drop(['index'],axis=1)
-        all_gaze_expect.reset_index().drop(['index'],axis=1)
         all_gaze.to_csv(self.args.output_path + '/gaze_max' + self.args.output_postfix + '.csv', index=False)
         all_gaze_gt.to_csv(self.args.output_path + '/gaze_gt' + self.args.output_postfix + '.csv', index=False)
 

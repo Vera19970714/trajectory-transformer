@@ -188,6 +188,9 @@ if __name__ == '__main__':
     testing_dataset_choice = 'all'
 
     evaluation_url = './dataset/checkEvaluation/mixed_pe_exp1_alpha9'
+    datapath = './dataset/processdata/dataset_Q123_mousedel_time'
+    indexFile = './dataset/processdata/'
 
-    e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url, ITERATION)
+    e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url,
+                 datapath, indexFile, ITERATION=100, showBenchmark=False)
     e.evaluation()
