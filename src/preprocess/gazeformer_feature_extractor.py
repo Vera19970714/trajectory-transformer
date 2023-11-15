@@ -1,8 +1,3 @@
-from models import ResNetCOCO
-import torchvision.transforms as T
-import torch
-import torch.nn.functional as F
-from torch import nn, Tensor
 from sentence_transformers import SentenceTransformer
 import PIL
 import os
@@ -10,7 +5,41 @@ from os.path import join, isdir, isfile
 import numpy as np
 import argparse
 from tqdm import tqdm
+from torchvision.models.detection import maskrcnn_resnet50_fpn
+import torchvision.transforms as T
+import torch
+from torch import nn, Tensor
+
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
+# ResNet-50 backbone
+class ResNetCOCO(nn.Module):
+    def __init__(self, device="cuda:0"):
+        super(ResNetCOCO, self).__init__()
+        self.resnet = maskrcnn_resnet50_fpn(pretrained=True).backbone.body.to(device)
+        self.device = device
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.to(self.device)
+        x = self.resnet.conv1(x)
+        x = self.resnet.bn1(x)
+        x = self.resnet.relu(x)
+        x = self.resnet.maxpool(x)
+
+        x = self.resnet.layer1(x)
+        x = self.resnet.layer2(x)
+        x = self.resnet.layer3(x)
+        x = self.resnet.layer4(x)
+
+        bs, ch, _, _ = x.size()
+        x = x.view(bs, ch, -1).permute(0, 2, 1)
+
+        return x
+
+
+
 def image_data(dataset_path, question):
     if question == 1:
         src_path = join(dataset_path, 'Question/')
