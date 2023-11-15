@@ -1,7 +1,5 @@
 python3 src/run.py  -log_name gazeformer  -model Gazeformer > gazeformer.txt
 
-python3 src/run.py  -log_name train_all_test_all_random_time_original  > train_all_test_all_random_time_original.txt
-
 python3 src/run.py  -log_name train_all_test_all_random_time_original  \
   -functionChoice original > train_all_test_all_random_time_original.txt
 
