@@ -29,12 +29,10 @@ if __name__ == '__main__':
 
     parser.add_argument('-testing_dataset_choice', default='all', type=str)  # wine, yogurt, all, irregular
     parser.add_argument('-training_dataset_choice', default='all', type=str)  # wine, yogurt, all
-    parser.add_argument('-layout_choice', default=0, type=int)
+    parser.add_argument('-leave_one_comb_out', default=0, type=int)
     parser.add_argument('-target_choice', default=0, type=int)
     parser.add_argument('-spp', default=0, type=int) # 0: no spp, 2, 3, 4 represent level
     # todo: check target accuracy for irregular
-    # todo: layout/target choice should be unified
-    # todo: add evaluation
 
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4

@@ -14,12 +14,9 @@ def get_val_and_tst(testing_dataset):
     return val, tst
 
 
-def randsplit_tgt(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice,
-                  layout_id, target_id):
-    if layout_id != 0:
-        layout_id = 'Q3_21'
-    elif target_id != 0:
-        target_id = 'T3_1'
+def randsplit_comb(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice):
+    layout_id = 'Q3_21'
+    target_id = 'T3_1'
 
     with open(datapath, "rb") as fp:
         raw_data = pickle.load(fp)
@@ -35,7 +32,7 @@ def randsplit_tgt(datapath, indexFile, isTrain, testing_dataset_choice, training
     wine_task = []
     tst = []
     for index in range(len(raw_data)):
-        if raw_data[index]['tgt_id'] == target_id or raw_data[index]['layout_id'] == layout_id:
+        if raw_data[index]['tgt_id'] == target_id and raw_data[index]['layout_id'] == layout_id:
             tst.append(index)
             continue
         if raw_data[index]['id'] == 'Q2':
@@ -140,13 +137,11 @@ class FixDataset(Dataset):
         assert training_dataset_choice in ["wine", "yogurt", "all"]
         print('Settings: ', isTrain, training_dataset_choice, testing_dataset_choice)
 
-        layout_id = args.layout_choice
-        target_id = args.target_choice
-        if layout_id == target_id == 0:
+        leave_one_comb_out = args.leave_one_comb_out
+        if leave_one_comb_out == 0:
             raw_data = randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice)
         else:
-            raw_data = randsplit_tgt(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice,
-                                 layout_id, target_id)
+            raw_data = randsplit_comb(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice)
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
