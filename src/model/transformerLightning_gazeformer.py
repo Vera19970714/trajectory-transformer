@@ -89,8 +89,8 @@ class TransformerModel_Gazeformer(pl.LightningModule):
                 else:
                     end_index = end_index[0]
                 end_index += 1 # first one cannot be ending
-                xs_ = xs_out[:end_token, i, 0]  # 10,
-                ys_ = ys_out[:end_token, i, 0]
+                xs_ = xs_out[:end_index, i, 0]  # 10,
+                ys_ = ys_out[:end_index, i, 0]
                 xs_ = torch.round(torch.clamp(xs_, min=0, max=self.args.shelf_col[type]).unsqueeze(-1))
                 ys_ = torch.round(torch.clamp(ys_, min=0, max=self.args.shelf_row[type]).unsqueeze(-1))
                 xy = xs_ * self.args.shelf_col[type] + ys_
