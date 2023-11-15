@@ -46,7 +46,7 @@ class Transformer(nn.Module):
         encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm).to(device)
         input_proj = nn.Linear(img_hidden_dim, d_model).to(device)
         img_transform = nn.Linear(d_model, d_model).to(device)
-        text_transform = nn.Linear(lm_dmodel, d_model).to(device)
+        text_transform = nn.Linear(img_hidden_dim, d_model).to(device)
         self.encoder =  TransformerEncoderWrapper(encoder, input_proj, img_transform,  text_transform, encoder_dropout, device).to(device)
 
 
@@ -88,6 +88,7 @@ class TransformerEncoderWrapper(nn.Module):
         self.img_transform = img_transform.to(device)
         self.text_transform = text_transform.to(device)
         self.dropout = nn.Dropout(dropout)
+        self.text_transform_extra = nn.Linear(15, 1)
         self._reset_parameters(self.encoder)
         self._reset_parameters(self.input_proj)
         self._reset_parameters(self.img_transform)
@@ -107,6 +108,9 @@ class TransformerEncoderWrapper(nn.Module):
         output = self.encoder(src_proj, mask=mask, src_key_padding_mask=src_key_padding_mask, patchpos_embed=patchpos_embed)#transformer encoder
         
         memory = self.img_transform(output)#project image features to multimodal space
+
+        # extra transformer: 1, 15, 2048 -> 1, 2048, 1 -> 1, 2048
+        task = self.text_transform_extra(task.permute(0, 2, 1))[:, :, 0]
         task_emb = self.text_transform(task)#project task features to multimodal space
 
         return memory, task_emb

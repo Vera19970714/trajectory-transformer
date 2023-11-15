@@ -10,6 +10,8 @@ from dataBuilders.data_builder_irregular import IrregularShelfModule
 from model.transformerLightning import TransformerModel
 from model.transformerLightning_mixed import TransformerModel_Mixed
 from model.transformerLightning_mixed_irregular import TransformerModel_Mixed_Irregular
+from model.transformerLightning_gazeformer import TransformerModel_Gazeformer
+from dataBuilders.data_builder_gazeformer import GazeformerDataModule
 from benchmark.base_lightning import BaseModel
 import numpy as np
 import os
@@ -31,6 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('-target_choice', default=0, type=int)
     parser.add_argument('-spp', default=0, type=int) # 0: no spp, 2, 3, 4 represent level
     # todo: check target accuracy for irregular
+    # todo: layout/target choice should be unified
 
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
@@ -48,7 +51,7 @@ if __name__ == '__main__':
     parser.add_argument('-write_output', type=str, default='True')
 
     # model settings and hyperparameters
-    parser.add_argument('-model', default='Transformer', type=str) #BaseModel,
+    parser.add_argument('-model', default='Gazeformer', type=str) #BaseModel, Gazeformer
     parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=1, type=int)
     parser.add_argument('-scheduler_lambda2', default=1.0, type=float)
@@ -64,7 +67,7 @@ if __name__ == '__main__':
     parser.add_argument('-random_seed', type=int, default=888)
     parser.add_argument('-early_stop_patience', type=int, default=30)
 
-    parser.add_argument('-monitor', type=str, default='validation_sim_each_epoch') #'validation_loss_each_epoch'
+    parser.add_argument('-monitor', type=str, default='validation_delta_each_epoch') #'validation_loss_each_epoch'
     parser.add_argument('-do_train', type=str, default='True')
     parser.add_argument('-do_test', type=str, default='True')
 
@@ -131,6 +134,9 @@ if __name__ == '__main__':
     elif args.model == 'BaseModel':
         model = BaseModel(args)
         search_data = BaseSearchDataModule(args)
+    elif args.model == 'Gazeformer':
+        search_data = GazeformerDataModule(args)
+        model = TransformerModel_Gazeformer(args, 16)
     else:
         print('Invalid model')
 
