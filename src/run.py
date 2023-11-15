@@ -51,7 +51,7 @@ if __name__ == '__main__':
     parser.add_argument('-write_output', type=str, default='True')
 
     # model settings and hyperparameters
-    parser.add_argument('-model', default='Gazeformer', type=str) #BaseModel, Gazeformer
+    parser.add_argument('-model', default='Transformer', type=str) #BaseModel, Gazeformer
     parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=1, type=int)
     parser.add_argument('-scheduler_lambda2', default=1.0, type=float)
