@@ -45,7 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads
     parser.add_argument('-CA_dk', default=512, type=int) # 512, 64, scaling factor in attention matrix
 
-    parser.add_argument('-log_name', default='irregular', type=str)
+    parser.add_argument('-log_name', default='gazeformer', type=str)
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
     parser.add_argument('-write_output', type=str, default='True')
@@ -136,7 +136,7 @@ if __name__ == '__main__':
         search_data = BaseSearchDataModule(args)
     elif args.model == 'Gazeformer':
         search_data = GazeformerDataModule(args)
-        model = TransformerModel_Gazeformer(args, 16)
+        model = TransformerModel_Gazeformer(args, 20)
     else:
         print('Invalid model')
 
