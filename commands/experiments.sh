@@ -1,10 +1,10 @@
 python3 src/run.py -PE_matrix ./src/model/learned_PE_random_2.npy \
- -log_name train_all_test_all_random_time > train_all_test_all_random_time_PE2.txt
+ -log_name train_all_test_all_random_time_PE2 > train_all_test_all_random_time_PE2.txt
 
 python3 src/run.py -PE_matrix ./src/model/learned_PE_random_2.5.npy \
- -log_name train_all_test_all_random_time > train_all_test_all_random_time_PE2.5.txt
+ -log_name train_all_test_all_random_time_PE2.5 > train_all_test_all_random_time_PE2.5.txt
 
-python3 src/run.py  -log_name gazeformer  -model Gazeformer > gazeformer.txt
+#python3 src/run.py  -log_name gazeformer  -model Gazeformer > gazeformer.txt
 
 python3 src/run.py  -log_name train_all_test_all_random_time_original  \
   -functionChoice original > train_all_test_all_random_time_original.txt
