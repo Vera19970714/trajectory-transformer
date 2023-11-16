@@ -14,9 +14,10 @@ def get_val_and_tst(testing_dataset):
     return val, tst
 
 
-def randsplit_comb(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice):
-    layout_id = 'Q3_21'
-    target_id = 'T3_1'
+def randsplit_comb(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice,
+                   layout_id, target_id):
+    #layout_id = 'Q3_21'
+    #target_id = 'T3_1'
 
     with open(datapath, "rb") as fp:
         raw_data = pickle.load(fp)
@@ -141,7 +142,8 @@ class FixDataset(Dataset):
         if leave_one_comb_out == 0:
             raw_data = randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice)
         else:
-            raw_data = randsplit_comb(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice)
+            raw_data = randsplit_comb(datapath, indexFile, isTrain, testing_dataset_choice, training_dataset_choice,
+                                      args.leave_one_comb_out_layout_id, args.leave_one_comb_out_tgt_id)
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
