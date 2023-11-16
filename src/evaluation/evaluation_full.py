@@ -16,6 +16,55 @@ from evaluation.multimatch import docomparison
 from tqdm import tqdm
 from tabulate import tabulate
 
+def _Levenshtein_Dmatrix_initializer(len1, len2):
+    Dmatrix = []
+
+    for i in range(len1):
+        Dmatrix.append([0] * len2)
+
+    for i in range(len1):
+        Dmatrix[i][0] = i
+
+    for j in range(len2):
+        Dmatrix[0][j] = j
+
+    return Dmatrix
+
+def _Levenshtein_cost_step(Dmatrix, string_1, string_2, i, j, substitution_cost=1):
+    char_1 = string_1[i - 1]
+    char_2 = string_2[j - 1]
+
+    # insertion
+    insertion = Dmatrix[i - 1][j] + 1
+    # deletion
+    deletion = Dmatrix[i][j - 1] + 1
+    # substitution
+    substitution = Dmatrix[i - 1][j - 1] + substitution_cost * (char_1 != char_2)
+
+    # pick the cheapest
+    Dmatrix[i][j] = min(insertion, deletion, substitution)
+
+def _Levenshtein(string_1, string_2, substitution_cost=1):
+    # get strings lengths and initialize Distances-matrix
+    len1 = len(string_1)
+    len2 = len(string_2)
+    Dmatrix = _Levenshtein_Dmatrix_initializer(len1 + 1, len2 + 1)
+
+    # compute cost for each step in dynamic programming
+    for i in range(len1):
+        for j in range(len2):
+            _Levenshtein_cost_step(Dmatrix,
+                                   string_1, string_2,
+                                   i + 1, j + 1,
+                                   substitution_cost=substitution_cost)
+
+    if substitution_cost == 1:
+        max_dist = max(len1, len2)
+    elif substitution_cost == 2:
+        max_dist = len1 + len2
+
+    return Dmatrix[len1][len2]
+
 
 def behavior(result_array, target, gaze, benchmark=False):
     behavior = {'correct':[],'length': [], 'search': [], 'refix': [], 'revisit': []}
@@ -54,6 +103,7 @@ def behavior(result_array, target, gaze, benchmark=False):
 
 def string_distance(result_array,gaze,gt,col_num,row_num):
     gt = gt[~np.isnan(gt)]
+    ED = []
     distance = {'SS':[],'VectorSimilarity': [], 'DirectionSimilarity': [], 'LengthSimilarity': [], 'PositionSimilarity': [],'Average':[]}
     for i in range(len(gaze)):
         gaze_element = gaze[i][~np.isnan(gaze[i])]
@@ -64,19 +114,21 @@ def string_distance(result_array,gaze,gt,col_num,row_num):
         distance['LengthSimilarity'].append(scanpathcomparisons[2])
         distance['PositionSimilarity'].append(scanpathcomparisons[3])
         distance['Average'].append(np.mean(scanpathcomparisons))
+        ED.append(_Levenshtein(gaze_element, gt))
     
     result_array[6] += np.mean(distance['SS'])   
     result_array[7] += np.nanmean(distance['VectorSimilarity']) 
     result_array[8] += np.nanmean(distance['DirectionSimilarity']) 
     result_array[9] += np.nanmean(distance['LengthSimilarity']) 
     result_array[10] += np.nanmean(distance['PositionSimilarity']) 
-    result_array[11] += np.nanmean(distance['Average']) 
+    result_array[11] += np.nanmean(distance['Average'])
+    result_array[12] += np.mean(ED)
         
 
 
 class Evaluation(object):
     def __init__(self, training_dataset_choice, testing_dataset_choice, evaluation_url,
-                 datapath, indexFile, ITERATION=100, showBenchmark=True):
+                 datapath, indexFile, ITERATION=100, showBenchmark=True, showExpected=True):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
         self.ITERATION = ITERATION
         self.showBenchmark = showBenchmark
@@ -106,8 +158,9 @@ class Evaluation(object):
   
         self.gaze_gt = np.array(pd.read_csv(gaze_gt))
         self.gaze_max = np.array(pd.read_csv(gaze_max))
-        self.gaze_expect = np.array(pd.read_csv(gaze_expect))
-
+        if showExpected:
+            self.gaze_expect = np.array(pd.read_csv(gaze_expect))
+        self.showExpected = showExpected
         if showBenchmark:
             self.gaze_random = np.array(pd.read_csv(gaze_random))
             self.gaze_saliency = np.array(pd.read_csv(gaze_saliency))
@@ -117,9 +170,9 @@ class Evaluation(object):
 
     def evaluation(self):
         # 7 stands for: correct target, avg.length, avg.search, avg.refix, avg.revisit, distance, heatmap overlapping
-        res = {'gt': torch.zeros(12), 'random': torch.zeros(12), 'center': torch.zeros(12),
-               'rgb': torch.zeros(12), 'saliency': torch.zeros(12), #'tf': torch.zeros(5),
-               'single': torch.zeros(12), 'multi': torch.zeros(12)}
+        res = {'gt': torch.zeros(13), 'random': torch.zeros(13), 'center': torch.zeros(13),
+               'rgb': torch.zeros(13), 'saliency': torch.zeros(13), #'tf': torch.zeros(5),
+               'single': torch.zeros(13), 'multi': torch.zeros(13)}
 
         for i in tqdm(range(self.data_length)):
             if self.training_dataset_choice == self.testing_dataset_choice and self.testing_dataset_choice != 'all':
@@ -146,10 +199,11 @@ class Evaluation(object):
                 
             behavior(res['gt'], self.target[i], self.gaze_gt[i:(i+1)])
             behavior(res['single'], self.target[i], self.gaze_max[i:(i + 1)])
-            behavior(res['multi'], self.target[i], self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
             string_distance(res['single'],self.gaze_max[i:(i + 1)],self.gaze_gt[i:(i+1)],col_num,row_num)
-            string_distance(res['multi'],self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],col_num,row_num)
-
+            if self.showExpected:
+                behavior(res['multi'], self.target[i],
+                         self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
+                string_distance(res['multi'],self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],self.gaze_gt[i:(i+1)],col_num,row_num)
             if self.showBenchmark:
                 behavior(res['random'], self.target[i],self.gaze_random[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
                 behavior(res['center'], self.target[i], self.gaze_center[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)],benchmark=True)
@@ -175,7 +229,6 @@ class Evaluation(object):
         if self.showBenchmark:
             models.extend(['random','center', 'saliency', 'rgb'])
 
-        
         for i in models:
             res[i][5] = torch.sum(torch.abs(res[i][:5] - res['gt'][:5]) / res['gt'][:5]) / 5
             print(i, ': ', res[i])
@@ -187,10 +240,10 @@ if __name__ == '__main__':
     training_dataset_choice = 'all'
     testing_dataset_choice = 'all'
 
-    evaluation_url = './dataset/checkEvaluation/mixed_pe_exp1_alpha9'
+    evaluation_url = './dataset/checkEvaluation/gazeformer'
     datapath = './dataset/processdata/dataset_Q123_mousedel_time'
-    indexFile = './dataset/processdata/'
+    indexFile = './dataset/processdata/splitlist_all_time.txt'
 
     e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url,
-                 datapath, indexFile, ITERATION=100, showBenchmark=False)
+                 datapath, indexFile, ITERATION=100, showBenchmark=False, showExpected=False)
     e.evaluation()

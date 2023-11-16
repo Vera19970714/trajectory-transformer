@@ -412,7 +412,7 @@ def draw2Dheatmap():
 def draw1Dheatmap_different_functions():
     import matplotlib.pylab as plt
 
-    embed = 86
+    embed = 126
     totali = 11
     #sigma = 2.5
 
@@ -463,11 +463,11 @@ def draw1Dheatmap_different_functions():
         return simMatrix[0, 1:]
 
     line9 = getLine('original', 0.9)
-    line9_update = getLine('original', 0.9, True)
+    #line9_update = getLine('original', 0.9, True)
     gau = getGaussianSim(2.5)
-    gau2 = getGaussianSim(2)
-    gau3 = getGaussianSim(1.5)
-    learned = getLearnedPE()
+    #gau2 = getGaussianSim(2)
+    #gau3 = getGaussianSim(1.5)
+    #learned = getLearnedPE()
     #line9_update2 = getLine('original', 0.9, True, 5)
     #line9_update3 = getLine('original', 0.9, True, 30)
     #line8 = getLine('exp1', 0.9)
@@ -484,16 +484,16 @@ def draw1Dheatmap_different_functions():
     #plt.plot(line6, label='exp1, 0.5')
     #plt.plot(line7, label='exp1, 0.7')
     #plt.plot(line8, label='exp1, 0.9')
-    plt.plot(line9, label='original')
+    plt.plot(line9, label='Original PE')
     #plt.plot(line9_update2, label='original_update 5')
-    plt.plot(line9_update, label='original_update 15')
+    #plt.plot(line9_update, label='original_update 15')
     #plt.plot(line9_update3, label='original_update 30')
-    plt.plot(gau3, label='Gaussian 1.5')
-    plt.plot(gau2, label='Gaussian 2')
-    plt.plot(gau, label='Gaussian 2.5')
-    plt.plot(learned, label='Learned PE')
-    plt.xlabel('index')
-    plt.ylabel('cos sim')
+    #plt.plot(gau3, label='Gaussian 1.5')
+    #plt.plot(gau2, label='Gaussian 2')
+    plt.plot(gau, label='Gaussian Distribution')
+    #plt.plot(learned, label='Learned PE')
+    plt.xlabel('Position')
+    plt.ylabel('Cosine Similarity')
     plt.legend()
     plt.show()
 
@@ -588,5 +588,4 @@ if __name__ == '__main__':
     #draw1DMag()
     #draw2Dheatmap()
     draw1Dheatmap_different_functions()
-
 
