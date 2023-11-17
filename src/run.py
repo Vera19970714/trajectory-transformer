@@ -30,8 +30,8 @@ if __name__ == '__main__':
     parser.add_argument('-testing_dataset_choice', default='all', type=str)  # wine, yogurt, all, irregular
     parser.add_argument('-training_dataset_choice', default='all', type=str)  # wine, yogurt, all
     parser.add_argument('-leave_one_comb_out', default=0, type=int)
-    parser.add_argument('-leave_one_comb_out_tgt_id', default=0, type=int)
-    parser.add_argument('-leave_one_comb_out_layout_id', default=0, type=int)
+    parser.add_argument('-leave_one_comb_out_tgt_id', default=0, type=str)
+    parser.add_argument('-leave_one_comb_out_layout_id', default=0, type=str)
     parser.add_argument('-spp', default=0, type=int) # 0: no spp, 2, 3, 4 represent level
 
     parser.add_argument('-checkpoint', default='None', type=str)
@@ -45,13 +45,13 @@ if __name__ == '__main__':
     parser.add_argument('-CA_dk', default=512, type=int) # 512, 64, scaling factor in attention matrix
 
     parser.add_argument('-PE_matrix', default='./src/model/learned_PE_random_2.npy', type=str)
-    parser.add_argument('-log_name', default='None', type=str)
+    parser.add_argument('-log_name', default='gazeformer', type=str)
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
     parser.add_argument('-write_output', type=str, default='True')
 
     # model settings and hyperparameters
-    parser.add_argument('-model', default='Transformer', type=str) #BaseModel, Gazeformer
+    parser.add_argument('-model', default='Gazeformer', type=str) #BaseModel, Gazeformer, Transformer
     parser.add_argument('-learning_rate', default=1e-4, type=float)
     parser.add_argument('-scheduler_lambda1', default=1, type=int)
     parser.add_argument('-scheduler_lambda2', default=1.0, type=float)

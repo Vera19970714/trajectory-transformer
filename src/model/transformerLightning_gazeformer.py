@@ -69,16 +69,15 @@ class TransformerModel_Gazeformer(pl.LightningModule):
         for i in range(gt.size()[1]):
             gt_ = gt[:, i] #8
             end_token = torch.where(gt_ == self.EOS_IDX[type])[0]
-            logit_ = end_logits[:(end_token+1), i, :].float()  # 10, 2
+            logit_gt = torch.zeros(self.max_len).type(torch.LongTensor).to(DEVICE)
+            logit_gt[end_token:] = 1 # all ones after end token
+            loss += self.loss_fn_token(end_logits[:,i].float() , logit_gt) #learn all the prob.
+
             gt_ = gt_[:end_token]
-            gtx = gt_ // self.args.shelf_col[type]
-            gty = torch.remainder(gt_, self.args.shelf_col[type])
+            gtx = gt_ // self.args.shelf_col[type] / self.args.shelf_row[type] # add coord norm
+            gty = torch.remainder(gt_, self.args.shelf_col[type]) / self.args.shelf_col[type]
             xs_ = xs_out[:end_token, i, 0]  # 10,
             ys_ = ys_out[:end_token, i, 0]  # 10
-            logit_gt = torch.zeros(((end_token+1))).type(torch.LongTensor).to(DEVICE)
-            logit_gt[-1] = 1
-            loss += self.loss_fn_token(logit_, logit_gt)
-            #xs_, ys_ = torch.clamp(xs_, min=0, max=self.args.shelf_col[type]), torch.clamp(ys_, min=0, max=self.args.shelf_row[type])
             loss += self.loss_fn_xy(xs_, gtx)
             loss += self.loss_fn_xy(ys_, gty)
             if return_gaze:
@@ -89,8 +88,8 @@ class TransformerModel_Gazeformer(pl.LightningModule):
                 else:
                     end_index = end_index[0]
                 end_index += 1 # first one cannot be ending
-                xs_ = xs_out[:end_index, i, 0]  # 10,
-                ys_ = ys_out[:end_index, i, 0]
+                xs_ = xs_out[:end_index, i, 0] * self.args.shelf_row[type]
+                ys_ = ys_out[:end_index, i, 0] * self.args.shelf_col[type]
                 xs_ = torch.round(torch.clamp(xs_, min=0, max=self.args.shelf_col[type]).unsqueeze(-1))
                 ys_ = torch.round(torch.clamp(ys_, min=0, max=self.args.shelf_row[type]).unsqueeze(-1))
                 xy = xs_ * self.args.shelf_col[type] + ys_
