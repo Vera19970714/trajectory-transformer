@@ -927,7 +927,7 @@ def docomparison(fixation_vectors1,
 
 
 if __name__ == '__main__':
-    predict = [0,13,8]
-    gt = [4,4,4,4]
-    results = docomparison(predict,gt,9,3)
+    predict = [2, 2, 2, 2, 2, 2, 2, 2]
+    gt = [5, 19, 20, 20]
+    results = docomparison(predict,gt,11,2)
     print(results)

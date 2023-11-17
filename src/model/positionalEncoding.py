@@ -383,29 +383,32 @@ def draw2Dheatmap():
     import matplotlib.pylab as plt
 
     embed = 256
-    totali = 12
-    totalj = 12
+    totali = 3
+    totalj = 11
+    PE = np.load('learned_PE_random_2.npy') # 11, 86
     enc = PositionalEncoding2DUpdated(embed, changeX=None)
     x = enc(torch.randn(1, totali, totalj, embed)).numpy()[0]  # 50, 50, 100
-    center = x[int(totali / 2), int(totalj / 2)]
+    #center = x[int(totali / 2), int(totalj / 2)]
+    center = np.concatenate((PE[1], PE[4]))
     simMatrix = np.zeros((totali, totalj))
     # W = np.random.normal(0, 1, size=(2, 50))
     for i in range(totali):
         for j in range(totalj):
-            emb = x[i][j]
+            #emb = x[i][j]
+            emb = np.concatenate((PE[i], PE[j]))
             # emb = getFakeFourier(np.array([i, j]), W)
             a = getCosSim(emb, center)
 
             # add updated version:
-            order = 15
+            '''order = 15
             target_sim = a ** order
             result = minimize(loss_function, emb, args=(emb, center, target_sim))
             updated_emb = result.x
-            a = getCosSim(updated_emb, center)
+            a = getCosSim(updated_emb, center)'''
 
             simMatrix[i][j] = a
 
-    heat_map = sns.heatmap(simMatrix, linewidth=1, annot=False, vmin=0, vmax=1)
+    sns.heatmap(simMatrix, linewidth=1, annot=True, vmin=0, vmax=1)
     plt.show()
 
 
@@ -586,6 +589,6 @@ if __name__ == '__main__':
 
     #draw1Dheatmap_different_center()
     #draw1DMag()
-    #draw2Dheatmap()
-    draw1Dheatmap_different_functions()
+    draw2Dheatmap()
+    #draw1Dheatmap_different_functions()
 
