@@ -381,7 +381,15 @@ def loss_function(new_a, a, b, target_sim):
 def draw2Dheatmap():
     import seaborn as sns
     import matplotlib.pylab as plt
+    from matplotlib.pyplot import figure
+    import matplotlib
 
+    font = {'family': 'times',
+            'size': 27}
+
+    matplotlib.rc('font', **font)
+
+    figure(figsize=(8, 6))
     embed = 256
     totali = 3
     totalj = 11
@@ -389,7 +397,7 @@ def draw2Dheatmap():
     enc = PositionalEncoding2DUpdated(embed, changeX=None)
     x = enc(torch.randn(1, totali, totalj, embed)).numpy()[0]  # 50, 50, 100
     #center = x[int(totali / 2), int(totalj / 2)]
-    center = np.concatenate((PE[1], PE[4]))
+    center = np.concatenate((PE[int(totali / 2)], PE[int(totalj / 2)]))
     simMatrix = np.zeros((totali, totalj))
     # W = np.random.normal(0, 1, size=(2, 50))
     for i in range(totali):
@@ -408,7 +416,8 @@ def draw2Dheatmap():
 
             simMatrix[i][j] = a
 
-    sns.heatmap(simMatrix, linewidth=1, annot=True, vmin=0, vmax=1)
+    sns.heatmap(simMatrix, linewidth=1, annot=False, vmin=0, vmax=1,
+                xticklabels=False, yticklabels=False)
     plt.show()
 
 
