@@ -9,9 +9,9 @@ import pickle
 from tqdm import tqdm
 
 img_dir = './dataset/img/Question/'
-data_dir0 = './dataset/gaze/time_Q1_mousedel.xlsx'
-data_dir1 = './dataset/gaze/time_Q2_mousedel.xlsx'
-data_dir2 = './dataset/gaze/time_Q3_mousedel.xlsx'
+data_dir0 = './dataset/gaze/time_Q1_mousedel_new.xlsx'
+data_dir1 = './dataset/gaze/time_Q2_mousedel_new.xlsx'
+data_dir2 = './dataset/gaze/time_Q3_mousedel_new.xlsx'
 target_dir = './dataset/img/Target/'
 
 
@@ -59,6 +59,8 @@ class CUT_PIC(object):
                 tgt_package = df1["Target"]
                 question_name = list(df1["Question"])[0]
                 package_seq = list(df1["Choice"])
+                X = list(df1["X"])
+                Y = list(df1["Y"])
                 package_target = list(df1["T_Package"])[0]
                 package_target  = [package_target]  # (np.repeat(package_target,27)) 
                 sub_id = list(df1["Sub_ID"])[0]
@@ -113,9 +115,12 @@ class CUT_PIC(object):
                         
                 dataset_dict['package_target'] = package_target
                 dataset_dict['package_seq'] = package_seq
+                dataset_dict['X'] = X
+                dataset_dict['Y'] = Y
                 dataset_dict['question_img_feature'] = Question_img_feature
                 dataset_dict['id'] = question_name[:2]
                 dataset_dict['tgt_id'] = tgt_package[0]
+                dataset_dict['pair'] = tgt_package[0] + question_name
                 dataset_dict['layout_id'] = question_name
                 dataset_dict['sub_id'] = sub_id
 
@@ -128,7 +133,7 @@ class CUT_PIC(object):
     
 
 if __name__ == '__main__':
-    CUT_PIC = CUT_PIC('resize', "./dataset/processdata/dataset_Q123_mousedel_time")
+    CUT_PIC = CUT_PIC('resize', "./dataset/processdata/dataset_Q123_mousedel_time_new")
     CUT_PIC.cut_pic()
     # results: Q2 size 453, Q3 size 439
 

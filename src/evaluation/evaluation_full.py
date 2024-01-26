@@ -200,6 +200,7 @@ class Evaluation(object):
             behavior(res['gt'], self.target[i], self.gaze_gt[i:(i+1)])
             behavior(res['single'], self.target[i], self.gaze_max[i:(i + 1)])
             string_distance(res['single'],self.gaze_max[i:(i + 1)],self.gaze_gt[i:(i+1)],col_num,row_num)
+            string_distance(res['gt'],self.gaze_gt[i:(i+1)],self.gaze_gt[i:(i+1)],col_num,row_num)
             if self.showExpected:
                 behavior(res['multi'], self.target[i],
                          self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)])
@@ -240,7 +241,7 @@ if __name__ == '__main__':
     training_dataset_choice = 'all'
     testing_dataset_choice = 'all'
 
-    evaluation_url = './dataset/checkEvaluation/gazeformer'
+    evaluation_url = './dataset/checkEvaluation/res/gaze_comb/gazeformer'
     datapath = './dataset/processdata/dataset_Q123_mousedel_time'
     indexFile = './dataset/processdata/splitlist_all_time.txt'
 

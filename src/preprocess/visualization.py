@@ -15,8 +15,8 @@ import cv2
 import matplotlib.colors as mcolors
 
 class Visualization(object):
-    def __init__(self, training_dataset_choice, testing_dataset_choice, evaluation_url, gazeNum=1, plotRange=60, showBenchmark=False):
-        datapath = './dataset/processdata/dataset_Q123_mousedel_time'
+    def __init__(self, training_dataset_choice, testing_dataset_choice, evaluation_url, gazeNum=10, plotRange=50, showBenchmark=False):
+        datapath = './dataset/processdata/dataset_Q123_mousedel_time_new'
         indexFile = './dataset/processdata/splitlist_all_time.txt'
         self.savePlot = './dataset/visualizationPlot/'
         self.shelfFolder = './dataset/img/Question/'
@@ -29,7 +29,7 @@ class Visualization(object):
         self.showBenchmark = showBenchmark
 
         gaze_max = evaluation_url+'/gaze_max.csv'
-        gaze_expect = evaluation_url+'/gaze_expect.csv'
+        # gaze_expect = evaluation_url+'/gaze_expect.csv'
 
         if showBenchmark:
             gaze_random = './dataset/checkEvaluation/gaze_random.csv'
@@ -38,7 +38,7 @@ class Visualization(object):
             gaze_rgb = './dataset/checkEvaluation/gaze_rgb_similarity.csv'
         
         self.gaze_max = np.array(pd.read_csv(gaze_max))
-        self.gaze_expect = np.array(pd.read_csv(gaze_expect))
+        # self.gaze_expect = np.array(pd.read_csv(gaze_expect))
 
         if showBenchmark:
             self.gaze_random = np.array(pd.read_csv(gaze_random))
@@ -55,12 +55,14 @@ class Visualization(object):
         self.layout_id = []
         self.package_target = []
         self.package_seq = []
+        self.target_id = []
 
         for item in raw_data:
             self.package_seq.append(item['package_seq'])
             self.id.append(item['id'])
             self.package_target.append(item['package_target'])
             self.layout_id.append(item['layout_id'])
+            self.target_id.append(item['tgt_id'])
 
     def random_image_position(self,IMAGE_SIZE_1,IMAGE_SIZE_2, IMAGE_RANGE_X, IMAGE_RANGE_Y):
         center_x = IMAGE_SIZE_2 // 2  
@@ -98,33 +100,33 @@ class Visualization(object):
             package_position_all.append(package_position)
         return package_position_all
         
-    def plotGaze(self, shelf, target_pos, gaze_gt,gaze_predict, file_name):
+    def plotGaze(self, shelf, target_pos,gaze_predict, file_name):
         for n in range(len(gaze_predict)):
             if n<10:
                 fig, ax = plt.subplots()
-                ax.imshow(shelf)
+                ax.imshow(shelf, alpha =0.75)
                 target_x_range, target_y_range = target_pos[0], target_pos[1]
                 rect = plt.Rectangle((target_x_range[0], target_y_range[0]), 
                                     target_x_range[1] - target_x_range[0], 
                                     target_y_range[1] - target_y_range[0], 
                                     linewidth=2, edgecolor='green', facecolor='none')
-                for k in range(len(gaze_gt)):
-                    gaze_gt_element = gaze_gt[k]
-                    for i, point in enumerate(gaze_gt_element):
-                        x, y = point[0],point[1]
-                        ax.scatter(x, y, color='green', edgecolors='red')
-                        circle = Circle((x, y), radius=30, edgecolor='black', facecolor=mcolors.TABLEAU_COLORS['tab:red'],alpha = 0.8)
-                        ax.add_artist(circle)
-                        ax.text(x, y, f'{i+1}', ha='center', va='center', fontsize=10, fontweight='bold',color = 'white')
-                        if i > 0:
-                                ax.arrow(gaze_gt_element[i-1][0], gaze_gt_element[i-1][1], point[0] - gaze_gt_element[i-1][0],
-                                            point[1] - gaze_gt_element[i-1][1], head_width=20, head_length=20, linewidth=1,
-                                            fc=mcolors.TABLEAU_COLORS['tab:red'], ec=mcolors.TABLEAU_COLORS['tab:red'], alpha=1)
+                # for k in range(len(gaze_gt)):
+                #     gaze_gt_element = gaze_gt[k]
+                #     for i, point in enumerate(gaze_gt_element):
+                #         x, y = point[0],point[1]
+                #         ax.scatter(x, y, color='green', edgecolors='red')
+                #         circle = Circle((x, y), radius=30, edgecolor='black', facecolor=mcolors.TABLEAU_COLORS['tab:red'],alpha = 0.8)
+                #         ax.add_artist(circle)
+                #         ax.text(x, y, f'{i+1}', ha='center', va='center', fontsize=10, fontweight='bold',color = 'white')
+                #         if i > 0:
+                #                 ax.arrow(gaze_gt_element[i-1][0], gaze_gt_element[i-1][1], point[0] - gaze_gt_element[i-1][0],
+                #                             point[1] - gaze_gt_element[i-1][1], head_width=20, head_length=20, linewidth=1,
+                #                             fc=mcolors.TABLEAU_COLORS['tab:red'], ec=mcolors.TABLEAU_COLORS['tab:red'], alpha=1)
                 gaze_predict_element = gaze_predict[n]
                 for i, point in enumerate(gaze_predict_element):
                     x, y = point[0],point[1]
                     ax.scatter(x, y, color='green', edgecolors='red')
-                    circle = Circle((x, y), radius=30, edgecolor='black', facecolor='yellow')
+                    circle = Circle((x, y), radius=35, edgecolor='black', facecolor='#E7BE58')
                     ax.add_artist(circle)
                     
                     # triangle = RegularPolygon((x, y), numVertices=3, radius=40,edgecolor='black', facecolor='yellow')
@@ -133,24 +135,24 @@ class Visualization(object):
                     if i > 0:
                             ax.arrow(gaze_predict_element[i-1][0], gaze_predict_element[i-1][1], point[0] - gaze_predict_element[i-1][0],
                                         point[1] - gaze_predict_element[i-1][1], head_width=20, head_length=20, linewidth=1,
-                                        fc='none', ec='black', alpha=1)
+                                        fc='none', ec='orange', alpha=1)
                 ax.add_patch(rect)
                 # ax.legend(['Ground Truth', 'Predictions'])
                 plt.axis('off')
                 # plt.tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False)
-                plt.savefig(self.savePlot + file_name + '_' + str(n) + '.png', bbox_inches='tight', pad_inches=0)
+                plt.savefig(self.savePlot + file_name + '_' + str(n) + '.png', bbox_inches='tight', pad_inches=0,dpi=300)
                 plt.close()
             
 
 
     def forward(self):
-        selected_gaze_predict = self.random_select(self.gaze_expect)
+        # selected_gaze_predict = self.random_select(self.gaze_expect)
         if self.showBenchmark:
             selected_gaze_random = self.random_select(self.gaze_random)
             selected_gaze_center = self.random_select(self.gaze_center)
             selected_gaze_saliency = self.random_select(self.gaze_saliency)
             selected_gaze_rgb = self.random_select(self.gaze_rgb)
-
+    
         for i in tqdm(range(self.data_length)):
             if self.training_dataset_choice == 'pure':
                 if self.testing_dataset_choice == 'wine':
@@ -181,35 +183,43 @@ class Visualization(object):
                     IMAGE_COLUMN = 9
             
             package_target = self.package_target[i]
-            layout_id = self.layout_id[i]
-            package_seq = self.package_seq[i]
-            IMAGE_RANGE_X_target = (((int(package_target[0]) -1) % IMAGE_COLUMN) * IMAGE_SIZE_2,(((int(package_target[0]) -1) % IMAGE_COLUMN) +1) * IMAGE_SIZE_2)
-            IMAGE_RANGE_Y_target = (((int(package_target[0]) -1) // IMAGE_COLUMN) * IMAGE_SIZE_1,(((int(package_target[0]) -1) // IMAGE_COLUMN) +1) * IMAGE_SIZE_1)
-            question_img = Image.open(self.shelfFolder + layout_id + '.png')
-            question_cropped_range = (0, (1050-IMAGE_SIZE_1*IMAGE_ROW), IMAGE_COLUMN*IMAGE_SIZE_2,  (1050-IMAGE_SIZE_1*IMAGE_ROW)+IMAGE_ROW *IMAGE_SIZE_1)
-            question_img_cropped =  question_img.crop(question_cropped_range)
-            package_seq = [[x - 1 for x in package_seq]]
-            package_position_gt = self.get_gaze_position(np.array(package_seq),IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
-            package_position_max = self.get_gaze_position(self.gaze_max[i:(i+1)],IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
-            package_position_muti = self.get_gaze_position(selected_gaze_predict[(i * self.gazeNum):(i * self.gazeNum + self.gazeNum)],IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
 
-            self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target], package_position_gt,package_position_max,file_name = './max/predict' + str(i))
-            self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target], package_position_gt,package_position_muti,file_name = './muti/predict' + str(i))
-            
-            if self.showBenchmark:
-                package_position_random = self.get_gaze_position(selected_gaze_random[(i * self.gazeNum):(i * self.gazeNum + self.gazeNum)],IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
-                package_position_center = self.get_gaze_position(selected_gaze_center[(i * self.gazeNum):(i * self.gazeNum + self.gazeNum)],IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
-                package_position_saliency = self.get_gaze_position(selected_gaze_saliency[(i * self.gazeNum):(i * self.gazeNum + self.gazeNum)],IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
-                package_position_rgb = self.get_gaze_position(selected_gaze_rgb[(i * self.gazeNum):(i * self.gazeNum + self.gazeNum)],IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
-                self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target], package_position_gt,package_position_random,file_name = './random/predict' + str(i))
-                self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target], package_position_gt,package_position_center,file_name = 'center' + str(i))
-                self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target], package_position_gt,package_position_saliency,file_name = 'saliency' + str(i))
-                self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target], package_position_gt,package_position_rgb,file_name = 'rgb' + str(i))
-            # exit()
+            layout_id = self.layout_id[i]
+            if self.target_id[i] == 'T3_12' and self.layout_id[i] == 'Q3_10':
+                # target_id = self.target_id[i]
+                # print('=======')
+                # print(i)
+                # print(layout_id)
+                package_seq = self.package_seq[i]
+                IMAGE_RANGE_X_target = (((int(package_target[0]) -1) % IMAGE_COLUMN) * IMAGE_SIZE_2,(((int(package_target[0]) -1) % IMAGE_COLUMN) +1) * IMAGE_SIZE_2)
+                IMAGE_RANGE_Y_target = (((int(package_target[0]) -1) // IMAGE_COLUMN) * IMAGE_SIZE_1,(((int(package_target[0]) -1) // IMAGE_COLUMN) +1) * IMAGE_SIZE_1)
+                question_img = Image.open(self.shelfFolder + layout_id + '.png')
+                question_cropped_range = (0, (1050-IMAGE_SIZE_1*IMAGE_ROW), IMAGE_COLUMN*IMAGE_SIZE_2,  (1050-IMAGE_SIZE_1*IMAGE_ROW)+IMAGE_ROW *IMAGE_SIZE_1)
+                question_img_cropped =  question_img.crop(question_cropped_range)
+                package_seq = [[x - 1 for x in package_seq]]
+                package_position_gt = self.get_gaze_position(np.array(package_seq),IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
+                package_position_max = self.get_gaze_position(self.gaze_max[i:(i+1)],IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
+                # package_position_muti = self.get_gaze_position(selected_gaze_predict[(i * self.gazeNum):(i * self.gazeNum + self.gazeNum)],IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
+
+                self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target],package_position_gt,file_name = './comb2_gazeformer/gt' + str(i))
+                self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target],package_position_max,file_name = './comb2_gazeformer/best' + str(i))
+
+                # self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target], package_position_gt,package_position_muti,file_name = './muti/predict' + str(i))
+                
+                if self.showBenchmark:
+                    package_position_random = self.get_gaze_position(selected_gaze_random[(i * self.gazeNum):(i * self.gazeNum + self.gazeNum)],IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
+                    package_position_center = self.get_gaze_position(selected_gaze_center[(i * self.gazeNum):(i * self.gazeNum + self.gazeNum)],IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
+                    package_position_saliency = self.get_gaze_position(selected_gaze_saliency[(i * self.gazeNum):(i * self.gazeNum + self.gazeNum)],IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
+                    package_position_rgb = self.get_gaze_position(selected_gaze_rgb[(i * self.gazeNum):(i * self.gazeNum + self.gazeNum)],IMAGE_COLUMN,IMAGE_SIZE_1, IMAGE_SIZE_2)
+                    # self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target],package_position_random,file_name = './random/predict' + str(i))
+                    # self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target],package_position_center,file_name = './center/' + str(i))
+                    # self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target],package_position_saliency,file_name = '。/saliency' + str(i))
+                    # self.plotGaze(question_img_cropped, [IMAGE_RANGE_X_target,IMAGE_RANGE_Y_target], package_position_gt,package_position_rgb,file_name = 'rgb' + str(i))
+                # exit()
 
 if __name__ == '__main__':
     training_dataset_choice = 'all'
     testing_dataset_choice = 'all'
-    evaluation_url = './dataset/checkEvaluation/mixed_pe_exp1_alpha9'
+    evaluation_url = './dataset/checkEvaluation/res/gaze_comb/train_all_test_all_random_time_comb2_gaze'
     v = Visualization(training_dataset_choice, testing_dataset_choice,evaluation_url)
     v.forward()

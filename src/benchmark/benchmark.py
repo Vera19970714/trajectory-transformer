@@ -20,6 +20,8 @@ from scipy.special import logsumexp
 import matplotlib.pyplot as plt
 import random
 from skimage.transform import resize
+from random import sample 
+import copy
    
 class Benchmark(object):
     def __init__(self, training_dataset_choice, testing_dataset_choice, saveFolder, processFolder, datapath, indexFile,minLen=1,
@@ -44,7 +46,8 @@ class Benchmark(object):
         self.data_length_train = len(raw_data_train)
         print(F'len = {self.data_length}')
         self.id = []
-        
+        self.pair_test = []
+
         self.package_target = []
         self.question_img_feature = []
         self.package_seq = []
@@ -99,13 +102,18 @@ class Benchmark(object):
         each_length_yogurt_train= []
         each_length_yogurt_test = []
         whole_length = []
+        whole_pair = []
+        whole_id = []
         for i in tqdm(range(self.data_length_train)):
+            whole_length.append(len(self.package_seq_train[i]))  
             if self.training_dataset_choice == 'pure':
                 if self.testing_dataset_choice == 'wine':
                     each_length_wine_train.append(len(self.package_seq_train[i]))
                 elif self.testing_dataset_choice == 'yogurt':
                     each_length_yogurt_train.append(len(self.package_seq_train[i]))
-            elif self.training_dataset_choice == 'all':      
+            elif self.training_dataset_choice == 'all': 
+                whole_id.append(self.id_train[i])
+                whole_pair.append(self.pair_train[i])
                 if self.id_train[i] == 'Q1':
                     each_length_wine_train.append(len(self.package_seq_train[i]))
                 elif self.id_train[i] == 'Q3':
@@ -117,26 +125,17 @@ class Benchmark(object):
                     each_length_wine_test.append(len(self.package_seq[i]))
                 elif self.testing_dataset_choice == 'yogurt':
                     each_length_yogurt_test.append(len(self.package_seq[i]))
-            elif self.training_dataset_choice == 'all':      
+            elif self.training_dataset_choice == 'all': 
+                whole_id.append(self.id[i])
+                whole_pair.append(self.pair_test[i])
+                whole_length.append(len(self.package_seq[i]))     
                 if self.id[i] == 'Q1':
                     each_length_wine_test.append(len(self.package_seq[i]))
                 elif self.id[i] == 'Q3':
                     each_length_yogurt_test.append(len(self.package_seq[i]))
-        whole_wine = each_length_wine_train+each_length_wine_test
-        whole_yogurt = each_length_yogurt_train+each_length_yogurt_test
-        random.shuffle(whole_wine)
-        random.shuffle(whole_yogurt)
-        wine_train = whole_wine[:int(len(whole_wine) * 8/9)]
-        wine_test = whole_wine[int(len(whole_wine) * 8/9):]
-        yogurt_train = whole_yogurt[:int(len(whole_yogurt) * 0.8)]
-        yogurt_test = whole_yogurt[int(len(whole_yogurt) * 0.9):]
-        print(len(wine_test))
-        print(len(yogurt_test))
-        print('wine_train:', np.mean(wine_train))
-        print('wine_test:',np.mean(wine_test))
-        print('yogurt_train:',np.mean(yogurt_train))
-        print('yogurt_test:',np.mean(yogurt_test))
-        self.plot_hist(wine_train, wine_test, yogurt_train, yogurt_test)
+        print(np.mean(whole_length))
+        print(np.mean(np.unique(whole_pair,return_counts=True)[1]))
+        
         
 
     def hyper_cal(self, filename,bandwidth, eps = 1e-20):
@@ -211,7 +210,23 @@ class Benchmark(object):
             x = randint(0, 10000)
         gaze = np.stack(gaze).reshape(1, -1)
         return gaze
+    
+    def sample_gaze_from_pixelDistri(self, avg_len, distri, width,height,columNum):
+        end_prob = 1 / avg_len * 10000
+        gaze = []
+        x = randint(0, 10000)
+        minLen = 1
+        prob_dist = distri.flatten() 
+        while x >= end_prob or len(gaze) < minLen:
+            sampled_indices = np.random.choice(np.arange(len(prob_dist)), size=1, replace=False, p=prob_dist)
+            sampled_coordinates = np.unravel_index(sampled_indices, distri.shape)
+            ind = (sampled_coordinates[1] // width)+ (sampled_coordinates[0] // height)*columNum 
+            gaze.append(np.ndarray.item(ind))
+            x = randint(0, 10000)
+        gaze = np.stack(gaze).reshape(1, -1)
+        return gaze
 
+    
     def saliency_dis(self,rowNum, columNum,img_feature):
         reshaped_array = np.array(img_feature).reshape(rowNum, columNum, img_feature[0].shape[0], img_feature[0].shape[1], img_feature[0].shape[2])
         large_image = np.concatenate(reshaped_array, axis=1)
@@ -219,7 +234,7 @@ class Benchmark(object):
         large_image[large_image < 0] = 0
         sm = pySaliencyMap.pySaliencyMap(large_image.shape[1], large_image.shape[0])
         saliency_map = sm.SMGetSM(large_image)
-        feature_dis = []
+        '''feature_dis = []
         for y in range(rowNum):
             for x in range(columNum):
                 img_cropped_saliency = saliency_map[(y*img_feature[0].shape[0]):(y+1)*img_feature[0].shape[0], (x*img_feature[0].shape[1]):(x+1)*img_feature[0].shape[1]]
@@ -227,8 +242,8 @@ class Benchmark(object):
                 feature_dis.append(img_cropped_saliency_mean)
         # feature_dis = softmax(feature_dis).reshape(-1)
         feature_dis = feature_dis / np.sum(feature_dis)
-        feature_dis = np.array(feature_dis).reshape(-1)
-        return feature_dis
+        feature_dis = np.array(feature_dis).reshape(-1)'''
+        return saliency_map
 
     def rgb_similarity_dis(self,package_target, img_feature):
         target_img_feature = img_feature[package_target[0]-1]
@@ -243,6 +258,39 @@ class Benchmark(object):
         feature_dis = np.array(feature_dis).reshape(-1)
         return feature_dis
     
+    def winner_takes_all(self,input_saliency_map, avg_len, width,height,columNum,remove_radius = 40):
+        end_prob = 1 / avg_len * 10000
+        gaze = []
+        x = randint(0, 10000)
+        minLen = 1
+        dis_list = []
+        while x >= end_prob or len(gaze) < minLen:
+            dis_list.append(input_saliency_map)
+            y_max, x_max = np.shape(input_saliency_map)
+            max_value = input_saliency_map.max()
+            max_indexs = list(zip(*np.where(input_saliency_map == max_value))) # list
+            max_index = sample(max_indexs,1)
+            y,x = max_index[0]
+            x_1 = x - remove_radius
+            if x_1 < 0:
+                x_1 = 0
+            y_1 = y - remove_radius
+            if y_1 < 0:
+                y_1 = 0
+            x_2 = x + remove_radius + 1
+            if x_2 > x_max:
+                x_2 = x_max
+            y_2 = y + remove_radius + 1 
+            if y_2 > y_max:
+                y_2 = y_max
+            input_saliency_map[y_1:y_2 , x_1:x_2] = 0
+            ind = (max_index[0][1] // width)+ (max_index[0][0] // height)*columNum 
+            gaze.append(ind)
+            x = randint(0, 10000)
+        gaze = np.stack(gaze).reshape(1, -1)
+        return gaze
+
+
     def compute_sim(self,saliency_map,gaze,package_size):
         sim_total = 0
         seq_len = len(gaze)
@@ -255,7 +303,7 @@ class Benchmark(object):
    
     def benchmark(self):
         random_gaze, center_gaze, saliency_gaze, rgb_gaze= pd.DataFrame(), pd.DataFrame(), pd.DataFrame(),pd.DataFrame()
-        avg_length = self.hyper_cal(self.filename,bandwidth = 0.0217) 
+        avg_length = self.hyper_cal(self.filename,bandwidth = 0.0434) 
         sim_random = []
         sim_center = []
         sim_saliency = []
@@ -301,34 +349,35 @@ class Benchmark(object):
             img_feature = self.question_img_feature[i]
             gt = self.package_seq[i]
             center_dis = self.pixel2region(centerbias, IMAGE_SIZE_2, IMAGE_SIZE_1,rowNum,columNum)
-            saliency_dis = self.saliency_dis(rowNum, columNum,img_feature)
+            '''saliency_dis = self.saliency_dis(rowNum, columNum,img_feature)
             rgb_dis = self.rgb_similarity_dis(package_target, img_feature)
-
+            input_saliency_map = copy.deepcopy(saliency_dis)'''
             for n in range(self.ITERATION):
-                random_gaze_each = self.sample_gaze_from_distri(avg_length,np.ones(TOTAL_PCK) / TOTAL_PCK, TOTAL_PCK)
+                # random_gaze_each = self.sample_gaze_from_distri(avg_length,np.ones(TOTAL_PCK) / TOTAL_PCK, TOTAL_PCK)
                 center_gaze_each = self.sample_gaze_from_pixelDistri(avg_length, centerbias, IMAGE_SIZE_2,IMAGE_SIZE_1,columNum)
-                saliency_gaze_each = self.sample_gaze_from_distri(avg_length, saliency_dis, TOTAL_PCK)
-                rgb_gaze_each = self.sample_gaze_from_distri(avg_length, rgb_dis, TOTAL_PCK)
+                # saliency_gaze_each = self.sample_gaze_from_distri(avg_length, saliency_dis, TOTAL_PCK)
+                # saliency_gaze_each = self.winner_takes_all(input_saliency_map, avg_length, IMAGE_SIZE_2,IMAGE_SIZE_1,columNum)
+                # rgb_gaze_each = self.sample_gaze_from_distri(avg_length, rgb_dis, TOTAL_PCK)
                 
-                random_gaze = pd.concat([random_gaze, pd.DataFrame(random_gaze_each)],axis=0)
+                # random_gaze = pd.concat([random_gaze, pd.DataFrame(random_gaze_each)],axis=0)
                 center_gaze = pd.concat([center_gaze, pd.DataFrame(center_gaze_each)],axis=0)
-                saliency_gaze = pd.concat([saliency_gaze, pd.DataFrame(saliency_gaze_each)],axis=0)
-                rgb_gaze = pd.concat([rgb_gaze, pd.DataFrame(rgb_gaze_each)],axis=0)
-            rgb_gaze = pd.concat([rgb_gaze, pd.DataFrame(rgb_gaze_each)],axis=0)
+                # saliency_gaze = pd.concat([saliency_gaze, pd.DataFrame(saliency_gaze_each)],axis=0)
+                # rgb_gaze = pd.concat([rgb_gaze, pd.DataFrame(rgb_gaze_each)],axis=0)
+            '''rgb_gaze = pd.concat([rgb_gaze, pd.DataFrame(rgb_gaze_each)],axis=0)
             sim_random.append(self.compute_sim(np.ones(TOTAL_PCK) / TOTAL_PCK,gt,TOTAL_PCK))
             sim_center.append(self.compute_sim(center_dis,gt,TOTAL_PCK))
             sim_saliency.append(self.compute_sim(saliency_dis,gt,TOTAL_PCK))
-            sim_rgb.append(self.compute_sim(rgb_dis,gt,TOTAL_PCK))    
+            sim_rgb.append(self.compute_sim(rgb_dis,gt,TOTAL_PCK)) '''   
 
-        random_gaze.to_csv(self.saveFolder + 'gaze_random.csv', index=False)
+        # random_gaze.to_csv(self.saveFolder + 'gaze_random.csv', index=False)
         center_gaze.to_csv(self.saveFolder + 'gaze_center.csv', index=False)
-        saliency_gaze.to_csv(self.saveFolder + 'gaze_saliency.csv', index=False)
-        rgb_gaze.to_csv(self.saveFolder + 'gaze_rgb_similarity.csv', index=False)
+        # saliency_gaze.to_csv(self.saveFolder + 'gaze_saliency.csv', index=False)
+        # rgb_gaze.to_csv(self.saveFolder + 'gaze_rgb_similarity.csv', index=False)
 
-        print('sim_random:', np.mean(sim_random))
+        '''print('sim_random:', np.mean(sim_random))
         print('sim_center:', np.mean(sim_center))
         print('sim_saliency:', np.mean(sim_saliency))
-        print('sim_rgb:', np.mean(sim_rgb))
+        print('sim_rgb:', np.mean(sim_rgb))'''
         
 
 if __name__ == '__main__':
@@ -336,32 +385,12 @@ if __name__ == '__main__':
     testing_dataset_choice = 'all'
     saveFolder = './dataset/checkEvaluation/'
     processFolder = './dataset/processdata/'
-    logFile = 'mixed_pe_exp1_alpha9'
+    logFile = 'res/train_all_test_all_random_time_PE2'
     datapath = './dataset/processdata/dataset_Q123_mousedel_time_new'
     indexFile = './dataset/processdata/splitlist_all_time.txt'
-    # b = Benchmark(training_dataset_choice, testing_dataset_choice, saveFolder,processFolder, datapath, indexFile)
-    # b.benchmark()
+    b = Benchmark(training_dataset_choice, testing_dataset_choice, saveFolder,processFolder, datapath, indexFile)
+    b.benchmark()
     e = Evaluation(training_dataset_choice, testing_dataset_choice, saveFolder+logFile, datapath, indexFile)
     e.evaluation()
 
-    '''def sample_gaze_from_distri(avg_len, distri, TOTAL_PCK):
-        end_prob = 1 / avg_len * 10000
-        gaze = []
-        x = randint(0, 10000)
-        minLen = 1
-        while x >= end_prob or len(gaze) < minLen:
-            ind = np.random.choice(TOTAL_PCK, 1, p=distri)
-            gaze.append(np.ndarray.item(ind))
-            x = randint(0, 10000)
-        gaze = np.stack(gaze).reshape(1, -1)
-        return gaze
-
-    TOTAL_PCK = 22
-    avg_length = 7.23
-    random_dist = np.ones(TOTAL_PCK) / TOTAL_PCK
-    total_len = 0
-    number = 30000
-    for i in range(number):
-        gaze = sample_gaze_from_distri(avg_length, random_dist, TOTAL_PCK)
-        total_len += gaze.shape[1]
-    print(total_len/number)'''
+    

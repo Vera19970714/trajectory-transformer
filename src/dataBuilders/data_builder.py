@@ -209,7 +209,7 @@ class SearchDataModule(pl.LightningDataModule):
         collate_fn = Collator_pure(args.package_size)
     else:
         collate_fn = Collator_mixed(args.package_size)
-    
+
     self.train_loader = DataLoader(dataset=train_set,
                                     batch_size=args.batch_size,
                                     num_workers=2,
