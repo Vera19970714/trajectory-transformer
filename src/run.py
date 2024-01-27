@@ -23,12 +23,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q123_mousedel_time', type=str)
+    parser.add_argument('-data_path', default='./dataset/processdata/dataset_amazon', type=str)
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
-    parser.add_argument('-index_file', default='splitlist_all_time.txt', type=str) # all_time_better
+    parser.add_argument('-index_file', default='splitlist_all_amazon.txt', type=str) # all_time_better
 
-    parser.add_argument('-testing_dataset_choice', default='all', type=str)  # wine, yogurt, all, irregular
-    parser.add_argument('-training_dataset_choice', default='all', type=str)  # wine, yogurt, all
+    parser.add_argument('-testing_dataset_choice', default='amazon', type=str)  # wine, yogurt, amazon,all, irregular
+    parser.add_argument('-training_dataset_choice', default='amazon', type=str)  # wine, yogurt, amazon,all
     parser.add_argument('-leave_one_comb_out', default=0, type=int)
     parser.add_argument('-leave_one_comb_out_tgt_id', default=0, type=int)
     parser.add_argument('-leave_one_comb_out_layout_id', default=0, type=int)
@@ -82,10 +82,14 @@ if __name__ == '__main__':
             args.package_size = 27
             args.shelf_row = 3
             args.shelf_col = 9
+        elif args.testing_dataset_choice == 'amazon':
+            args.package_size = 84
+            args.shelf_row = 6
+            args.shelf_col = 14
     else: # zero=yogurt, one=wine
-        args.package_size = np.array([27, 22])
-        args.shelf_row = np.array([3, 2])
-        args.shelf_col = np.array([9, 11])
+        args.package_size = np.array([27, 22, 84])
+        args.shelf_row = np.array([3, 2, 6])
+        args.shelf_col = np.array([9, 11, 14])
         args.batch_size *= 2
 
     args.output_path = './dataset/checkEvaluation/' + args.log_name + '/'

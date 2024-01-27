@@ -86,6 +86,7 @@ def randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dat
     shampoo_task = []
     yogurt_task = []
     wine_task = []
+    amaozn_task = []
     for index in range(len(raw_data)):
         if raw_data[index]['id'] == 'Q2':
             shampoo_task.append(index)
@@ -93,9 +94,12 @@ def randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dat
             yogurt_task.append(index)
         elif raw_data[index]['id'] == 'Q1':
             wine_task.append(index)
+        elif raw_data[index]['id'] == 'amazon':
+            amaozn_task.append(index)
 
     val_wine, tst_wine = get_val_and_tst(wine_task)
     val_yogurt, tst_yogurt = get_val_and_tst(yogurt_task)
+    val_amazon, tst_amazon = get_val_and_tst(amaozn_task)
 
     if testing_dataset_choice == 'wine':
         val = val_wine
@@ -103,6 +107,9 @@ def randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dat
     elif testing_dataset_choice == 'yogurt':
         val = val_yogurt
         tst = tst_yogurt
+    elif testing_dataset_choice == 'amazon':
+        val = val_amazon
+        tst = tst_amazon
     else:
         val = val_wine + val_yogurt
         tst = tst_wine + tst_yogurt
@@ -111,6 +118,8 @@ def randsplit(datapath, indexFile, isTrain, testing_dataset_choice, training_dat
         training_dataset = wine_task
     elif training_dataset_choice == 'yogurt':
         training_dataset = yogurt_task
+    elif training_dataset_choice == 'amazon':
+        training_dataset = amaozn_task
     else:
         training_dataset = wine_task + yogurt_task
 
@@ -134,8 +143,8 @@ class FixDataset(Dataset):
         testing_dataset_choice = args.testing_dataset_choice
         training_dataset_choice = args.training_dataset_choice
 
-        assert testing_dataset_choice in ["wine", "yogurt", "all", "irregular"]
-        assert training_dataset_choice in ["wine", "yogurt", "all"]
+        assert testing_dataset_choice in ["wine", "yogurt",'amazon', "all", "irregular"]
+        assert training_dataset_choice in ["wine", "yogurt",'amazon', "all"]
         print('Settings: ', isTrain, training_dataset_choice, testing_dataset_choice)
 
         leave_one_comb_out = args.leave_one_comb_out
@@ -154,8 +163,8 @@ class FixDataset(Dataset):
         self.ids = []
         self.max_len = 0
 
-        #i=0
-        #print('change it back')
+        i=0
+        print('change it back')
         for item in raw_data:
             self.package_target.append(item['package_target'])
             self.question_img_feature.append(item['question_img_feature'])
@@ -163,9 +172,9 @@ class FixDataset(Dataset):
             self.ids.append(item['id'])
             if len(item['package_seq']) > self.max_len:
                 self.max_len = len(item['package_seq'])
-            '''i+=1
+            i+=1
             if i > 10:
-                break'''
+                break
 
         self.data_total_length = len(self.question_img_feature)
         print(F'total_len = {self.data_total_length}, ', 'max len=', self.max_len)
