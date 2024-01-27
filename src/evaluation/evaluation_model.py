@@ -5,12 +5,12 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 from itertools import groupby
-from dictances import bhattacharyya
+#from dictances import bhattacharyya
 from scipy.stats import wasserstein_distance
 import sys
 sys.path.append('./src/')
 from dataBuilders.data_builder import randsplit
-
+from tqdm import tqdm
 
 def behavior(result_array, target, gaze):
     for i in range(len(gaze)):
@@ -82,7 +82,7 @@ class Evaluation(object):
                'rgb': torch.zeros(7), 'saliency': torch.zeros(7), #'tf': torch.zeros(5),
                'single': torch.zeros(7), 'multi': torch.zeros(7)}
 
-        for i in range(self.data_length):
+        for i in tqdm(range(self.data_length)):
             behavior(res['gt'], self.target[i], self.gaze_gt[i:(i+1)])
             behavior(res['single'], self.target[i], self.gaze_max[i:(i + 1)])
             if self.hasExpectedFile:
@@ -103,13 +103,15 @@ class Evaluation(object):
 
 if __name__ == '__main__':
     ITERATION = 100
-    '''cross_dataset = 'Pure'  # DONOT USE choices: None, Pure, Mixed, Cross, Combine
-    isSplitValid = 'True'
-    testing_dataset_choice = 'wine'  # choices: yogurt, shampoo, combine'''
-    training_dataset_choice = 'mixed'
-    testing_dataset_choice = 'wine'
+    hasExpectedFile = True
+    training_dataset_choice = 'all'
+    testing_dataset_choice = 'all'
+    datapath = './dataset/processdata/dataset_Q123_mousedel_time'
+    indexFile = './dataset/processdata/splitlist_all_time.txt'
 
-    evaluation_url = './dataset/checkEvaluation/wine'
+    evaluation_url = './dataset/checkEvaluation/gazeformer'
 
-    e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url, ITERATION)
+    e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url,
+                    datapath, indexFile)
     e.evaluation()
+
