@@ -12,15 +12,15 @@ import os
 from sklearn.metrics.pairwise import cosine_similarity
 import json
 from tqdm import tqdm
-
+import matplotlib.pyplot as plt
 
 
 class CUT_PIC_AMAZON(object):
     def __init__(self, file_name, output_path):
-        self.image_path = file_name + 'Amazon' + '/images/'
-        self.border_path = file_name + 'Amazon' + '/binarymask/'
-        self.data_path = file_name + 'Amazon' + '/Amazon.json'
-        self.target_path = file_name + 'Amazon' + '/target/'
+        self.image_path = file_name + 'amazon_data' + '/images/'
+        self.border_path = file_name + 'amazon_data' + '/binarymask/'
+        self.data_path = file_name + 'amazon_data' + '/amazon_data.json'
+        self.target_path = file_name + 'amazon_data' + '/target/'
         self.dim = (93, 150)
         self.output_path = output_path
 
@@ -120,6 +120,7 @@ class CUT_PIC_AMAZON(object):
         dataset = []
         with open(self.data_path, 'r') as file:
             data = json.load(file)
+        seq_len = []
 
         for imageName, gaze in tqdm(data.items(), desc='Processing gsaze data'):
             img = cv.imread(self.image_path + imageName)
@@ -131,6 +132,7 @@ class CUT_PIC_AMAZON(object):
                 fixations_patch = self.fixation_to_patch(fixation, border_img)
                 dataset_dict['package_target'] = target_id
                 dataset_dict['package_seq'] = fixations_patch
+                seq_len.append(len(fixations_patch))
                 dataset_dict['X'] = [x for x, _ in fixation]
                 dataset_dict['Y'] = [y for _, y in fixation]
                 dataset_dict['question_img_feature'] = cropped_images
@@ -141,12 +143,35 @@ class CUT_PIC_AMAZON(object):
                 dataset_dict['sub_id'] = sub
                 dataset.append(dataset_dict)
 
+        print('total len=', len(dataset))
+        print('avg len=', np.mean(seq_len))
+        #plt.hist(seq_len)
+        #plt.show()
+        avg = np.mean(seq_len)
+        std = np.std(seq_len)
+        minlen = avg - 3 * std
+        maxlen = avg + 3 * std
+        final_dataset = []
+
+        new_len = []
+        for data in dataset:
+            lendata = len(data['package_seq'])
+            if lendata <= maxlen and lendata >= minlen:
+                final_dataset.append(data)
+                new_len.append(lendata)
+
+        print('total len=', len(final_dataset))
+        print('avg len=', np.mean(new_len))
+        #plt.hist(new_len)
+        #plt.xlabel('Seq length')
+        #plt.show()
+
         with open(self.output_path, "wb") as fp:  # Pickling
-            pickle.dump(dataset, fp)
+            pickle.dump(final_dataset, fp)
 
         print("Finish...")
 
 
 if __name__ == '__main__':
-    CUT_PIC = CUT_PIC_AMAZON("./dataset/amazon_data/", "./dataset/processdata/dataset_amazon")
+    CUT_PIC = CUT_PIC_AMAZON("./dataset/", "./dataset/processdata/dataset_amazon")
     CUT_PIC.cut_image()
