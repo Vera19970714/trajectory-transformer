@@ -130,7 +130,7 @@ class CUT_PIC_AMAZON(object):
             dataset_dict = {}
             for sub, fixation in gaze['fixations'].items():
                 fixations_patch = self.fixation_to_patch(fixation, border_img)
-                dataset_dict['package_target'] = target_id
+                dataset_dict['package_target'] = [target_id]
                 dataset_dict['package_seq'] = fixations_patch
                 seq_len.append(len(fixations_patch))
                 dataset_dict['X'] = [x for x, _ in fixation]

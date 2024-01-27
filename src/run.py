@@ -44,8 +44,8 @@ if __name__ == '__main__':
     parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads
     parser.add_argument('-CA_dk', default=512, type=int) # 512, 64, scaling factor in attention matrix
 
-    parser.add_argument('-PE_matrix', default='./src/model/learned_PE_random_2.npy', type=str)
-    parser.add_argument('-log_name', default='None', type=str)
+    parser.add_argument('-PE_matrix', default='./src/model/amazon_learned_random_PE.npy', type=str)
+    parser.add_argument('-log_name', default='amazon_pamformer', type=str)
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
     parser.add_argument('-write_output', type=str, default='True')

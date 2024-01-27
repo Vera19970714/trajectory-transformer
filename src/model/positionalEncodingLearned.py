@@ -3,21 +3,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 from positionalEncoding import *
 
-sigma = 2 # try 1.5, 2
+sigma = 2 # try 1.5, 2, 2 is the best
 # W1:Random; W2:Original; W3:Original with order 15
 choice = 1
-
-num_rows, num_columns = 20, 86
+saved_name = './amazon_learned_random_PE.npy'
+num_rows, num_columns = 14, 86
 learning_rate = 0.01
 num_iterations = 10000
 tolerance = 1e-3
 
-enc = PositionalEncoding(num_columns, 0, 'original', 0.9, maxlen=num_rows).pos_embedding
-enc = enc.reshape(11, 86)
 
-if choice == 1:
+if choice == 2:
+    enc = PositionalEncoding(num_columns, 0, 'original', 0.9, maxlen=num_rows).pos_embedding
+    enc = enc.reshape(11, 86)
     W = nn.Parameter(enc)
-elif choice == 2:
+elif choice == 1:
     W = nn.Parameter(torch.randn(num_rows, num_columns))
 #elif choice == 3:
 #    W = nn.Parameter(torch.from_numpy(getEnc('original', 0.9, 6, True)).float())
@@ -119,7 +119,8 @@ print("Variance of norms:", norm_variance.item())
 print("Norms of each row:", norms)
 
 W = W.detach().cpu().numpy()
-if choice == 1:
+'''if choice == 1:
     np.save('learned_PE_random_20_'+str(sigma)+'.npy', W)
 elif choice == 2:
-    np.save('learned_PE_init_'+str(sigma)+'.npy', W)
+    np.save('learned_PE_init_'+str(sigma)+'.npy', W)'''
+np.save(saved_name, W)
