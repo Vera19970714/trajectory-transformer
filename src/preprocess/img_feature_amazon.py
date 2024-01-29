@@ -138,8 +138,8 @@ class CUT_PIC_AMAZON(object):
                 dataset_dict['question_img_feature'] = cropped_images
                 dataset_dict['id'] = 'amazon'
                 dataset_dict['tgt_id'] = gaze['target'][7]
-                dataset_dict['pair'] = imageName[:1] + '_' + gaze['target'][7]
-                dataset_dict['layout_id'] = imageName[:1]
+                dataset_dict['pair'] = imageName.split('.')[0] + '_' + gaze['target'][7]
+                dataset_dict['layout_id'] = imageName.split('.')[0]
                 dataset_dict['sub_id'] = sub
                 dataset.append(dataset_dict)
 
