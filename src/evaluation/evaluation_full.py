@@ -107,7 +107,7 @@ def string_distance(result_array,gaze,gt,col_num,row_num):
     distance = {'SS':[],'VectorSimilarity': [], 'DirectionSimilarity': [], 'LengthSimilarity': [], 'PositionSimilarity': [],'Average':[]}
     for i in range(len(gaze)):
         gaze_element = gaze[i][~np.isnan(gaze[i])]
-        scanpathcomparisons = docomparison(gaze_element, gt,col_num, row_num)[0]
+        scanpathcomparisons = [0,0,0,0] #docomparison(gaze_element, gt,col_num, row_num)[0]
         distance['SS'].append(nw_matching(gaze_element, gt))
         distance['VectorSimilarity'].append(scanpathcomparisons[0])
         distance['DirectionSimilarity'].append(scanpathcomparisons[1])
@@ -184,6 +184,10 @@ class Evaluation(object):
                     TOTAL_PCK = 27
                     col_num = 9
                     row_num = 3
+                elif self.testing_dataset_choice == 'amazon':
+                    TOTAL_PCK = 84
+                    col_num = 14
+                    row_num = 6
             elif self.training_dataset_choice == self.testing_dataset_choice == 'all':
                 if self.ids[i] == 'Q1':
                     TOTAL_PCK = 22
@@ -219,7 +223,7 @@ class Evaluation(object):
         res['single'] = res['single'] / self.data_length
         res['multi'] = res['multi'] / self.data_length 
         if self.showBenchmark:
-            res['random'] = res['random'] / self.data_length 
+            res['random'] = res['random'] / self.data_length
             res['center'] = res['center'] / self.data_length 
             res['rgb'] = res['rgb'] / self.data_length 
             res['saliency'] = res['saliency'] / self.data_length
@@ -238,13 +242,13 @@ class Evaluation(object):
 
 if __name__ == '__main__':
     ITERATION = 100
-    training_dataset_choice = 'all'
-    testing_dataset_choice = 'all'
+    training_dataset_choice = 'amazon'
+    testing_dataset_choice = 'amazon'
 
-    evaluation_url = './dataset/checkEvaluation/res/gaze_comb/gazeformer'
-    datapath = './dataset/processdata/dataset_Q123_mousedel_time'
-    indexFile = './dataset/processdata/splitlist_all_time.txt'
+    evaluation_url = './dataset/checkEvaluation/amazon_gazeformer'
+    datapath = './dataset/processdata/dataset_amazon'
+    indexFile = './dataset/processdata/splitlist_all_amazon.txt'
 
     e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url,
-                 datapath, indexFile, ITERATION=100, showBenchmark=False, showExpected=False)
+                 datapath, indexFile, ITERATION=100, showBenchmark=False, showExpected=True)
     e.evaluation()

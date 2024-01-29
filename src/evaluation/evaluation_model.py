@@ -104,12 +104,12 @@ class Evaluation(object):
 if __name__ == '__main__':
     ITERATION = 100
     hasExpectedFile = True
-    training_dataset_choice = 'all'
-    testing_dataset_choice = 'all'
-    datapath = './dataset/processdata/dataset_Q123_mousedel_time'
-    indexFile = './dataset/processdata/splitlist_all_time.txt'
+    training_dataset_choice = 'amazon'
+    testing_dataset_choice = 'amazon'
+    datapath = './dataset/processdata/dataset_amazon'
+    indexFile = './dataset/processdata/splitlist_all_amazon.txt'
 
-    evaluation_url = './dataset/checkEvaluation/gazeformer'
+    evaluation_url = './dataset/checkEvaluation/amazon_random'
 
     e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url,
                     datapath, indexFile)
