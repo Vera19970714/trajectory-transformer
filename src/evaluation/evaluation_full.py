@@ -14,7 +14,7 @@ from dataBuilders.data_builder import randsplit
 from evaluation.saliency_metric import nw_matching
 from evaluation.multimatch import docomparison
 from tqdm import tqdm
-from tabulate import tabulate
+#from tabulate import tabulate
 
 def _Levenshtein_Dmatrix_initializer(len1, len2):
     Dmatrix = []
@@ -244,10 +244,13 @@ if __name__ == '__main__':
     ITERATION = 100
     training_dataset_choice = 'amazon'
     testing_dataset_choice = 'amazon'
-
-    evaluation_url = './dataset/checkEvaluation/amazon_gazeformer'
     datapath = './dataset/processdata/dataset_amazon'
     indexFile = './dataset/processdata/splitlist_all_amazon.txt'
+    '''training_dataset_choice = 'all'
+    testing_dataset_choice = 'all'
+    datapath = './dataset/processdata/dataset_Q123_mousedel_time'
+    indexFile = './dataset/processdata/splitlist_all_time.txt'''''
+    evaluation_url = './dataset/checkEvaluation/amazon_IRL'
 
     e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url,
                  datapath, indexFile, ITERATION=100, showBenchmark=False, showExpected=True)
