@@ -5,6 +5,13 @@ import pandas as pd
 from tqdm import tqdm
 import json
 
+
+def compute_nss(s_map,gt):
+    xy = np.where(gt==1)
+    s_map_norm = (s_map - np.mean(s_map))/np.std(s_map)
+    return np.mean(s_map_norm[xy])
+
+
 def multimatch(s1, s2, im_size):
     s1x = s1['X']
     s1y = s1['Y']
@@ -71,15 +78,20 @@ class Evaluation(object):
 
     def evaluation(self):
         final_res = [[], [], [], []]
+        nss = []
         for i in tqdm(range(self.data_length)):
-            if i == 20:
-                print()
             if self.testing_dataset_choice == 'amazon':
                 im_size = self.im_size[i]
             else:
                 im_size = self.im_size
             gazehat = self.gaze_expect[(i * self.ITERATION):(i * self.ITERATION + self.ITERATION)]
             gazegt = self.gt_fixations[i]
+            predicted_map = np.zeros((im_size))
+            gt_map = np.zeros((im_size))
+            for x,y in zip(gazegt['X'], gazegt['Y']):
+                gt_map[round(x),round(y)]=1
+            #print(gt_map.sum())
+
             for j in range(len(gazehat)):
                 if self.patch:
                     gaze_element = gazehat[j][~np.isnan(gazehat[j])]
@@ -118,15 +130,26 @@ class Evaluation(object):
                 final_res[1].append(mmres[1])
                 final_res[2].append(mmres[2])
                 final_res[3].append(mmres[3])
+
+                for x, y in zip(gaze_element['X'], gaze_element['Y']):
+                    #print(gaze_element)
+                    x1=min(round(x), im_size[0]-1)
+                    y1=min(round(y), im_size[1]-1)
+                    predicted_map[x1, y1] = 1
+                #print(predicted_map.sum())
+            nss_ = compute_nss(predicted_map, gt_map)
+            nss.append(nss_)
         a=np.mean(final_res[0])
         b=np.mean(final_res[1])
         c=np.mean(final_res[2])
         d=np.mean(final_res[3])
+        nss_avg = np.mean(nss)
         print('Vector similarity = ', np.mean(final_res[0]))
         print('Direction similarity = ', np.mean(final_res[1]))
         print('Length similarity = ', np.mean(final_res[2]))
         print('Position similarity = ', np.mean(final_res[3]))
         print('Avg: ', (a+b+c+d)/4)
+        print('NSS: ', nss_avg)
 
 
 if __name__ == '__main__':
@@ -140,9 +163,8 @@ if __name__ == '__main__':
     datapath = './dataset/processdata/dataset_Q123_mousedel_time_new'
     indexFile = './dataset/processdata/splitlist_all_time.txt'''''
 
-    evaluation_url = '/Users/adia/Documents/HKUST/projects/gazePrediction/trajectory-transformer/dataset/checkEvaluation/amazon_pamformer/gaze_expect.csv'
-    patch = True
-
+    evaluation_url = '/Users/adia/Documents/HKUST/projects/gazePrediction/IRL/IRL_amazon_fixations.csv'
+    patch = False
 
     e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url,
                  datapath, indexFile, ITERATION, patch)

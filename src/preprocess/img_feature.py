@@ -9,9 +9,9 @@ import pickle
 from tqdm import tqdm
 
 img_dir = './dataset/img/Question/'
-data_dir0 = './dataset/gaze/time_Q1_mousedel_new.xlsx'
-data_dir1 = './dataset/gaze/time_Q2_mousedel_new.xlsx'
-data_dir2 = './dataset/gaze/time_Q3_mousedel_new.xlsx'
+data_dir0 = '/Users/adia/Documents/HKUST/projects/gazePrediction/Gazeformer-main/pamformer/data with coordinate/time_Q1_mousedel_new.xlsx'
+data_dir1 = '/Users/adia/Documents/HKUST/projects/gazePrediction/Gazeformer-main/pamformer/data with coordinate/time_Q2_mousedel_new.xlsx'
+data_dir2 = '/Users/adia/Documents/HKUST/projects/gazePrediction/Gazeformer-main/pamformer/data with coordinate/time_Q3_mousedel_new.xlsx'
 target_dir = './dataset/img/Target/'
 
 
