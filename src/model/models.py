@@ -132,7 +132,7 @@ class CNNEmbedding(nn.Module):
         self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU())
         if spp == 0:
             self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
-            self.fc = nn.Linear(1440, outputSize)
+            self.fc = nn.Linear(256, outputSize)
         elif spp == 2:
             self.sppLayer = SPPLayer(num_levels=2)
             self.fc = nn.Linear(160, outputSize)

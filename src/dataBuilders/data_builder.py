@@ -164,12 +164,14 @@ class FixDataset(Dataset):
         self.max_len = 0
 
         i=0
+        avglen = []
         #print('change it back')
         for item in raw_data:
             self.package_target.append(item['package_target'])
             self.question_img_feature.append(item['question_img_feature'])
             self.package_sequence.append(item['package_seq'])
             self.ids.append(item['id'])
+            #avglen.append(len(item['package_seq']))
             if len(item['package_seq']) > self.max_len:
                 self.max_len = len(item['package_seq'])
             '''i+=1
@@ -178,6 +180,7 @@ class FixDataset(Dataset):
 
         self.data_total_length = len(self.question_img_feature)
         print(F'total_len = {self.data_total_length}, ', 'max len=', self.max_len)
+        print('Avg len=', np.mean(avglen))
         #self.drawTrajectoryDis()
 
     # support indexing such that dataset[i] can be used to get i-th sample
@@ -217,7 +220,7 @@ class SearchDataModule(pl.LightningDataModule):
     if args.training_dataset_choice != 'all' and args.testing_dataset_choice == args.training_dataset_choice:
         collate_fn = Collator_pure(args.package_size)
     else:
-        collate_fn = Collator_mixed(args.package_size)
+        collate_fn = Collator_mixed(args.package_size, args.shelf_col)
 
     self.train_loader = DataLoader(dataset=train_set,
                                     batch_size=args.batch_size,
@@ -301,15 +304,17 @@ class Collator_pure(object):
 
 
 class Collator_mixed(object):
-    def __init__(self, package_size):
+    def __init__(self, package_size, shelf_col):
         #self.TGT_IDX = package_size
         self.PAD_IDX = package_size + 1# 1
         self.BOS_IDX = package_size + 2
         self.EOS_IDX = package_size #+ 3
         self.package_size = package_size
+        self.shelf_col = shelf_col
 
     def process_one_type(self, data, type_index): # type index: 0 is yogurt, 1 is wine
         package_target = []
+        package_target_4split = []
         package_seq = []
         question_img = []
 
@@ -327,9 +332,16 @@ class Collator_mixed(object):
                                   gaze_seq,
                                   torch.tensor([self.EOS_IDX[type_index]])))
             package_seq.append(gaze_seq)
-            target = torch.cat((torch.arange(self.package_size[type_index]), torch.tensor([target])))
+            src_index = torch.cat((torch.arange(self.package_size[type_index]), torch.tensor([target])))
             # target = torch.cat((torch.tensor([TGT_IDX]), torch.arange(27))) #CHANGE: Add TGT INDX
-            package_target.append(target)
+            package_target.append(src_index)
+
+            col = self.shelf_col[type_index]
+            row_tgt, col_tgt = target//col, target%col # tgt*row+col
+            new_tgt = [row_tgt*col*2+col_tgt*2, row_tgt*col*2+col_tgt*2+1, (row_tgt+1)*col*2+col_tgt*2, (row_tgt+1)*col*2+col_tgt*2+1]
+            target2 = torch.cat((torch.arange(self.package_size[type_index]*4), torch.tensor(new_tgt)))
+            package_target_4split.append(target2)
+
             question_img_feature = np.stack(question_img_feature)
             question_img_feature = torch.from_numpy(question_img_feature)
             # CHANGED to ones
@@ -338,6 +350,7 @@ class Collator_mixed(object):
 
         package_seq = pad_sequence(package_seq, padding_value=self.PAD_IDX[type_index], batch_first=False)
         package_target = torch.stack(package_target).T
+        package_target_4split = torch.stack(package_target_4split).T
         question_img = torch.stack(question_img)
         # size: (b,31,w,h,3), (28, b), (max_len, b)
         # output: src_pos (28, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
@@ -351,7 +364,11 @@ class Collator_mixed(object):
             tgt_img.append(tgt_img_)
         tgt_img = torch.stack(tgt_img)
         src_img = torch.stack(src_img)
-        return package_target, src_img, package_seq, tgt_img
+        # here change 23,1 to 23*4,1: package_target and src_img, also change the index later
+        src_img = get_split_data(src_img)
+        return package_target_4split, src_img, package_seq, tgt_img
+        # 23, 1 (22 products+target); 1, 23, 150, 93, 3; 16, 1; 1, 16, 150, 93, 3
+        # 92, 1;1,92,75,47,3
 
     def __call__(self, data):
         yogurt_data = []
@@ -373,5 +390,33 @@ class Collator_mixed(object):
         return data1, data2
 
 
+def get_split_data(src_img): # input: 1, 23, 150, 93, 3
+    s1, s2, s3 = src_img.size()[0], src_img.size()[1], src_img.size()[2]
+    src_img = torch.cat((src_img, torch.zeros((s1, s2, s3, 1, 3))), dim=3)  # 1,23,150,94,3
+    img1 = src_img[:, :, 0:75, 0:47, :]  # 1,23,75,46,3
+    img2 = src_img[:, :, 0:75, 47:94, :]
+    img3 = src_img[:, :, 75:150, 0:47, :]
+    img4 = src_img[:, :, 75:150, 47:94, :]
+    results = []
+    num_of_col, num_of_row = 11, 2
+    for b in range(s1):
+        results1 = []
+        for row in range(num_of_row * 2):
+            for col in range(num_of_col):
+                num = (row // 2) * num_of_col + col
+                if row % 2 == 0:
+                    results1.append(img1[b][num])
+                    results1.append(img2[b][num])
+                else:
+                    results1.append(img3[b][num])
+                    results1.append(img4[b][num])
 
+        results1.append(img1[b][-1])
+        results1.append(img2[b][-1])
+        results1.append(img3[b][-1])
+        results1.append(img4[b][-1])
+        result1s = torch.stack(results1)  # 48,75,47,3
+        results.append(result1s)
+    results = torch.stack(results)  # 1,48,75,47,3
+    return results
 

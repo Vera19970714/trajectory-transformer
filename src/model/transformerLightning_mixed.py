@@ -26,7 +26,7 @@ class TransformerModel_Mixed(pl.LightningModule):
         self.BOS_IDX = self.args.package_size+2
         self.EOS_IDX = self.args.package_size #+3
 
-        EMB_SIZE = 512
+        EMB_SIZE = 256
         NHEAD = 4
         FFN_HID_DIM = 512
         NUM_ENCODER_LAYERS = 4
@@ -115,15 +115,22 @@ class TransformerModel_Mixed(pl.LightningModule):
         tgt_input_2d[0, :, 0] = float(self.args.shelf_row[type]) / 2
         tgt_input_2d[0, :, 1] = float(self.args.shelf_col[type]) / 2
 
+        new_col = self.args.shelf_col[type] * 2
         src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 3)).to(DEVICE).float()
-        src_pos_2d[:, :, 0] = src_pos // self.args.shelf_col[type]
-        src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.args.shelf_col[type])
+        src_pos_2d[:, :, 0] = src_pos // new_col
+        src_pos_2d[:, :, 1] = torch.remainder(src_pos, new_col)
 
         # changed to three dimension
         batch = tgt_input.size()[1]
         src_pos_2d[-1, :, 2] = 1 # the last one is target
+        src_pos_2d[-1, :, 2] = 1
+        src_pos_2d[-1, :, 2] = 1
+        src_pos_2d[-1, :, 2] = 1
         for i in range(batch):
-            Index = src_pos[-1, i]
+            new_target = src_pos[-4, i]
+            tgt_row, tgt_col = new_target // new_col, new_target % new_col
+            Index = int(tgt_row/2) * self.args.shelf_col[type] + int(tgt_col/2)
+            #Index = src_pos[-1, i]
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt_input_2d[tgt1, i, 2] = 1
         return src_pos_2d, tgt_input_2d

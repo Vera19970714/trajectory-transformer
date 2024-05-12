@@ -23,12 +23,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-data_path', default='./dataset/processdata/dataset_amazon', type=str)
+    parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q123_mousedel_time_new', type=str)
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
-    parser.add_argument('-index_file', default='splitlist_all_amazon.txt', type=str) # all_time_better
+    parser.add_argument('-index_file', default='splitlist_all_time.txt', type=str) # all_time_better
 
-    parser.add_argument('-testing_dataset_choice', default='amazon', type=str)  # wine, yogurt, amazon,all, irregular
-    parser.add_argument('-training_dataset_choice', default='amazon', type=str)  # wine, yogurt, amazon,all
+    parser.add_argument('-testing_dataset_choice', default='all', type=str)  # wine, yogurt, amazon,all, irregular
+    parser.add_argument('-training_dataset_choice', default='all', type=str)  # wine, yogurt, amazon,all
     parser.add_argument('-leave_one_comb_out', default=0, type=int)
     parser.add_argument('-leave_one_comb_out_tgt_id', default=0, type=int)
     parser.add_argument('-leave_one_comb_out_layout_id', default=0, type=int)
@@ -44,8 +44,8 @@ if __name__ == '__main__':
     parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads
     parser.add_argument('-CA_dk', default=512, type=int) # 512, 64, scaling factor in attention matrix
 
-    parser.add_argument('-PE_matrix', default='./src/model/amazon_learned_random_PE.npy', type=str)
-    parser.add_argument('-log_name', default='amazon_pamformer', type=str)
+    parser.add_argument('-PE_matrix', default='./src/model/pamformer_4split_learned_random_PE.npy', type=str)
+    parser.add_argument('-log_name', default='test', type=str)
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)
     parser.add_argument('-write_output', type=str, default='True')
@@ -61,10 +61,10 @@ if __name__ == '__main__':
     parser.add_argument('-val_check_interval', default=1.0, type=float)
 
     # training settings
-    parser.add_argument('-gpus', default='-1', type=str)
-    parser.add_argument('-batch_size', type=int, default=20)
+    parser.add_argument('-gpus', default='0', type=str)
+    parser.add_argument('-batch_size', type=int, default=2)
     parser.add_argument('-num_epochs', type=int, default=500)
-    parser.add_argument('-random_seed', type=int, default=1234)
+    parser.add_argument('-random_seed', type=int, default=888)
     parser.add_argument('-early_stop_patience', type=int, default=30)
 
     parser.add_argument('-monitor', type=str, default='validation_delta_each_epoch') #'validation_loss_each_epoch'
