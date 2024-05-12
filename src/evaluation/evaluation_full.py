@@ -10,7 +10,7 @@ from scipy.stats import wasserstein_distance
 import torch
 import sys
 sys.path.append('./src/')
-from dataBuilders.data_builder import randsplit
+from dataBuilders.data_builder import randsplit, randsplit_comb
 from evaluation.saliency_metric import nw_matching
 from evaluation.multimatch import docomparison
 from tqdm import tqdm
@@ -128,7 +128,7 @@ def string_distance(result_array,gaze,gt,col_num,row_num):
 
 class Evaluation(object):
     def __init__(self, training_dataset_choice, testing_dataset_choice, evaluation_url,
-                 datapath, indexFile, ITERATION=100, showBenchmark=True, showExpected=True):
+                 datapath, indexFile, ITERATION=100, showBenchmark=True, showExpected=True, leave_one_comb_out=0):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
         self.ITERATION = ITERATION
         self.showBenchmark = showBenchmark
@@ -143,7 +143,13 @@ class Evaluation(object):
             gaze_rgb = './dataset/checkEvaluation/gaze_rgb_similarity.csv'
             gaze_center = './dataset/checkEvaluation/gaze_center.csv'
         
-        raw_data = randsplit(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice)
+        #raw_data = randsplit(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice)
+
+        if leave_one_comb_out == 0:
+            raw_data = randsplit(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice)
+        else:
+            raw_data = randsplit_comb(datapath, indexFile, 'Test', testing_dataset_choice, training_dataset_choice,
+                                      'Q3_10', 'T3_12')
 
         self.data_length = len(raw_data)
         print(F'len = {self.data_length}')
@@ -235,7 +241,11 @@ class Evaluation(object):
             models.extend(['random','center', 'saliency', 'rgb'])
 
         for i in models:
-            res[i][5] = torch.sum(torch.abs(res[i][:5] - res['gt'][:5]) / res['gt'][:5]) / 5
+            a=torch.abs(res[i][:5] - res['gt'][:5])
+            b=res['gt'][:5]
+            c=torch.nansum(a / b)
+            d=c/5
+            res[i][5] = d
             print(i, ': ', res[i])
         print('*' * 20)
 
@@ -249,9 +259,10 @@ if __name__ == '__main__':
     '''training_dataset_choice = 'all'
     testing_dataset_choice = 'all'
     datapath = './dataset/processdata/dataset_Q123_mousedel_time'
-    indexFile = './dataset/processdata/splitlist_all_time.txt'''''
-    evaluation_url = './dataset/checkEvaluation/amazon_IRL'
+    indexFile = './dataset/processdata/splitlist_all_time.txt'''
+    evaluation_url = './dataset/checkEvaluation/amazon_center'
 
     e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url,
-                 datapath, indexFile, ITERATION=100, showBenchmark=False, showExpected=True)
+                 datapath, indexFile, ITERATION=100, showBenchmark=False, showExpected=True,
+                   leave_one_comb_out=0)
     e.evaluation()
