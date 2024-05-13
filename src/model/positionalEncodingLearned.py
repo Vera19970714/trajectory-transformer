@@ -6,7 +6,7 @@ from positionalEncoding import *
 sigma = 2 # try 1.5, 2, 2 is the best
 # W1:Random; W2:Original; W3:Original with order 15
 choice = 1
-saved_name = './pamformer_4split_learned_random_PE.npy' # './amazon_learned_random_PE.npy'
+saved_name = './4split_learned_random_PE.npy' # './amazon_learned_random_PE.npy'
 num_rows, num_columns = 25, 86
 learning_rate = 0.01
 num_iterations = 10000

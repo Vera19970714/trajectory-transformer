@@ -26,7 +26,7 @@ class TransformerModel_Mixed(pl.LightningModule):
         self.BOS_IDX = self.args.package_size+2
         self.EOS_IDX = self.args.package_size #+3
 
-        EMB_SIZE = 256
+        EMB_SIZE = 512
         NHEAD = 4
         FFN_HID_DIM = 512
         NUM_ENCODER_LAYERS = 4

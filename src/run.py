@@ -23,12 +23,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-data_path', default='./dataset/processdata/dataset_Q123_mousedel_time_new', type=str)
+    parser.add_argument('-data_path', default='./dataset/processdata/dataset_amazon', type=str)
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
-    parser.add_argument('-index_file', default='splitlist_all_time.txt', type=str) # all_time_better
+    parser.add_argument('-index_file', default='splitlist_all_amazon.txt', type=str) # all_time_better
 
-    parser.add_argument('-testing_dataset_choice', default='all', type=str)  # wine, yogurt, amazon,all, irregular
-    parser.add_argument('-training_dataset_choice', default='all', type=str)  # wine, yogurt, amazon,all
+    parser.add_argument('-testing_dataset_choice', default='amazon', type=str)  # wine, yogurt, amazon,all, irregular
+    parser.add_argument('-training_dataset_choice', default='amazon', type=str)  # wine, yogurt, amazon,all
     parser.add_argument('-leave_one_comb_out', default=0, type=int)
     parser.add_argument('-leave_one_comb_out_tgt_id', default=0, type=int)
     parser.add_argument('-leave_one_comb_out_layout_id', default=0, type=int)
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     parser.add_argument('-CA_head', default=2, type=int) # the number of cross attention heads
     parser.add_argument('-CA_dk', default=512, type=int) # 512, 64, scaling factor in attention matrix
 
-    parser.add_argument('-PE_matrix', default='./src/model/pamformer_4split_learned_random_PE.npy', type=str)
+    parser.add_argument('-PE_matrix', default='./src/model/4split_learned_random_PE.npy', type=str)
     parser.add_argument('-log_name', default='test', type=str)
     parser.add_argument('-output_postfix', type=str, default='') # better to start with '_'
     parser.add_argument('-stochastic_iteration', type=int, default=100)

@@ -218,7 +218,7 @@ class SearchDataModule(pl.LightningDataModule):
     val_set = FixDataset(args, 'Valid')
     test_set = FixDataset(args, 'Test')
     if args.training_dataset_choice != 'all' and args.testing_dataset_choice == args.training_dataset_choice:
-        collate_fn = Collator_pure(args.package_size)
+        collate_fn = Collator_pure(args.package_size, args.shelf_col)
     else:
         collate_fn = Collator_mixed(args.package_size, args.shelf_col)
 
@@ -249,15 +249,17 @@ class SearchDataModule(pl.LightningDataModule):
 
 
 class Collator_pure(object):
-    def __init__(self, package_size):
+    def __init__(self, package_size, shelf_col):
         #self.TGT_IDX = package_size
         self.PAD_IDX = package_size + 1# 1
         self.BOS_IDX = package_size + 2
         self.EOS_IDX = package_size #+ 3
         self.package_size = package_size
+        self.shelf_col = shelf_col
 
     def __call__(self, data):
         package_target = []
+        package_target_4split = []
         package_seq = []
         question_img = []
 
@@ -275,9 +277,17 @@ class Collator_pure(object):
                                   gaze_seq,
                                   torch.tensor([self.EOS_IDX])))
             package_seq.append(gaze_seq)
-            target = torch.cat((torch.arange(self.package_size), torch.tensor([target])))
+            src_index = torch.cat((torch.arange(self.package_size), torch.tensor([target])))
             # target = torch.cat((torch.tensor([TGT_IDX]), torch.arange(27))) #CHANGE: Add TGT INDX
-            package_target.append(target)
+            package_target.append(src_index)
+
+            col = self.shelf_col
+            row_tgt, col_tgt = target // col, target % col  # tgt*row+col
+            new_tgt = [row_tgt * col * 2 + col_tgt * 2, row_tgt * col * 2 + col_tgt * 2 + 1,
+                       (row_tgt + 1) * col * 2 + col_tgt * 2, (row_tgt + 1) * col * 2 + col_tgt * 2 + 1]
+            target2 = torch.cat((torch.arange(self.package_size * 4), torch.tensor(new_tgt)))
+            package_target_4split.append(target2)
+
             question_img_feature = np.stack(question_img_feature)
             question_img_feature = torch.from_numpy(question_img_feature)
             # CHANGED to ones
@@ -286,6 +296,7 @@ class Collator_pure(object):
 
         package_seq = pad_sequence(package_seq, padding_value=self.PAD_IDX, batch_first=False)
         package_target = torch.stack(package_target).T
+        package_target_4split = torch.stack(package_target_4split).T
         question_img = torch.stack(question_img)
         # size: (b,31,w,h,3), (28, b), (max_len, b)
         # output: src_pos (28, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
@@ -299,8 +310,11 @@ class Collator_pure(object):
             tgt_img.append(tgt_img_)
         tgt_img = torch.stack(tgt_img)
         src_img = torch.stack(src_img)
-        return package_target, src_img, package_seq, tgt_img
-        # return question_img, package_target, package_seq
+        # here change 23,1 to 23*4,1: package_target and src_img, also change the index later
+        src_img_split = get_split_data(src_img)
+        return package_target_4split, src_img_split, package_seq, tgt_img, src_img
+        # 23, 1 (22 products+target); 1, 23, 150, 93, 3; 16, 1; 1, 16, 150, 93, 3
+        # 92, 1;1,92,75,47,3
 
 
 class Collator_mixed(object):
@@ -398,7 +412,7 @@ def get_split_data(src_img): # input: 1, 23, 150, 93, 3
     img3 = src_img[:, :, 75:150, 0:47, :]
     img4 = src_img[:, :, 75:150, 47:94, :]
     results = []
-    num_of_col, num_of_row = 11, 2
+    num_of_col, num_of_row = 14, 6 # hardcode for amazon data
     for b in range(s1):
         results1 = []
         for row in range(num_of_row * 2):

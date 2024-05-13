@@ -320,7 +320,7 @@ class Seq2SeqTransformer(nn.Module):
             if self.CA_head != 1:
                 out = self.readout(out)
             out = out.squeeze(-1) # 8,1,93: average the four patches, change first 92 to 4*22+4 (22+1), then 1: 24
-            num_of_col, num_of_row = 11, 2
+            num_of_col, num_of_row = 14, 6 # hardcode for amazon data
             final_out = []
             for bs in range(out.size()[1]):
                 out_ = out[:,bs,:-1] # 8,92, 8,4,23,
@@ -333,12 +333,12 @@ class Seq2SeqTransformer(nn.Module):
                         patch4 = out_[:, (row_tgt + 1) * num_of_col * 2 + col_tgt * 2 + 1]
                         avg_patch = (patch1+patch2+patch3+patch4)/4
                         bs_out.append(avg_patch)
-                tgt_out = torch.mean(out_[:, -4:], dim=1).to(DEVICE)
+                tgt_out = torch.mean(out_[:, -4:], dim=1)
                 bs_out.append(tgt_out)
                 bs_out.append(out[:, bs, -1])
                 bs_out = torch.stack(bs_out) # 24, 8
                 final_out.append(bs_out)
-            final_out=torch.stack(final_out).permute(2, 0, 1).to(DEVICE) # 1, 24, 8
+            final_out=torch.stack(final_out).permute(2, 0, 1) # 1, 24, 8
             return final_out
         else:
             return self.generator(decoder_out)

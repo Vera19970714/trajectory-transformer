@@ -69,7 +69,7 @@ class TransformerModel(pl.LightningModule):
         return {'loss': loss, }
 
     def train_batch_teacher_forcing(self, batch, return_logits=False):
-        src_pos, src_img, tgt_pos, tgt_img = batch
+        src_pos, src_img, tgt_pos, tgt_img, _ = batch
         # src_pos(28, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
         src_pos = src_pos.to(DEVICE)
         src_img = src_img.to(DEVICE)
@@ -113,21 +113,29 @@ class TransformerModel(pl.LightningModule):
         tgt_input_2d[0, :, 0] = float(self.args.shelf_row) / 2
         tgt_input_2d[0, :, 1] = float(self.args.shelf_col) / 2
 
+        new_col = self.args.shelf_col * 2
         src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 3)).to(DEVICE).float()
         src_pos_2d[:, :, 0] = src_pos // self.args.shelf_col
         src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.args.shelf_col)
+        src_pos_2d[:, :, 0] = src_pos // new_col
+        src_pos_2d[:, :, 1] = torch.remainder(src_pos, new_col)
 
         # changed to three dimension
         batch = tgt_input.size()[1]
-        src_pos_2d[-1, :, 2] = 1 # the last one is target
+        src_pos_2d[-1, :, 2] = 1  # the last one is target
+        src_pos_2d[-1, :, 2] = 1
+        src_pos_2d[-1, :, 2] = 1
+        src_pos_2d[-1, :, 2] = 1
         for i in range(batch):
-            Index = src_pos[-1, i]
+            new_target = src_pos[-4, i]
+            tgt_row, tgt_col = new_target // new_col, new_target % new_col
+            Index = int(tgt_row / 2) * self.args.shelf_col + int(tgt_col / 2)
             tgt1 = torch.where(tgt_input[:, i] == Index)[0]
             tgt_input_2d[tgt1, i, 2] = 1
         return src_pos_2d, tgt_input_2d
 
     def validation_step(self, batch, batch_idx):
-        src_pos, src_img, tgt_pos, tgt_img = batch
+        src_pos, src_img, tgt_pos, tgt_img, src_img_full = batch
         # src_pos(28, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
         src_pos = src_pos.to(DEVICE)
         src_img = src_img.to(DEVICE)
@@ -135,7 +143,7 @@ class TransformerModel(pl.LightningModule):
         tgt_img = tgt_img.to(DEVICE)
         logits = self.train_batch_teacher_forcing(batch, True)
         sim = saliency_map_metric(logits, batch[2][1:, 0])
-        loss, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
+        loss, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img, src_img_full)
         gt = batch[2][1:,:][:-1]
         ss = nw_matching(gt[:, 0].detach().cpu().numpy(), GAZE[:, 0].detach().cpu().numpy())
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
@@ -228,11 +236,11 @@ class TransformerModel(pl.LightningModule):
         loss = loss / (length - 1)
         return loss, LOSS, GAZE  # ,LOGITS
 
-    def test_max(self, src_pos, src_img, tgt_pos, tgt_img):
+    def test_max(self, src_pos, src_img, tgt_pos, tgt_img, src_img_full):
         #tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
-        blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
-        new_src_img = torch.cat((src_img[:,:-1,:,:], blank), dim=1) #31,300,186,3
+        blank = torch.zeros((1, 4, src_img_full.size()[2], src_img_full.size()[3], 3)).to(DEVICE)
+        new_src_img = torch.cat((src_img_full[:,:-1,:,:], blank), dim=1) #31,300,186,3
         loss, LOSS, GAZE = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb=True)
         if self.EOS_IDX in GAZE:
             endIndex = torch.where(GAZE == self.EOS_IDX)[0][0]
@@ -240,13 +248,13 @@ class TransformerModel(pl.LightningModule):
             # LOGITS = LOGITS[:endIndex]
         return loss, LOSS, GAZE
 
-    def test_expect(self,src_pos, src_img, tgt_pos, tgt_img):
+    def test_expect(self,src_pos, src_img, tgt_pos, tgt_img, src_img_full):
         #tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)
         loss = 0
-        blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
-        new_src_img = torch.cat((src_img[:,:-1,:,:], blank), dim=1) #31,300,186,3
+        blank = torch.zeros((1, 4, src_img_full.size()[2], src_img_full.size()[3], 3)).to(DEVICE)
+        new_src_img = torch.cat((src_img_full[:,:-1,:,:], blank), dim=1) #31,300,186,3
         iter = self.args.stochastic_iteration
         GAZE = torch.zeros((self.max_len, iter))-1
         for n in range(iter):
@@ -283,14 +291,14 @@ class TransformerModel(pl.LightningModule):
         return loss,predicted[:-1],tgt_out[:-1],LOGITS_tf[:-1]
 
     def test_step(self, batch, batch_idx):
-        src_pos, src_img, tgt_pos, tgt_img = batch
+        src_pos, src_img, tgt_pos, tgt_img, src_img_full = batch
         src_pos = src_pos.to(DEVICE)
         src_img = src_img.to(DEVICE)
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
 
-        loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
-        loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
+        loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img, src_img_full)
+        loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img, src_img_full)
         loss_gt, GAZE_tf, GAZE_gt, LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
         sim = saliency_map_metric(LOGITS_tf, GAZE_gt[:, 0])
         ss_max = compare_multi_gazes(GAZE_gt, [GAZE[:, 0]])
