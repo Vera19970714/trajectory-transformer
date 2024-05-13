@@ -8,7 +8,8 @@ from .positionalEncoding import *
 #UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
+from .RPE.transformers import TransformerEncoder as rpeTransformerEncoder
+from .RPE.positional_encoders import RelativePositionalEncoder
 from torch import Tensor
 import torch
 import torch.nn as nn
@@ -202,9 +203,11 @@ class Seq2SeqTransformer(nn.Module):
                  PE_path: int,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer, self).__init__()
-        encoder_layer = nn.TransformerEncoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
+        '''ncoder_layer = nn.TransformerEncoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                    dropout=dropout)
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)'''
+
+        self.transformer_encoder = rpeTransformerEncoder(emb_dim=emb_size, num_heads=nhead, num_layers=num_encoder_layers, positional_encoding='rel')
         decoder_layer = nn.TransformerDecoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                    dropout=dropout)
         self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_decoder_layers)
@@ -251,6 +254,7 @@ class Seq2SeqTransformer(nn.Module):
             self.readout = nn.Linear(CA_head, 1)
 
         self.CAVersion = CAVersion
+        self.rpe = RelativePositionalEncoder(int(emb_size/2))
 
     def getCNNFeature(self, src_img: Tensor):
         with torch.no_grad():
@@ -284,12 +288,15 @@ class Seq2SeqTransformer(nn.Module):
             elif dataset == 1:
                 threed_pe = self.threedSin_wine
         src_cnn_emb = self.cnn_embedding(src_img, patch_in_batch).transpose(0, 1) #28, 4, 256
-        if self.functionChoice != 'learned':
+        '''if self.functionChoice != 'learned':
             src_pos_emb = calculate3DPositional(threed_pe, src).to(DEVICE)
         else:
-            src_pos_emb = calculate3DPositional_learned(self.pe, src, self.pe_embed).to(DEVICE)
-
+            src_pos_emb = calculate3DPositional_learned(self.pe, src, self.pe_embed).to(DEVICE)'''
+        src_pos_emb = self.rpe(src_cnn_emb.size()[0], src_cnn_emb.size()[1])
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
+
+        encoder_out, output_list, attn_score_list = self.transformer_encoder(src_emb)
+
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well
 
         tgt_cnn_emb = self.cnn_embedding(tgt_img, patch_in_batch).transpose(0, 1)  # 28, 4, 256
@@ -304,7 +311,6 @@ class Seq2SeqTransformer(nn.Module):
         tgt_emb = torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
         tgt_emb = self.onedpositional_encoding(tgt_emb)
 
-        encoder_out = self.transformer_encoder(src_emb, src_mask, src_padding_mask)
         decoder_out = self.transformer_decoder(tgt_emb, encoder_out, tgt_mask, None, tgt_padding_mask,
                                                memory_key_padding_mask)
         if self.CAVersion == 3:

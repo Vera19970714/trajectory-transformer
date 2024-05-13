@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from positional_encoders import RelativePositionalEncoder
+from .positional_encoders import RelativePositionalEncoder
 
 
 # Scaled Dot Product Attention using Absolute Positional Encoding

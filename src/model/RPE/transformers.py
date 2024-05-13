@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from attentions import MultiHeadAttention
-from positional_encoders import AbsolutePositionalEncoder, T5RelativePositionalEncoder
+from .attentions import MultiHeadAttention
+from .positional_encoders import AbsolutePositionalEncoder, T5RelativePositionalEncoder
 
 
 
