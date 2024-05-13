@@ -115,17 +115,15 @@ class TransformerModel(pl.LightningModule):
 
         new_col = self.args.shelf_col * 2
         src_pos_2d = torch.zeros((src_pos.size()[0], src_pos.size()[1], 3)).to(DEVICE).float()
-        src_pos_2d[:, :, 0] = src_pos // self.args.shelf_col
-        src_pos_2d[:, :, 1] = torch.remainder(src_pos, self.args.shelf_col)
         src_pos_2d[:, :, 0] = src_pos // new_col
         src_pos_2d[:, :, 1] = torch.remainder(src_pos, new_col)
 
         # changed to three dimension
         batch = tgt_input.size()[1]
         src_pos_2d[-1, :, 2] = 1  # the last one is target
-        src_pos_2d[-1, :, 2] = 1
-        src_pos_2d[-1, :, 2] = 1
-        src_pos_2d[-1, :, 2] = 1
+        src_pos_2d[-2, :, 2] = 1
+        src_pos_2d[-3, :, 2] = 1
+        src_pos_2d[-4, :, 2] = 1
         for i in range(batch):
             new_target = src_pos[-4, i]
             tgt_row, tgt_col = new_target // new_col, new_target % new_col
@@ -146,8 +144,13 @@ class TransformerModel(pl.LightningModule):
         loss, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img, src_img_full)
         gt = batch[2][1:,:][:-1]
         ss = nw_matching(gt[:, 0].detach().cpu().numpy(), GAZE[:, 0].detach().cpu().numpy())
+        new_tgt_ind = src_pos[-4]
+        new_total_col = self.args.shelf_col * 2
+        new_row = int((new_tgt_ind // new_total_col)/2)
+        new_col = int((new_tgt_ind % new_total_col)/2)
+        actual_tgt = new_row * self.args.shelf_col + new_col
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'loss': loss, 'GAZE': GAZE, 'GAZE_gt': tgt_pos[1:,:][:-1],'target':src_pos[-1], 'sim': sim, 'ss': ss}
+        return {'loss': loss, 'GAZE': GAZE, 'GAZE_gt': tgt_pos[1:,:][:-1],'target':actual_tgt, 'sim': sim, 'ss': ss}
 
     def validation_epoch_end(self, validation_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
@@ -161,12 +164,13 @@ class TransformerModel(pl.LightningModule):
             target = output['target'].cpu().detach().numpy()
             behavior(res_gt, target, gaze_gt)
             behavior(res_max, target, gaze)
+            print(gaze)
             i += 1
         res_gt = res_gt / i
         res_max = res_max / i
         res_max[5] = torch.mean(torch.abs(res_max[:5] - res_gt[:5]) / res_gt[:5])
         delta = res_max[5]
-        #print('delta: ', res_max[5])
+        print('delta: ', res_max[5])
         self.log('validation_loss_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('validation_delta_each_epoch', delta, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('validation_sim_each_epoch', avg_sim, on_epoch=True, prog_bar=True, sync_dist=True)

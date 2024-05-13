@@ -123,9 +123,9 @@ class TransformerModel_Mixed(pl.LightningModule):
         # changed to three dimension
         batch = tgt_input.size()[1]
         src_pos_2d[-1, :, 2] = 1 # the last one is target
-        src_pos_2d[-1, :, 2] = 1
-        src_pos_2d[-1, :, 2] = 1
-        src_pos_2d[-1, :, 2] = 1
+        src_pos_2d[-2, :, 2] = 1
+        src_pos_2d[-3, :, 2] = 1
+        src_pos_2d[-4, :, 2] = 1
         for i in range(batch):
             new_target = src_pos[-4, i]
             tgt_row, tgt_col = new_target // new_col, new_target % new_col
@@ -154,6 +154,7 @@ class TransformerModel_Mixed(pl.LightningModule):
             target = data2[0][-1]
             sim = saliency_map_metric(logits, data2[2][1:,0])
             ss = nw_matching(gt[:,0].detach().cpu().numpy(), GAZE[:,0].detach().cpu().numpy())
+            col = self.args.shelf_col[1]
         else:
             logits = self.train_one_dataset(data1, 0, True)
             loss, GAZE = self.valid_one_dataset(data1, 0)
@@ -161,9 +162,16 @@ class TransformerModel_Mixed(pl.LightningModule):
             target = data1[0][-1]
             sim = saliency_map_metric(logits, data1[2][1:,0])
             ss = nw_matching(gt[:,0].detach().cpu().numpy(), GAZE[:,0].detach().cpu().numpy())
+            col = self.args.shelf_col[0]
+
+        new_tgt_ind = target
+        new_total_col = col * 2
+        new_row = int((new_tgt_ind // new_total_col) / 2)
+        new_col = int((new_tgt_ind % new_total_col) / 2)
+        actual_tgt = new_row * col + new_col
 
         self.log('validation_loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        return {'loss': loss, 'GAZE': GAZE,  'GAZE_gt': gt,  'target': target, 'sim': sim, 'ss': ss}
+        return {'loss': loss, 'GAZE': GAZE,  'GAZE_gt': gt,  'target': actual_tgt, 'sim': sim, 'ss': ss}
 
     def validation_epoch_end(self, validation_step_outputs):
         avg_loss = torch.stack([x['loss'] for x in validation_step_outputs]).mean()
