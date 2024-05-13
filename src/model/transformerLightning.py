@@ -82,7 +82,8 @@ class TransformerModel(pl.LightningModule):
 
         logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img,
-                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask,
+                            self.args.shelf_col, self.args.shelf_row)
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         if return_logits:
@@ -191,7 +192,8 @@ class TransformerModel(pl.LightningModule):
 
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
-                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask,
+                                    self.args.shelf_col, self.args.shelf_row)
                 # the first token cannot be end token
                 logits = logits[:, :, :-2]  # discard padding prob
                 if getMaxProb:
@@ -218,7 +220,8 @@ class TransformerModel(pl.LightningModule):
                 src_pos_2d, tgt_input_2d = self.generate3DInput(tgt_input, src_pos)
                 logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                                     src_img, tgt_img_input,
-                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                                    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask,
+                                    self.args.shelf_col, self.args.shelf_row)
                 logits = logits[:, :, :-1]  # discard padding prob
                 if getMaxProb:
                     _, predicted = torch.max(logits[-1, :, :], 1)
@@ -286,7 +289,8 @@ class TransformerModel(pl.LightningModule):
 
         logits = self.model(src_pos_2d.float(), tgt_input_2d.float(),  # src_pos, tgt_input,
                             src_img, tgt_img_input,
-                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
+                            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask,
+                            self.args.shelf_col, self.args.shelf_row)
         tgt_out = tgt_pos[1:, :]
         loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         _, predicted = torch.max(logits, 2)

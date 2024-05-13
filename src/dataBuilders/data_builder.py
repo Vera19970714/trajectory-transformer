@@ -218,9 +218,9 @@ class SearchDataModule(pl.LightningDataModule):
     val_set = FixDataset(args, 'Valid')
     test_set = FixDataset(args, 'Test')
     if args.training_dataset_choice != 'all' and args.testing_dataset_choice == args.training_dataset_choice:
-        collate_fn = Collator_pure(args.package_size, args.shelf_col)
+        collate_fn = Collator_pure(args.package_size, args.shelf_col, args.shelf_row)
     else:
-        collate_fn = Collator_mixed(args.package_size, args.shelf_col)
+        collate_fn = Collator_mixed(args.package_size, args.shelf_col, args.shelf_row)
 
     self.train_loader = DataLoader(dataset=train_set,
                                     batch_size=args.batch_size,
@@ -249,13 +249,14 @@ class SearchDataModule(pl.LightningDataModule):
 
 
 class Collator_pure(object):
-    def __init__(self, package_size, shelf_col):
+    def __init__(self, package_size, shelf_col, shelf_row):
         #self.TGT_IDX = package_size
         self.PAD_IDX = package_size + 1# 1
         self.BOS_IDX = package_size + 2
         self.EOS_IDX = package_size #+ 3
         self.package_size = package_size
         self.shelf_col = shelf_col
+        self.shelf_row = shelf_row
 
     def __call__(self, data):
         package_target = []
@@ -311,20 +312,21 @@ class Collator_pure(object):
         tgt_img = torch.stack(tgt_img)
         src_img = torch.stack(src_img)
         # here change 23,1 to 23*4,1: package_target and src_img, also change the index later
-        src_img_split = get_split_data(src_img)
+        src_img_split = get_split_data(src_img, self.shelf_col, self.shelf_row)
         return package_target_4split, src_img_split, package_seq, tgt_img, src_img
         # 23, 1 (22 products+target); 1, 23, 150, 93, 3; 16, 1; 1, 16, 150, 93, 3
         # 92, 1;1,92,75,47,3
 
 
 class Collator_mixed(object):
-    def __init__(self, package_size, shelf_col):
+    def __init__(self, package_size, shelf_col, shelf_row):
         #self.TGT_IDX = package_size
         self.PAD_IDX = package_size + 1# 1
         self.BOS_IDX = package_size + 2
         self.EOS_IDX = package_size #+ 3
         self.package_size = package_size
         self.shelf_col = shelf_col
+        self.shelf_row = shelf_row
 
     def process_one_type(self, data, type_index): # type index: 0 is yogurt, 1 is wine
         package_target = []
@@ -379,7 +381,7 @@ class Collator_mixed(object):
         tgt_img = torch.stack(tgt_img)
         src_img = torch.stack(src_img)
         # here change 23,1 to 23*4,1: package_target and src_img, also change the index later
-        src_img_split = get_split_data(src_img)
+        src_img_split = get_split_data(src_img, self.shelf_col[type_index], self.shelf_row[type_index])
         return package_target_4split, src_img_split, package_seq, tgt_img, src_img
         # 23, 1 (22 products+target); 1, 23, 150, 93, 3; 16, 1; 1, 16, 150, 93, 3
         # 92, 1;1,92,75,47,3
@@ -404,7 +406,7 @@ class Collator_mixed(object):
         return data1, data2
 
 
-def get_split_data(src_img): # input: 1, 23, 150, 93, 3
+def get_split_data(src_img, num_of_col, num_of_row): # input: 1, 23, 150, 93, 3
     s1, s2, s3 = src_img.size()[0], src_img.size()[1], src_img.size()[2]
     src_img = torch.cat((src_img, torch.zeros((s1, s2, s3, 1, 3))), dim=3)  # 1,23,150,94,3
     img1 = src_img[:, :, 0:75, 0:47, :]  # 1,23,75,46,3
@@ -412,7 +414,7 @@ def get_split_data(src_img): # input: 1, 23, 150, 93, 3
     img3 = src_img[:, :, 75:150, 0:47, :]
     img4 = src_img[:, :, 75:150, 47:94, :]
     results = []
-    num_of_col, num_of_row = 14, 6 # hardcode for amazon data
+    #num_of_col, num_of_row = 14, 6 # hardcode for amazon data
     for b in range(s1):
         results1 = []
         for row in range(num_of_row * 2):

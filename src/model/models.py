@@ -271,6 +271,7 @@ class Seq2SeqTransformer(nn.Module):
                 src_padding_mask: Tensor,
                 tgt_padding_mask: Tensor,
                 memory_key_padding_mask: Tensor,
+                num_of_col: int, num_of_row: int,
                 dataset=None,
                 patch_in_batch=True):
         if self.functionChoice != 'original_update' and self.functionChoice != 'learned':
@@ -320,7 +321,7 @@ class Seq2SeqTransformer(nn.Module):
             if self.CA_head != 1:
                 out = self.readout(out)
             out = out.squeeze(-1) # 8,1,93: average the four patches, change first 92 to 4*22+4 (22+1), then 1: 24
-            num_of_col, num_of_row = 14, 6 # hardcode for amazon data
+            #num_of_col, num_of_row = 14, 6 # hardcode for amazon data
             final_out = []
             for bs in range(out.size()[1]):
                 out_ = out[:,bs,:-1] # 8,92, 8,4,23,
