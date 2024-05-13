@@ -182,7 +182,7 @@ class TransformerModel_Mixed(pl.LightningModule):
         for output in validation_step_outputs:
             gaze = output['GAZE'].cpu().detach().numpy().T
             gaze_gt = output['GAZE_gt'].cpu().detach().numpy().T
-            target = output['target'].cpu().detach().numpy()
+            target = output['target'] #.cpu().detach().numpy()
             behavior(res_gt, target, gaze_gt)
             behavior(res_max, target, gaze)
             i += 1

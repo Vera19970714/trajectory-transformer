@@ -164,6 +164,7 @@ if __name__ == '__main__':
 
     # Fit the instantiated model to the data
     if args.do_train == 'True':
+        trainer.test(model=model, dataloaders=search_data.test_loader) # todo change back
         trainer.fit(model, search_data.train_loader, search_data.val_loader)
         trainer.test(model=model, dataloaders=search_data.test_loader)
     elif args.do_test == 'True':
