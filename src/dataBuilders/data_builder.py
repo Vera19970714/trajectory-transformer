@@ -171,7 +171,7 @@ class FixDataset(Dataset):
             self.question_img_feature.append(item['question_img_feature'])
             self.package_sequence.append(item['package_seq'])
             self.ids.append(item['id'])
-            #avglen.append(len(item['package_seq']))
+            avglen.append(len(item['package_seq']))
             if len(item['package_seq']) > self.max_len:
                 self.max_len = len(item['package_seq'])
             '''i+=1

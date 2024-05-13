@@ -333,12 +333,12 @@ class Seq2SeqTransformer(nn.Module):
                         patch4 = out_[:, (row_tgt + 1) * num_of_col * 2 + col_tgt * 2 + 1]
                         avg_patch = (patch1+patch2+patch3+patch4)/4
                         bs_out.append(avg_patch)
-                tgt_out = torch.mean(out_[:, -4:], dim=1)
+                tgt_out = torch.mean(out_[:, -4:], dim=1).to(DEVICE)
                 bs_out.append(tgt_out)
                 bs_out.append(out[:, bs, -1])
                 bs_out = torch.stack(bs_out) # 24, 8
                 final_out.append(bs_out)
-            final_out=torch.stack(final_out).permute(2, 0, 1) # 1, 24, 8
+            final_out=torch.stack(final_out).permute(2, 0, 1).to(DEVICE) # 1, 24, 8
             return final_out
         else:
             return self.generator(decoder_out)
