@@ -55,7 +55,7 @@ class TransformerModel_Mixed(pl.LightningModule):
             #print('-' * 10)
 
     def train_one_dataset(self, batch, type, return_logits=False):
-        src_pos, src_img, tgt_pos, tgt_img = batch
+        src_pos, src_img, tgt_pos, tgt_img, _ = batch
         # src_pos(28, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
         src_pos = src_pos.to(DEVICE)
         src_img = src_img.to(DEVICE)
@@ -136,13 +136,13 @@ class TransformerModel_Mixed(pl.LightningModule):
         return src_pos_2d, tgt_input_2d
 
     def valid_one_dataset(self, batch, type):
-        src_pos, src_img, tgt_pos, tgt_img = batch
+        src_pos, src_img, tgt_pos, tgt_img, src_img_full = batch
         # src_pos(28, b), src_img(b, 28, w, h, 3), tgt_pos(max_len, b), tgt_img(b, max_len, w, h, 3)
         src_pos = src_pos.to(DEVICE)
         src_img = src_img.to(DEVICE)
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
-        loss, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img, type)
+        loss, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img, type, src_img_full)
         return loss, GAZE
 
     def validation_step(self, batch, batch_idx):
@@ -253,29 +253,29 @@ class TransformerModel_Mixed(pl.LightningModule):
         loss = loss / (length - 1)
         return loss, LOSS, GAZE  # ,LOGITS
 
-    def test_max(self, src_pos, src_img, tgt_pos, tgt_img, type):
+    def test_max(self, src_pos, src_img, tgt_pos, tgt_img, type, src_img_full):
         #tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
-        blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
-        new_src_img = torch.cat((src_img[:,:-1,:,:], blank), dim=1) #31,300,186,3
-        loss, LOSS, GAZE = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, True, type)
+        blank = torch.zeros((1, 4, src_img_full.size()[2], src_img_full.size()[3], 3)).to(DEVICE)
+        src_img_full = torch.cat((src_img_full[:,:-1,:,:], blank), dim=1) #31,300,186,3
+        loss, LOSS, GAZE = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, src_img_full, True, type)
         if self.EOS_IDX[type] in GAZE:
             endIndex = torch.where(GAZE == self.EOS_IDX[type])[0][0]
             GAZE = GAZE[:endIndex]
             # LOGITS = LOGITS[:endIndex]
         return loss, LOSS, GAZE
 
-    def test_expect(self,src_pos, src_img, tgt_pos, tgt_img, type):
+    def test_expect(self,src_pos, src_img, tgt_pos, tgt_img, type, src_img_full):
         #tgt_input = tgt_pos[:-1, :]
         tgt_img = tgt_img[:, :-1, :, :, :]
         length = tgt_pos.size(0)
         loss = 0
-        blank = torch.zeros((1, 4, src_img.size()[2], src_img.size()[3], 3)).to(DEVICE)
-        new_src_img = torch.cat((src_img[:,:-1,:,:], blank), dim=1) #31,300,186,3
+        blank = torch.zeros((1, 4, src_img_full.size()[2], src_img_full.size()[3], 3)).to(DEVICE)
+        src_img_full = torch.cat((src_img_full[:,:-1,:,:], blank), dim=1) #31,300,186,3
         iter = self.args.stochastic_iteration
         GAZE = torch.zeros((self.max_len, iter))-1
         for n in range(iter):
-            loss_per, _, GAZE_per = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, False, type)
+            loss_per, _, GAZE_per = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, src_img_full, False, type)
             GAZE[:, n:(n+1)] = GAZE_per
             loss += loss_per / (length-1)
         loss= loss / iter
@@ -308,16 +308,16 @@ class TransformerModel_Mixed(pl.LightningModule):
         return loss, predicted[:-1], tgt_out[:-1], LOGITS_tf[:-1]
 
     def test_one_dataset(self, batch, type):
-        src_pos, src_img, tgt_pos, tgt_img = batch
+        src_pos, src_img, tgt_pos, tgt_img, src_img_full = batch
         src_pos = src_pos.to(DEVICE)
         src_img = src_img.to(DEVICE)
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
         loss_gt, GAZE_tf, GAZE_gt, LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img, type)
         sim = saliency_map_metric(LOGITS_tf, GAZE_gt[:, 0])
-        loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img, type)
+        loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img, type, src_img_full)
         ss_max = compare_multi_gazes(GAZE_gt, [GAZE[:, 0]])
-        loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img, type)
+        loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img, type, src_img_full)
         ss_exp = compare_multi_gazes(GAZE_gt, GAZE_expect)
         return loss_max, loss_expect, loss_gt, GAZE, GAZE_expect, GAZE_gt, sim, ss_max, ss_exp
 

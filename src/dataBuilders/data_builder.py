@@ -365,8 +365,8 @@ class Collator_mixed(object):
         tgt_img = torch.stack(tgt_img)
         src_img = torch.stack(src_img)
         # here change 23,1 to 23*4,1: package_target and src_img, also change the index later
-        src_img = get_split_data(src_img)
-        return package_target_4split, src_img, package_seq, tgt_img
+        src_img_split = get_split_data(src_img)
+        return package_target_4split, src_img_split, package_seq, tgt_img, src_img
         # 23, 1 (22 products+target); 1, 23, 150, 93, 3; 16, 1; 1, 16, 150, 93, 3
         # 92, 1;1,92,75,47,3
 

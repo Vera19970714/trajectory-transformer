@@ -132,7 +132,8 @@ class CNNEmbedding(nn.Module):
         self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU())
         if spp == 0:
             self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
-            self.fc = nn.Linear(256, outputSize)
+            self.fc_src = nn.Linear(256, outputSize)
+            self.fc_tgt = nn.Linear(1440, outputSize)
         elif spp == 2:
             self.sppLayer = SPPLayer(num_levels=2)
             self.fc = nn.Linear(160, outputSize)
@@ -158,7 +159,10 @@ class CNNEmbedding(nn.Module):
                 outputs = torch.flatten(output, start_dim=1, end_dim=-1)
             else:
                 outputs = self.sppLayer(output)
-            outputs = self.fc(outputs)
+            if outputs.size()[-1] == 1440:
+                outputs = self.fc_tgt(outputs)
+            else:
+                outputs = self.fc_src(outputs)
             return outputs.view(b, l, -1)
         else:
             b, l = len(x), x[0].size()[0]
@@ -315,7 +319,27 @@ class Seq2SeqTransformer(nn.Module):
             out = torch.cat(att_matrices, dim=-1)
             if self.CA_head != 1:
                 out = self.readout(out)
-            return out.squeeze(-1)  # 8, 2, 29
+            out = out.squeeze(-1) # 8,1,93: average the four patches, change first 92 to 4*22+4 (22+1), then 1: 24
+            num_of_col, num_of_row = 11, 2
+            final_out = []
+            for bs in range(out.size()[1]):
+                out_ = out[:,bs,:-1] # 8,92, 8,4,23,
+                bs_out = []
+                for row_tgt in range(num_of_row):
+                    for col_tgt in range(num_of_col):
+                        patch1 = out_[:, row_tgt * num_of_col * 2 + col_tgt * 2] #8,
+                        patch2 = out_[:, row_tgt * num_of_col * 2 + col_tgt * 2 + 1]
+                        patch3 = out_[:, (row_tgt + 1) * num_of_col * 2 + col_tgt * 2]
+                        patch4 = out_[:, (row_tgt + 1) * num_of_col * 2 + col_tgt * 2 + 1]
+                        avg_patch = (patch1+patch2+patch3+patch4)/4
+                        bs_out.append(avg_patch)
+                tgt_out = torch.mean(out_[:, -4:], dim=1)
+                bs_out.append(tgt_out)
+                bs_out.append(out[:, bs, -1])
+                bs_out = torch.stack(bs_out) # 24, 8
+                final_out.append(bs_out)
+            final_out=torch.stack(final_out).permute(2, 0, 1) # 1, 24, 8
+            return final_out
         else:
             return self.generator(decoder_out)
 
