@@ -23,7 +23,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-data_path', default='./dataset/processdata/dataset_amazon', type=str)
+    parser.add_argument('-data_path', default='./dataset/processdata/dataset_amazon_ratio2', type=str)
+    parser.add_argument('-object_ratio', default=2, type=int)
+
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-index_file', default='splitlist_all_amazon.txt', type=str) # all_time_better
 
@@ -72,6 +74,7 @@ if __name__ == '__main__':
     parser.add_argument('-do_test', type=str, default='True')
 
     args = parser.parse_args()
+    print('OBJECT RATIO: ', args.object_ratio)
 
     if args.training_dataset_choice == args.testing_dataset_choice and args.testing_dataset_choice != 'all':
         if args.testing_dataset_choice == 'wine':
@@ -91,6 +94,11 @@ if __name__ == '__main__':
         args.shelf_row = np.array([3, 2, 6])
         args.shelf_col = np.array([9, 11, 14])
         args.batch_size *= 2
+    args.package_size = int(args.package_size/(args.object_ratio*args.object_ratio))
+    args.shelf_row = int(args.shelf_row/args.object_ratio)
+    args.shelf_col = int(args.shelf_col/args.object_ratio)
+    if args.object_ratio != 1:
+        args.PE_matrix = './src/model/4split_learned_random_PE.npy'
 
     args.output_path = './dataset/checkEvaluation/' + args.log_name + '/'
 

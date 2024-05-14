@@ -133,6 +133,8 @@ class CNNEmbedding(nn.Module):
         if spp == 0:
             self.cnn2 = nn.Sequential(nn.Conv2d(16, 32, (3, 3)), nn.ReLU(), nn.MaxPool2d(3))
             self.fc = nn.Linear(1440, outputSize)
+            self.fc2 = nn.Linear(256, outputSize)
+            self.fc3 = nn.Linear(6688, outputSize)
         elif spp == 2:
             self.sppLayer = SPPLayer(num_levels=2)
             self.fc = nn.Linear(160, outputSize)
@@ -158,7 +160,12 @@ class CNNEmbedding(nn.Module):
                 outputs = torch.flatten(output, start_dim=1, end_dim=-1)
             else:
                 outputs = self.sppLayer(output)
-            outputs = self.fc(outputs)
+            if outputs.size()[-1] == 1440:
+                outputs = self.fc(outputs)
+            elif outputs.size()[-1] == 256:
+                outputs = self.fc2(outputs)
+            elif outputs.size()[-1] == 6688:
+                outputs = self.fc3(outputs)
             return outputs.view(b, l, -1)
         else:
             b, l = len(x), x[0].size()[0]

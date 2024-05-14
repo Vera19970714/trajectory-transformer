@@ -16,12 +16,23 @@ import matplotlib.pyplot as plt
 
 
 class CUT_PIC_AMAZON(object):
-    def __init__(self, file_name, output_path):
+    def __init__(self, file_name, output_path, ratio):
         self.image_path = file_name + 'amazon_data' + '/images/'
         self.border_path = file_name + 'amazon_data' + '/binarymask/'
         self.data_path = file_name + 'amazon_data' + '/amazon_data.json'
         self.target_path = file_name + 'amazon_data' + '/target/'
-        self.dim = (93, 150)
+        self.ratio = ratio
+        self.row = 6
+        self.col = 14
+        if ratio == 1:
+            self.dim = (93, 150)
+        elif ratio == 0.5:
+            self.dim = (int(93/2), int(150/2))
+        elif ratio == 2:
+            self.dim = (93*2, 150*2)
+        else:
+            print('Wrong ratio')
+            quit()
         self.output_path = output_path
 
     def find_bounding_boxes(self, border_img):
@@ -30,9 +41,28 @@ class CUT_PIC_AMAZON(object):
         contours, _ = cv.findContours(binary_image, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         bounding_boxes = []
         for contour in contours:
-            x, y, w, h = cv.boundingRect(contour)
-            bounding_boxes.append((x, y, x+w, y+h))
+            x, y, w, h = cv.boundingRect(contour) # todo: add here if ratio is 0.5
+            if self.ratio == 0.5:
+                bounding_boxes.append((x, y, x + int(w/2), y + int(h/2)))
+                bounding_boxes.append((x + int(w / 2), y, x + w, y + int(h/2)))
+                bounding_boxes.append((x, y + int(h / 2), x + int(w/2), y + h))
+                bounding_boxes.append((x + int(w / 2), y + int(h / 2), x + w, y+h))
+            else:
+                bounding_boxes.append((x, y, x+w, y+h))
         sorted_bounding_boxes = self.sort_boxes(bounding_boxes)
+        # todo: add here if ratio is 2
+        if self.ratio == 2:
+            sorted_bounding_boxes_new = []
+            for row in range(0, self.row, 2): # 6
+                for col in range(0, self.col, 2): # 14
+                    index = row * self.col + col
+                    bbox = sorted_bounding_boxes[index]
+                    x, y, x2, y2 = bbox
+                    h = y2 - y
+                    w = x2 - x
+                    new_bbox = (x, y, x+2*w, y+2*h)
+                    sorted_bounding_boxes_new.append(new_bbox)
+            return sorted_bounding_boxes_new
         return sorted_bounding_boxes
 
     # define a function to sort the bounding boxes from left to right, top to bottom
@@ -173,5 +203,5 @@ class CUT_PIC_AMAZON(object):
 
 
 if __name__ == '__main__':
-    CUT_PIC = CUT_PIC_AMAZON("./dataset/", "./dataset/processdata/dataset_amazon")
+    CUT_PIC = CUT_PIC_AMAZON("./dataset/", "./dataset/processdata/dataset_amazon_ratio0.5", ratio=0.5)
     CUT_PIC.cut_image()
