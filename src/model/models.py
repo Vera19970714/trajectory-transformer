@@ -288,11 +288,11 @@ class Seq2SeqTransformer(nn.Module):
             elif dataset == 1:
                 threed_pe = self.threedSin_wine
         src_cnn_emb = self.cnn_embedding(src_img, patch_in_batch).transpose(0, 1) #28, 4, 256
-        '''if self.functionChoice != 'learned':
+        if self.functionChoice != 'learned':
             src_pos_emb = calculate3DPositional(threed_pe, src).to(DEVICE)
         else:
-            src_pos_emb = calculate3DPositional_learned(self.pe, src, self.pe_embed).to(DEVICE)'''
-        src_pos_emb = self.rpe(src_cnn_emb.size()[0], src_cnn_emb.size()[1])
+            src_pos_emb = calculate3DPositional_learned(self.pe, src, self.pe_embed).to(DEVICE)
+        #src_pos_emb = self.rpe(src_cnn_emb.size()[0], src_cnn_emb.size()[1])
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
 
         encoder_out, output_list, attn_score_list = self.transformer_encoder(src_emb)
