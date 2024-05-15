@@ -80,7 +80,7 @@ class ResidualConnection(nn.Module):
     def __init__(self, features: int, dropout: float) -> None:
         super().__init__()
         self.dropout = nn.Dropout(dropout)
-        self.norm = nn.LayerNorm(features, eps=1e-5, bias=True) #LayerNormalization(features)
+        self.norm = nn.LayerNorm(features, eps=1e-5) #LayerNormalization(features)
 
     def forward(self, x, sublayer):
         return self.norm(x + sublayer(x))
