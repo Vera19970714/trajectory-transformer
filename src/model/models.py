@@ -311,7 +311,11 @@ class Seq2SeqTransformer(nn.Module):
         tgt_emb = torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
         tgt_emb = self.onedpositional_encoding(tgt_emb)
 
-        encoder_out = self.transformer_encoder(src_emb, src_mask, src_padding_mask)
+        # get target out of encoder
+        src_target_emb = src_emb[-1:, :, :]
+        src_others_emb = src_emb[:-1, :, :]
+        encoder_out = self.transformer_encoder(src_others_emb, src_mask[:-1,:-1], src_padding_mask[:,:-1])
+        encoder_out = torch.cat((encoder_out, src_target_emb), dim=0)
         decoder_out = self.transformer_decoder(tgt_emb, encoder_out, tgt_mask, None, tgt_padding_mask,
                                                memory_key_padding_mask)
         if self.CAVersion == 3:
