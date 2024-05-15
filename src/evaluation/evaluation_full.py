@@ -128,9 +128,10 @@ def string_distance(result_array,gaze,gt,col_num,row_num):
 
 class Evaluation(object):
     def __init__(self, training_dataset_choice, testing_dataset_choice, evaluation_url,
-                 datapath, indexFile, ITERATION=100, showBenchmark=True, showExpected=True, leave_one_comb_out=0):
+                 datapath, indexFile, ratio, ITERATION=100, showBenchmark=True, showExpected=True, leave_one_comb_out=0):
         #gaze_tf = '../dataset/checkEvaluation/gaze_tf.csv'
         self.ITERATION = ITERATION
+        self.ratio = ratio
         self.showBenchmark = showBenchmark
         self.training_dataset_choice = training_dataset_choice
         self.testing_dataset_choice = testing_dataset_choice
@@ -183,29 +184,31 @@ class Evaluation(object):
         for i in tqdm(range(self.data_length)):
             if self.training_dataset_choice == self.testing_dataset_choice and self.testing_dataset_choice != 'all':
                 if self.testing_dataset_choice == 'wine':
-                    TOTAL_PCK = 22
+                    #TOTAL_PCK = 22
                     col_num = 11
                     row_num = 2
                 elif self.testing_dataset_choice == 'yogurt':
-                    TOTAL_PCK = 27
+                    #TOTAL_PCK = 27
                     col_num = 9
                     row_num = 3
                 elif self.testing_dataset_choice == 'amazon':
-                    TOTAL_PCK = 84
+                    #TOTAL_PCK = 84
                     col_num = 14
                     row_num = 6
             elif self.training_dataset_choice == self.testing_dataset_choice == 'all':
                 if self.ids[i] == 'Q1':
-                    TOTAL_PCK = 22
+                    #TOTAL_PCK = 22
                     col_num = 11
                     row_num = 2
                 elif self.ids[i] == 'Q3':
-                    TOTAL_PCK = 27
+                    #TOTAL_PCK = 27
                     col_num = 9
                     row_num = 3
             else:
                 print('not implemented')
                 quit()
+            row_num = int(row_num / self.ratio)
+            col_num = int(col_num / self.ratio)
                 
             behavior(res['gt'], self.target[i], self.gaze_gt[i:(i+1)])
             behavior(res['single'], self.target[i], self.gaze_max[i:(i + 1)])
@@ -254,7 +257,10 @@ if __name__ == '__main__':
     ITERATION = 100
     training_dataset_choice = 'amazon'
     testing_dataset_choice = 'amazon'
+
     datapath = './dataset/processdata/dataset_amazon'
+    ratio = 1
+
     indexFile = './dataset/processdata/splitlist_all_amazon.txt'
     '''training_dataset_choice = 'all'
     testing_dataset_choice = 'all'
@@ -263,6 +269,6 @@ if __name__ == '__main__':
     evaluation_url = './dataset/checkEvaluation/amazon_center'
 
     e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url,
-                 datapath, indexFile, ITERATION=100, showBenchmark=False, showExpected=True,
+                 datapath, indexFile, ratio, ITERATION=100, showBenchmark=False, showExpected=True,
                    leave_one_comb_out=0)
     e.evaluation()

@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     # data path and output files
     parser.add_argument('-data_path', default='./dataset/processdata/dataset_amazon_ratio2', type=str)
-    parser.add_argument('-object_ratio', default=2, type=int)
+    parser.add_argument('-object_ratio', default=2, type=float)
 
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-index_file', default='splitlist_all_amazon.txt', type=str) # all_time_better
