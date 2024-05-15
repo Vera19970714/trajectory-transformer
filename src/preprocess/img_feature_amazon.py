@@ -157,8 +157,9 @@ class CUT_PIC_AMAZON(object):
             border_img = cv.imread(self.border_path + '14x6-' + imageName)
             cropped_images = self.crop_images_to_borders(img, border_img)
             target_id = self.find_best_matching_box_index(gaze['ground_truth'], border_img)
-            dataset_dict = {}
+
             for sub, fixation in gaze['fixations'].items():
+                dataset_dict = {}
                 fixations_patch = self.fixation_to_patch(fixation, border_img)
                 dataset_dict['package_target'] = [target_id]
                 dataset_dict['package_seq'] = fixations_patch
@@ -203,5 +204,5 @@ class CUT_PIC_AMAZON(object):
 
 
 if __name__ == '__main__':
-    CUT_PIC = CUT_PIC_AMAZON("./dataset/", "./dataset/processdata/dataset_amazon_ratio0.5", ratio=0.5)
+    CUT_PIC = CUT_PIC_AMAZON("./dataset/", "./dataset/processdata/dataset_amazon_revised", ratio=1)
     CUT_PIC.cut_image()
