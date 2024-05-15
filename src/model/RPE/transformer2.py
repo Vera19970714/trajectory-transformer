@@ -5,7 +5,7 @@ import math
 
 class LayerNormalization(nn.Module):
 
-    def __init__(self, features: int, eps: float = 10 ** -6) -> None:
+    def __init__(self, features: int, eps=1e-5):
         super().__init__()
         self.eps = eps
         self.alpha = nn.Parameter(torch.ones(features))  # alpha is a learnable parameter
@@ -31,7 +31,7 @@ class FeedForwardBlock(nn.Module):
 
     def forward(self, x):
         # (batch, seq_len, d_model) --> (batch, seq_len, d_ff) --> (batch, seq_len, d_model)
-        return self.linear_2(self.dropout(torch.relu(self.linear_1(x))))
+        return self.dropout(self.linear_2(self.dropout(torch.relu(self.linear_1(x)))))
 
 
 class InputEmbeddings(nn.Module):
@@ -80,10 +80,10 @@ class ResidualConnection(nn.Module):
     def __init__(self, features: int, dropout: float) -> None:
         super().__init__()
         self.dropout = nn.Dropout(dropout)
-        self.norm = LayerNormalization(features)
+        self.norm = nn.LayerNorm(features, eps=1e-5, bias=True) #LayerNormalization(features)
 
     def forward(self, x, sublayer):
-        return x + self.dropout(sublayer(self.norm(x)))
+        return self.norm(x + sublayer(x))
 
 
 class MultiHeadAttentionBlock(nn.Module):
@@ -112,8 +112,8 @@ class MultiHeadAttentionBlock(nn.Module):
             # Write a very low value (indicating -inf) to the positions where mask == 0
             attention_scores.masked_fill_(mask == 0, -1e9)
         attention_scores = attention_scores.softmax(dim=-1)  # (batch, h, seq_len, seq_len) # Apply softmax
-        if dropout is not None:
-            attention_scores = dropout(attention_scores)
+        #if dropout is not None:
+        #    attention_scores = dropout(attention_scores)
         # (batch, h, seq_len, seq_len) --> (batch, h, seq_len, d_k)
         # return attention scores which can be used for visualization
         return (attention_scores @ value), attention_scores
@@ -137,7 +137,7 @@ class MultiHeadAttentionBlock(nn.Module):
 
         # Multiply by Wo
         # (batch, seq_len, d_model) --> (batch, seq_len, d_model)
-        return self.w_o(x)
+        return self.dropout(self.w_o(x))
 
 
 class EncoderBlock(nn.Module):
@@ -165,7 +165,7 @@ class Encoder(nn.Module):
     def forward(self, x, mask):
         for layer in self.layers:
             x = layer(x, mask)
-        return self.norm(x)
+        return x #self.norm(x)
 
 
 class DecoderBlock(nn.Module):

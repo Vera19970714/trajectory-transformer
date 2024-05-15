@@ -209,7 +209,7 @@ class Seq2SeqTransformer(nn.Module):
             multiAttChoice = rpeAttention(emb_size, nhead, positional_encoding="rel", dropout_rate=dropout)
         elif rpe_choice is False:
             multiAttChoice = MultiHeadAttentionBlock(emb_size, nhead, dropout)
-        self.transformer_encoder = Encoder(emb_size, nn.ModuleList([EncoderBlock(emb_size, multiAttChoice, FeedForwardBlock(emb_size, emb_size, dropout), dropout) for _ in range(num_encoder_layers)]))
+        self.transformer_encoder = Encoder(emb_size, nn.ModuleList([EncoderBlock(emb_size, multiAttChoice, FeedForwardBlock(emb_size, dim_feedforward, dropout), 0) for _ in range(num_encoder_layers)]))
 
         decoder_layer = nn.TransformerDecoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                    dropout=dropout)
