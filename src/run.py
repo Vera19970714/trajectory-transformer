@@ -23,8 +23,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-data_path', default='./dataset/processdata/dataset_amazon_ratio2', type=str)
-    parser.add_argument('-object_ratio', default=2, type=float)
+    parser.add_argument('-data_path', default='./dataset/processdata/dataset_amazon', type=str)
+    parser.add_argument('-object_ratio', default=1, type=float)
 
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-index_file', default='splitlist_all_amazon.txt', type=str) # all_time_better
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('-leave_one_comb_out_layout_id', default=0, type=int)
     parser.add_argument('-spp', default=0, type=int) # 0: no spp, 2, 3, 4 represent level
 
-    parser.add_argument('-checkpoint', default='None', type=str)
+    parser.add_argument('-checkpoint', default='./ckpt/best_amazon_new_encoder/epoch=102-step=2472.ckpt', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
     parser.add_argument('-alpha', type=float, default=0.9)
     parser.add_argument('-functionChoice', default='learned', type=str) # choices: linear, exp1, exp2, original, original_update, learned
@@ -63,14 +63,14 @@ if __name__ == '__main__':
     parser.add_argument('-val_check_interval', default=1.0, type=float)
 
     # training settings
-    parser.add_argument('-gpus', default='-1', type=str)
+    parser.add_argument('-gpus', default='0', type=str)
     parser.add_argument('-batch_size', type=int, default=20)
     parser.add_argument('-num_epochs', type=int, default=500)
     parser.add_argument('-random_seed', type=int, default=1234)
     parser.add_argument('-early_stop_patience', type=int, default=30)
 
     parser.add_argument('-monitor', type=str, default='validation_delta_each_epoch') #'validation_loss_each_epoch'
-    parser.add_argument('-do_train', type=str, default='True')
+    parser.add_argument('-do_train', type=str, default='False')
     parser.add_argument('-do_test', type=str, default='True')
 
     args = parser.parse_args()
@@ -179,7 +179,7 @@ if __name__ == '__main__':
             model = model.load_from_checkpoint(args.checkpoint, args=args, max_len=search_data.max_len, irregular_max_len=irregular_data.max_len)
             trainer.test(model=model, dataloaders=irregular_data.test_loader)
         else:
-            model = model.load_from_checkpoint(args.checkpoint, args=args, max_len=search_data.max_len)
+            model = model.load_from_checkpoint(args.checkpoint, args=args, max_len=search_data.max_len, strict=False)
             trainer.test(model=model, dataloaders=search_data.test_loader)
 
     e = Evaluation(args.training_dataset_choice, args.testing_dataset_choice, args.output_path,

@@ -260,6 +260,7 @@ class Seq2SeqTransformer(nn.Module):
             self.readout = nn.Linear(CA_head, 1)
 
         self.CAVersion = CAVersion
+        self.rpe = RelativePositionalEncoder(int(emb_size / 2))
 
     def getCNNFeature(self, src_img: Tensor):
         with torch.no_grad():
