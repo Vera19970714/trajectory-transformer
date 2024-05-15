@@ -1,15 +1,9 @@
-from torch import Tensor
-import torch
-import torch.nn as nn
-from torch.nn import Transformer
-import math
-import numpy as np
+
 from .positionalEncoding import *
-#UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 27, 28, 29, 30
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 from .RPE.transformers import TransformerEncoder as rpeTransformerEncoder
 from .RPE.positional_encoders import RelativePositionalEncoder, AbsolutePositionalEncoder
+from .RPE.transformer2 import *
 from torch import Tensor
 import torch
 import torch.nn as nn
@@ -207,7 +201,9 @@ class Seq2SeqTransformer(nn.Module):
                                                    dropout=dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)'''
 
-        self.transformer_encoder = rpeTransformerEncoder(emb_dim=emb_size, num_heads=nhead, num_layers=num_encoder_layers, positional_encoding='rel')
+        #self.transformer_encoder = rpeTransformerEncoder(emb_dim=emb_size, num_heads=nhead, num_layers=num_encoder_layers, positional_encoding='rel')
+        self.transformer_encoder = Encoder(emb_size, nn.ModuleList([EncoderBlock(emb_size, MultiHeadAttentionBlock(emb_size, nhead, dropout), FeedForwardBlock(emb_size, emb_size, dropout), dropout) for _ in range(num_encoder_layers)]))
+
         decoder_layer = nn.TransformerDecoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                    dropout=dropout)
         self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_decoder_layers)
@@ -292,17 +288,18 @@ class Seq2SeqTransformer(nn.Module):
 
         # three types of abs PE: todo: uncomment one of them
         # 1. our abs
-        '''if self.functionChoice != 'learned':
+        if self.functionChoice != 'learned':
             src_pos_emb = calculate3DPositional(threed_pe, src).to(DEVICE)
         else:
-            src_pos_emb = calculate3DPositional_learned(self.pe, src, self.pe_embed).to(DEVICE)'''
+            src_pos_emb = calculate3DPositional_learned(self.pe, src, self.pe_embed).to(DEVICE)
         # 2. other abs
-        src_pos_emb = self.abs(src_cnn_emb)
+        #src_pos_emb = self.abs(src_cnn_emb)
         # 3. no abs
         #src_pos_emb = torch.zeros(src_cnn_emb.size()).to(DEVICE)
 
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
-        encoder_out, output_list, attn_score_list = self.transformer_encoder(src_emb)
+        #encoder_out, output_list, attn_score_list = self.transformer_encoder(src_emb)
+        encoder_out = self.transformer_encoder(src_emb, None)
 
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well
 
