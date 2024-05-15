@@ -23,11 +23,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # data path and output files
-    parser.add_argument('-data_path', default='./dataset/processdata/dataset_amazon', type=str)
+    parser.add_argument('-data_path', default='./dataset/processdata/dataset_amazon_revised', type=str)
     parser.add_argument('-object_ratio', default=1, type=float)
 
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
-    parser.add_argument('-index_file', default='splitlist_all_amazon.txt', type=str) # all_time_better
+    parser.add_argument('-index_file', default='splitlist_all_amazon_revised.txt', type=str) # all_time_better
 
     parser.add_argument('-testing_dataset_choice', default='amazon', type=str)  # wine, yogurt, amazon,all, irregular
     parser.add_argument('-training_dataset_choice', default='amazon', type=str)  # wine, yogurt, amazon,all
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('-leave_one_comb_out_layout_id', default=0, type=int)
     parser.add_argument('-spp', default=0, type=int) # 0: no spp, 2, 3, 4 represent level
 
-    parser.add_argument('-checkpoint', default='./ckpt/best_amazon_new_encoder/epoch=102-step=2472.ckpt', type=str)
+    parser.add_argument('-checkpoint', default='./ckpt/best_amazon_new_encoder/epoch=9-step=240.ckpt', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
     parser.add_argument('-alpha', type=float, default=0.9)
     parser.add_argument('-functionChoice', default='learned', type=str) # choices: linear, exp1, exp2, original, original_update, learned

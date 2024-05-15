@@ -169,6 +169,7 @@ class TransformerModel(pl.LightningModule):
         loss = 0
         LOSS = torch.zeros((length - 1, 1)) - 1
         GAZE = torch.zeros((self.max_len, 1)) - 1
+        print('*'*20)
 
         for i in range(1, self.max_len + 1):
             if i == 1:
@@ -188,7 +189,7 @@ class TransformerModel(pl.LightningModule):
                     logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
                     predicted = torch.multinomial(logits_new, 1, replacement=True)
                 logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
-                print(logits_new[3])
+                print(logits_new[9])
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -196,6 +197,8 @@ class TransformerModel(pl.LightningModule):
                     loss += self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
                                          tgt_out.reshape(-1).long())
                 #predicted = predicted+40
+                if predicted == 21:
+                    print()
                 GAZE[i - 1][0] = predicted
                 # LOGITS[i-1,:] = self.norm(logits[-1,:,:]).reshape(1,-1)
 
@@ -217,9 +220,9 @@ class TransformerModel(pl.LightningModule):
                     predicted = torch.multinomial(logits_new, 1, replacement=True)
 
                 logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
-                print(logits_new[3])
-                #if i==2:
-                #    predicted+=70
+                print(logits_new[9])
+                if i==2 and GAZE[0][0] == 21:
+                    predicted+=70
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
