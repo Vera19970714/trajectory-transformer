@@ -198,6 +198,6 @@ class MultiHeadAttention(nn.Module):
 
         if is_dropout:
             output = self.dropout(output)
-            return output, attn_score
+            return output #, attn_score
 
-        return output, attn_score
+        return output #, attn_score

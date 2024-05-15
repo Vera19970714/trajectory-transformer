@@ -4,6 +4,7 @@ from .positionalEncoding import *
 from .RPE.transformers import TransformerEncoder as rpeTransformerEncoder
 from .RPE.positional_encoders import RelativePositionalEncoder, AbsolutePositionalEncoder
 from .RPE.transformer2 import *
+from .RPE.attentions import MultiHeadAttention as rpeAttention
 from torch import Tensor
 import torch
 import torch.nn as nn
@@ -195,6 +196,7 @@ class Seq2SeqTransformer(nn.Module):
                  CA_d_k: int,
                  spp: int,
                  PE_path: int,
+                 rpe_choice: bool, abs_choice: int,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer, self).__init__()
         '''ncoder_layer = nn.TransformerEncoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
@@ -202,7 +204,12 @@ class Seq2SeqTransformer(nn.Module):
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)'''
 
         #self.transformer_encoder = rpeTransformerEncoder(emb_dim=emb_size, num_heads=nhead, num_layers=num_encoder_layers, positional_encoding='rel')
-        self.transformer_encoder = Encoder(emb_size, nn.ModuleList([EncoderBlock(emb_size, MultiHeadAttentionBlock(emb_size, nhead, dropout), FeedForwardBlock(emb_size, emb_size, dropout), dropout) for _ in range(num_encoder_layers)]))
+        self.abs_choice = abs_choice
+        if rpe_choice is True:
+            multiAttChoice = rpeAttention(emb_size, nhead, positional_encoding="rel", dropout_rate=dropout)
+        elif rpe_choice is False:
+            multiAttChoice = MultiHeadAttentionBlock(emb_size, nhead, dropout)
+        self.transformer_encoder = Encoder(emb_size, nn.ModuleList([EncoderBlock(emb_size, multiAttChoice, FeedForwardBlock(emb_size, emb_size, dropout), dropout) for _ in range(num_encoder_layers)]))
 
         decoder_layer = nn.TransformerDecoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                    dropout=dropout)
@@ -251,7 +258,7 @@ class Seq2SeqTransformer(nn.Module):
 
         self.CAVersion = CAVersion
         #self.rpe = RelativePositionalEncoder(int(emb_size/2))
-        self.abs = PositionalEncodingOri(int(emb_size/2))
+        self.abs = VisualPositionalEncoding(int(emb_size/2), 0)
 
     def getCNNFeature(self, src_img: Tensor):
         with torch.no_grad():
@@ -288,12 +295,14 @@ class Seq2SeqTransformer(nn.Module):
 
         # three types of abs PE: todo: uncomment one of them
         # 1. our abs
-        if self.functionChoice != 'learned':
-            src_pos_emb = calculate3DPositional(threed_pe, src).to(DEVICE)
-        else:
-            src_pos_emb = calculate3DPositional_learned(self.pe, src, self.pe_embed).to(DEVICE)
-        # 2. other abs
-        #src_pos_emb = self.abs(src_cnn_emb)
+        if self.abs_choice == 1:
+            if self.functionChoice != 'learned':
+                src_pos_emb = calculate3DPositional(threed_pe, src).to(DEVICE)
+            else:
+                src_pos_emb = calculate3DPositional_learned(self.pe, src, self.pe_embed).to(DEVICE)
+        elif self.abs_choice == 2:
+            #2. other abs
+            src_pos_emb = self.abs(src_cnn_emb)
         # 3. no abs
         #src_pos_emb = torch.zeros(src_cnn_emb.size()).to(DEVICE)
 

@@ -27,6 +27,9 @@ if __name__ == '__main__':
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-index_file', default='splitlist_all_amazon.txt', type=str) # all_time_better
 
+    parser.add_argument('-rpe_choice', default=False, type=bool)
+    parser.add_argument('-abs_choice', default=1, type=str)
+
     parser.add_argument('-testing_dataset_choice', default='amazon', type=str)  # wine, yogurt, amazon,all, irregular
     parser.add_argument('-training_dataset_choice', default='amazon', type=str)  # wine, yogurt, amazon,all
     parser.add_argument('-leave_one_comb_out', default=0, type=int)
