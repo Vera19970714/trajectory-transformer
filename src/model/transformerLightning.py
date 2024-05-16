@@ -342,7 +342,11 @@ class TransformerModel(pl.LightningModule):
     def test_epoch_end(self, test_step_outputs):
         avg_loss = np.stack([x['plot'] for x in test_step_outputs])#.mean()
         print(avg_loss.shape)
-        print(avg_loss.mean(axis=0))
+        mean = avg_loss.mean(axis=0)
+        print(mean)
+        x2 = np.arange(14)
+        plt.plot(x2, mean)
+        plt.show()
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
