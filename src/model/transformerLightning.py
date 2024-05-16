@@ -299,7 +299,7 @@ class TransformerModel(pl.LightningModule):
             length = min(logits.size()[0], logits2.size()[0])
             if length <= 2:
                 continue
-            diff = (logits2[2:3] - logits[2:3]).mean() # from 3, or the next 3 in total
+            diff = ((logits2[2:3] - logits[2:3]) / logits[2:3]).mean() # from 3, or the next 3 in total
             all_diff.append(diff.cpu().numpy())
         print('KNN=',KNN, ', DIFF=', np.mean(all_diff), ', len=', len(all_diff))
         #print(all_diff)
@@ -338,7 +338,7 @@ class TransformerModel(pl.LightningModule):
             x.append(df)
         #plt.plot(x2, x)
         #plt.show()
-        with open('result.csv', 'a', newline='') as csvfile:
+        with open('result_percentage.csv', 'a', newline='') as csvfile:
             spamwriter = csv.writer(csvfile, delimiter=' ',
                                     quotechar='|', quoting=csv.QUOTE_MINIMAL)
             spamwriter.writerow(x)
