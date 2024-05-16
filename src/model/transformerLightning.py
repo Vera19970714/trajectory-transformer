@@ -10,6 +10,7 @@ import numpy as np
 from tqdm import tqdm
 from random import sample
 import sys
+import csv
 from sklearn.neighbors import NearestNeighbors
 sys.path.append('./src/')
 from evaluation.evaluation_model import behavior
@@ -331,12 +332,16 @@ class TransformerModel(pl.LightningModule):
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
         x = []
-        x2 = np.arange(14)
+        #x2 = np.arange(14)
         for KNN in range(14):
             df = self.test_expect(src_pos, src_img, tgt_pos, tgt_img, KNN)
             x.append(df)
         #plt.plot(x2, x)
         #plt.show()
+        with open('result.csv', 'a', newline='') as csvfile:
+            spamwriter = csv.writer(csvfile, delimiter=' ',
+                                    quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            spamwriter.writerow(x)
         return {'plot': np.array(x)}
 
     def test_epoch_end(self, test_step_outputs):
