@@ -6,7 +6,10 @@ from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
+from random import sample
 import sys
+from sklearn.neighbors import NearestNeighbors
 sys.path.append('./src/')
 from evaluation.evaluation_model import behavior
 from evaluation.saliency_metric import saliency_map_metric, nw_matching, compare_multi_gazes
@@ -164,12 +167,12 @@ class TransformerModel(pl.LightningModule):
         self.log('validation_sim_each_epoch', avg_sim, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('validation_ss_each_epoch', avg_ss, on_epoch=True, prog_bar=True, sync_dist=True)
 
-    def generate_one_scanpath(self, tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb):
+    def generate_one_scanpath(self, tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb, second_token=None, check_prob=None):
         length = tgt_pos.size(0)
         loss = 0
         LOSS = torch.zeros((length - 1, 1)) - 1
         GAZE = torch.zeros((self.max_len, 1)) - 1
-        print('*'*20)
+        #print('*'*20)
 
         for i in range(1, self.max_len + 1):
             if i == 1:
@@ -189,7 +192,8 @@ class TransformerModel(pl.LightningModule):
                     logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
                     predicted = torch.multinomial(logits_new, 1, replacement=True)
                 logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
-                #print(logits_new[9])
+                if second_token is not None:
+                    predicted = second_token[0]
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -218,9 +222,9 @@ class TransformerModel(pl.LightningModule):
                     predicted = torch.multinomial(logits_new, 1, replacement=True)
 
                 logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
-                print(logits_new[9])
-                if i==2 and GAZE[0][0] == 21:
-                    predicted+=70
+                #print(logits_new[9])
+                if second_token is not None and i == 2:
+                    predicted = second_token[1]
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -234,6 +238,14 @@ class TransformerModel(pl.LightningModule):
                 next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1, 1)), dim=0)
         loss = loss / (length - 1) # return second gaze token
+        GAZE = GAZE[:-1, 0]
+        if check_prob is None:
+            second_token = GAZE[1].int()
+        else:
+            second_token = check_prob
+        logits = logits[:-1, 0, :] # l, 85
+        logits = F.softmax(logits, dim=1)
+        logits = logits[:, second_token]
         return loss, LOSS, GAZE, logits
 
     def test_max(self, src_pos, src_img, tgt_pos, tgt_img):
@@ -257,19 +269,37 @@ class TransformerModel(pl.LightningModule):
         new_src_img = torch.cat((src_img[:,:-1,:,:], blank), dim=1) #31,300,186,3
         iter = self.args.stochastic_iteration
         GAZE = torch.zeros((self.max_len, iter))-1
-        for n in range(iter):
-            loss_per, _, GAZE_per = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb=False)
-            GAZE[:, n:(n+1)] = GAZE_per
-            loss += loss_per / (length-1)
-        loss= loss / iter
-        GAZE_ALL = []
-        for i in range(iter):
-            if self.EOS_IDX in GAZE[:,i]:
-                j = torch.where(GAZE[:,i]==self.EOS_IDX)[0][0]
-                GAZE_ALL.append(GAZE[:j, i])
-            else:
-                GAZE_ALL.append(GAZE[:,i])
-        return loss,GAZE_ALL
+        KNN = [11,13]
+        num_of_col = self.args.shelf_col
+        package_size = self.args.package_size
+        X = np.zeros((package_size, package_size))
+        all_diff = []
+        for i in range(package_size):
+            for j in range(package_size):
+                i_col, i_row = i%num_of_col, i//num_of_col
+                j_col, j_row = j%num_of_col, j//num_of_col
+                X[i][j] = ((i_col-j_col)**2+(j_row-i_row)**2)**0.5
+        for n in tqdm(range(iter)):
+            _, _, GAZE, logits = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb=False)
+            second_token_o = GAZE[1].int().numpy()
+            neighbors = X[second_token_o]
+            new_token = np.where((neighbors>KNN[0]) & (neighbors<KNN[1]))[0] # if no new token then break
+            if len(new_token) == 0:
+                continue
+            new_token_s = sample(new_token.tolist(), 1)[0]
+            new_token_s = torch.tensor(new_token_s).view(1,)
+            first_t = torch.tensor(GAZE[0], dtype=torch.int64).view(1,)
+            _, _, GAZE2, logits2 = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img,
+                                                                  getMaxProb=False, second_token=[first_t, new_token_s], check_prob=second_token_o)
+            # mean difference: of all or of the next three, or remove the next one
+            length = min(logits.size()[0], logits2.size()[0])
+            if length <= 2:
+                continue
+            diff = (logits2[2:length] - logits[2:length]).mean() # from 3, or the next 3 in total
+            all_diff.append(diff.numpy())
+        print('KNN=',KNN, ', DIFF=', np.mean(all_diff))
+        print(all_diff)
+        quit()
 
     def test_gt(self,src_pos, src_img, tgt_pos, tgt_img):
         tgt_input = tgt_pos[:-1, :]
