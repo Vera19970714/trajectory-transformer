@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 from .models import *
 import torch
@@ -301,6 +302,7 @@ class TransformerModel(pl.LightningModule):
             all_diff.append(diff.cpu().numpy())
         print('KNN=',KNN, ', DIFF=', np.mean(all_diff), ', len=', len(all_diff))
         #print(all_diff)
+        return np.mean(all_diff)
 
 
     def test_gt(self,src_pos, src_img, tgt_pos, tgt_img):
@@ -328,10 +330,14 @@ class TransformerModel(pl.LightningModule):
         src_img = src_img.to(DEVICE)
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
-
+        x = []
+        x2 = np.arange(14)
         for KNN in range(14):
-            self.test_expect(src_pos, src_img, tgt_pos, tgt_img, KNN)
-        quit()
+            df = self.test_expect(src_pos, src_img, tgt_pos, tgt_img, KNN)
+            x.append(df)
+        plt.plot(x2, x)
+        plt.show()
+        return 0
         loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         loss_gt, GAZE_tf, GAZE_gt, LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
         sim = saliency_map_metric(LOGITS_tf, GAZE_gt[:, 0])
