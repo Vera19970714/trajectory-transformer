@@ -282,6 +282,8 @@ class TransformerModel(pl.LightningModule):
         for n in range(iter):
             _, _, GAZE, logits = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb=False)
             second_token_o = GAZE[1].int().numpy()
+            if second_token_o == self.EOS_IDX:
+                continue
             neighbors = X[second_token_o]
             new_token = np.where(neighbors==KNN)[0] # np.where((neighbors>KNN[0]) & (neighbors<KNN[1]))[0] # if no new token then break
             if len(new_token) == 0:
@@ -296,8 +298,8 @@ class TransformerModel(pl.LightningModule):
             if length <= 2:
                 continue
             diff = (logits2[2:3] - logits[2:3]).mean() # from 3, or the next 3 in total
-            all_diff.append(diff.numpy())
-        print('KNN=',KNN, ', DIFF=', np.mean(all_diff))
+            all_diff.append(diff.cpu().numpy())
+        print('KNN=',KNN, ', DIFF=', np.mean(all_diff), ', len=', len(all_diff))
         #print(all_diff)
 
 
