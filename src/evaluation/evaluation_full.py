@@ -163,7 +163,7 @@ class Evaluation(object):
 
         self.target = [int(self.target[i][0])-1 for i in range(len(self.target))]
   
-        self.gaze_gt = np.array(pd.read_csv(gaze_gt))
+        self.gaze_gt = np.array(pd.read_csv('dataset/checkEvaluation/amazon_ratio_2/gaze_gt.csv'))
         self.gaze_max = np.array(pd.read_csv(gaze_max))
         if showExpected:
             self.gaze_expect = np.array(pd.read_csv(gaze_expect))
@@ -173,25 +173,28 @@ class Evaluation(object):
             self.gaze_saliency = np.array(pd.read_csv(gaze_saliency))
             self.gaze_rgb = np.array(pd.read_csv(gaze_rgb))
             self.gaze_center = np.array(pd.read_csv(gaze_center))
-        if ratio == 0.5 or ratio == 2:
+        if ratio != 1:
             if self.testing_dataset_choice == 'amazon':
                 col_num = 14
+                if ratio == 0.25:
+                    col_num /= 2
             else:
                 print('not implemented')
             def change_index(x, col_num, ratio):
-                if ratio == 0.5:
-                    x_row = x // (col_num * 2)
-                    x_col = x % (col_num * 2)
-                    return col_num * int(x_row / 2) + int(x_col / 2)
-                elif ratio == 2:
-                    x_row = int((x // col_num) / 2)
-                    x_col = int((x % col_num) / 2)
-                    return (col_num / 2) * x_row + x_col
+                if ratio < 1:
+                    x_row = x // (col_num / ratio)
+                    x_col = x % (col_num / ratio)
+                    return col_num * int(x_row * ratio) + int(x_col * ratio)
+                elif ratio > 1:
+                    x_row = int((x // col_num) / ratio)
+                    x_col = int((x % col_num) / ratio)
+                    return (col_num / ratio) * x_row + x_col
             for i in range(self.data_length):
                 for j in range(len(self.gaze_gt[i])):
-                    x = self.gaze_gt[i][j]
+                    '''x = self.gaze_gt[i][j]
                     if not np.isnan(x):
-                        self.gaze_gt[i][j] = change_index(x, col_num, ratio)
+                        self.gaze_gt[i][j] = change_index(x, col_num, ratio)'''
+                #print(self.gaze_gt[i])
                 for i2 in range(i * self.ITERATION, i * self.ITERATION + self.ITERATION):
                     for j in range(len(self.gaze_expect[i2])):
                         x = self.gaze_expect[i2][j]
@@ -278,15 +281,15 @@ if __name__ == '__main__':
     training_dataset_choice = 'amazon'
     testing_dataset_choice = 'amazon'
 
-    datapath = './dataset/processdata/dataset_amazon'
-    ratio = 1 # ratio 1: do nothing, ratio 0.5: convert *4 objects back intp shelf, ratio 2: convert ours
+    datapath = './dataset/processdata/dataset_amazon_ratio0.5'
+    ratio = 0.25 # ratio 1: do nothing, ratio 0.5: convert *4 objects back intp shelf, ratio 2: convert ours
 
     indexFile = './dataset/processdata/splitlist_all_amazon.txt'
     '''training_dataset_choice = 'all'
     testing_dataset_choice = 'all'
     datapath = './dataset/processdata/dataset_Q123_mousedel_time'
     indexFile = './dataset/processdata/splitlist_all_time.txt'''
-    evaluation_url = './dataset/checkEvaluation/amazon_ratio_2'
+    evaluation_url = './dataset/checkEvaluation/amazon_ratio_0.5' # amazon_abs_only_new_encoder, amazon_ratio_2
 
     e = Evaluation(training_dataset_choice, testing_dataset_choice, evaluation_url,
                  datapath, indexFile, ratio, ITERATION=100, showBenchmark=False, showExpected=True,
