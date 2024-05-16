@@ -335,80 +335,14 @@ class TransformerModel(pl.LightningModule):
         for KNN in range(14):
             df = self.test_expect(src_pos, src_img, tgt_pos, tgt_img, KNN)
             x.append(df)
-        plt.plot(x2, x)
-        plt.show()
-        return 0
-        loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
-        loss_gt, GAZE_tf, GAZE_gt, LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
-        sim = saliency_map_metric(LOGITS_tf, GAZE_gt[:, 0])
-        ss_max = compare_multi_gazes(GAZE_gt, [GAZE[:, 0]])
-        ss_exp = compare_multi_gazes(GAZE_gt, GAZE_expect)
-        self.log('testing_loss', loss_max, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        if self.args.write_output == 'True':
-            return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt,'LOSS': LOSS, 'GAZE': GAZE, 'GAZE_tf': GAZE_tf,
-                    'GAZE_gt': GAZE_gt, 'GAZE_expect': GAZE_expect, 'sim': sim, 'ss_max': ss_max, 'ss_exp': ss_exp}
-        else:
-            return {'loss_max': loss_max, 'loss_expect': loss_expect, 'loss_gt': loss_gt}
+        #plt.plot(x2, x)
+        #plt.show()
+        return {'plot': np.array(x)}
 
     def test_epoch_end(self, test_step_outputs):
-        if self.args.write_output == 'True':
-            all_loss, all_gaze, all_gaze_tf, all_gaze_gt, all_gaze_expect = \
-                pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-            for output in test_step_outputs:
-                #losses = output['LOSS'].cpu().detach().numpy().T
-                #all_loss = pd.concat([all_loss, pd.DataFrame(losses)],axis=0)
-                gazes = output['GAZE'].cpu().detach().numpy().T
-                all_gaze = pd.concat([all_gaze, pd.DataFrame(gazes)],axis=0)
-                #logits = output['LOGITS'].cpu().detach().view(1, -1).numpy()
-                #all_logits = pd.concat([all_logits, pd.DataFrame(logits)],axis=0)
-                gazes_tf = output['GAZE_tf'].cpu().detach().numpy().T
-                all_gaze_tf = pd.concat([all_gaze_tf, pd.DataFrame(gazes_tf)],axis=0)
-                gazes_gt = output['GAZE_gt'].cpu().detach().numpy().T
-                all_gaze_gt = pd.concat([all_gaze_gt, pd.DataFrame(gazes_gt)],axis=0)
-                #logits_tf = output['LOGITS_tf'].cpu().detach().view(1, -1).numpy()
-                #all_logits_tf = pd.concat([all_logits_tf, pd.DataFrame(logits_tf)],axis=0)
-                for i in range(self.args.stochastic_iteration):
-                    gazes_expect = output['GAZE_expect'][i].cpu().detach().view(1, -1).numpy()
-                    all_gaze_expect = pd.concat([all_gaze_expect, pd.DataFrame(gazes_expect)],axis=0)
-
-            #all_loss.reset_index().drop(['index'],axis=1)
-            all_gaze.reset_index().drop(['index'],axis=1)
-            #all_logits.reset_index().drop(['index'],axis=1)
-            all_gaze_tf.reset_index().drop(['index'],axis=1)
-            all_gaze_gt.reset_index().drop(['index'],axis=1)
-            #all_logits_tf.reset_index().drop(['index'],axis=1)
-            all_gaze_expect.reset_index().drop(['index'],axis=1)
-            #all_loss.to_csv('../dataset/checkEvaluation/loss_max.csv', index=False)
-            all_gaze.to_csv(self.args.output_path + '/gaze_max' + self.args.output_postfix + '.csv', index=False)
-            #all_logits.to_csv('../dataset/checkEvaluation/logits_max.csv', index=False)
-            all_gaze_tf.to_csv(self.args.output_path + '/gaze_tf' + self.args.output_postfix + '.csv', index=False)
-            all_gaze_gt.to_csv(self.args.output_path + '/gaze_gt' + self.args.output_postfix + '.csv', index=False)
-            #all_logits_tf.to_csv('../dataset/checkEvaluation/logits_tf.csv', index=False)
-            all_gaze_expect.to_csv(self.args.output_path + '/gaze_expect' + self.args.output_postfix + '.csv', index=False)
-            avg_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
-            self.log('test_loss_max_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-
-            avg_loss = torch.stack([x['loss_expect'].cpu().detach() for x in test_step_outputs]).mean()
-            self.log('test_loss_expect_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-
-            avg_loss = torch.stack([x['loss_gt'].cpu().detach() for x in test_step_outputs]).mean()
-            self.log('test_loss_gt_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-
-            avg_sim = np.stack([x['sim'] for x in test_step_outputs]).mean()
-            self.log('test_sim', avg_sim, on_epoch=True, prog_bar=True, sync_dist=True)
-            avg_ss_max = np.stack([x['ss_max'] for x in test_step_outputs]).mean()
-            self.log('test_ss_max', avg_ss_max, on_epoch=True, prog_bar=True, sync_dist=True)
-            avg_ss_exp = np.stack([x['ss_exp'] for x in test_step_outputs]).mean()
-            self.log('test_ss_exp', avg_ss_exp, on_epoch=True, prog_bar=True, sync_dist=True)
-        else:
-            avg_loss = torch.stack([x['loss_max'].cpu().detach() for x in test_step_outputs]).mean()
-            self.log('test_loss_max_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-
-            avg_loss = torch.stack([x['loss_expect'].cpu().detach() for x in test_step_outputs]).mean()
-            self.log('test_loss_expect_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-
-            avg_loss = torch.stack([x['loss_gt'].cpu().detach() for x in test_step_outputs]).mean()
-            self.log('test_loss_gt_each_epoch', avg_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+        avg_loss = np.stack([x['plot'] for x in test_step_outputs])#.mean()
+        print(avg_loss.shape)
+        print(avg_loss.mean(axis=0))
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
