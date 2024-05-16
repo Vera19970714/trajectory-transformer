@@ -331,7 +331,7 @@ class TransformerModel(pl.LightningModule):
 
         for KNN in range(14):
             self.test_expect(src_pos, src_img, tgt_pos, tgt_img, KNN)
-            quit()
+        quit()
         loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         loss_gt, GAZE_tf, GAZE_gt, LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
         sim = saliency_map_metric(LOGITS_tf, GAZE_gt[:, 0])
