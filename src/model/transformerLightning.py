@@ -189,7 +189,7 @@ class TransformerModel(pl.LightningModule):
                     logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
                     predicted = torch.multinomial(logits_new, 1, replacement=True)
                 logits_new = F.softmax(logits[-1, :, :].view(-1), dim=0)
-                print(logits_new[9])
+                #print(logits_new[9])
                 if i < length:
                     tgt_out = tgt_pos[i, :]
                     LOSS[i - 1][0] = self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
@@ -197,8 +197,6 @@ class TransformerModel(pl.LightningModule):
                     loss += self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
                                          tgt_out.reshape(-1).long())
                 #predicted = predicted+40
-                if predicted == 21:
-                    print()
                 GAZE[i - 1][0] = predicted
                 # LOGITS[i-1,:] = self.norm(logits[-1,:,:]).reshape(1,-1)
 
@@ -230,13 +228,13 @@ class TransformerModel(pl.LightningModule):
                     loss += self.loss_fn(logits[-1, :, :].reshape(-1, logits[-1, :, :].shape[-1]),
                                          tgt_out.reshape(-1).long())
                 GAZE[i - 1][0] = predicted
-                if self.EOS_IDX in GAZE[:, 0] and i >= length:
+                if self.EOS_IDX in GAZE[:, 0]:
                     break
                 # LOGITS[i-1,:] = self.norm(logits[-1,:,:]).reshape(1,-1)
                 next_tgt_img_input = torch.cat((next_tgt_img_input, new_src_img[:, predicted, :, :, :]), dim=1)
                 next_tgt_input = torch.cat((next_tgt_input, predicted.view(-1, 1)), dim=0)
-        loss = loss / (length - 1)
-        return loss, LOSS, GAZE  # ,LOGITS
+        loss = loss / (length - 1) # return second gaze token
+        return loss, LOSS, GAZE, logits
 
     def test_max(self, src_pos, src_img, tgt_pos, tgt_img):
         #tgt_input = tgt_pos[:-1, :]
@@ -299,8 +297,9 @@ class TransformerModel(pl.LightningModule):
         tgt_pos = tgt_pos.to(DEVICE)
         tgt_img = tgt_img.to(DEVICE)
 
-        loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         loss_expect, GAZE_expect = self.test_expect(src_pos, src_img, tgt_pos, tgt_img)
+        quit()
+        loss_max, LOSS, GAZE = self.test_max(src_pos, src_img, tgt_pos, tgt_img)
         loss_gt, GAZE_tf, GAZE_gt, LOGITS_tf = self.test_gt(src_pos, src_img, tgt_pos, tgt_img)
         sim = saliency_map_metric(LOGITS_tf, GAZE_gt[:, 0])
         ss_max = compare_multi_gazes(GAZE_gt, [GAZE[:, 0]])
