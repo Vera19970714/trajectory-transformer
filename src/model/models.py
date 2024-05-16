@@ -203,13 +203,16 @@ class Seq2SeqTransformer(nn.Module):
                                                    dropout=dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)'''
 
-        #self.transformer_encoder = rpeTransformerEncoder(emb_dim=emb_size, num_heads=nhead, num_layers=num_encoder_layers, positional_encoding='rel')
         self.abs_choice = abs_choice
         if rpe_choice is True:
-            multiAttChoice = rpeAttention(emb_size, nhead, positional_encoding="rel", dropout_rate=dropout)
+            self.transformer_encoder = rpeTransformerEncoder(emb_dim=emb_size, num_heads=nhead,
+                                                             num_layers=num_encoder_layers, positional_encoding='rel')
+            #multiAttChoice = rpeAttention(emb_size, nhead, positional_encoding="rel", dropout_rate=dropout)
         elif rpe_choice is False:
-            multiAttChoice = MultiHeadAttentionBlock(emb_size, nhead, dropout)
-        self.transformer_encoder = Encoder(emb_size, nn.ModuleList([EncoderBlock(emb_size, multiAttChoice, FeedForwardBlock(emb_size, dim_feedforward, dropout), 0) for _ in range(num_encoder_layers)]))
+            self.transformer_encoder = rpeTransformerEncoder(emb_dim=emb_size, num_heads=nhead,
+                                                             num_layers=num_encoder_layers, positional_encoding='abs')
+            #multiAttChoice = MultiHeadAttentionBlock(emb_size, nhead, dropout)
+        #self.transformer_encoder = Encoder(emb_size, nn.ModuleList([EncoderBlock(emb_size, multiAttChoice, FeedForwardBlock(emb_size, dim_feedforward, dropout), 0) for _ in range(num_encoder_layers)]))
 
         decoder_layer = nn.TransformerDecoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                    dropout=dropout)
@@ -307,8 +310,8 @@ class Seq2SeqTransformer(nn.Module):
         #src_pos_emb = torch.zeros(src_cnn_emb.size()).to(DEVICE)
 
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
-        #encoder_out, output_list, attn_score_list = self.transformer_encoder(src_emb)
-        encoder_out = self.transformer_encoder(src_emb, None)
+        encoder_out, output_list, attn_score_list = self.transformer_encoder(src_emb)
+        #encoder_out = self.transformer_encoder(src_emb, None)
 
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well
 
