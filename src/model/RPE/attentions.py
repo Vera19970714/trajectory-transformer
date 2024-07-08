@@ -10,7 +10,7 @@ class ScaledDotProductAttention(nn.Module):
         super(ScaledDotProductAttention, self).__init__()
 
         # scaling factor 1 / sqrt(dimension of queries and keys)
-        self.scaling_factor = torch.sqrt(torch.tensor(emb_dim))
+        self.scaling_factor = torch.sqrt(torch.tensor(emb_dim).float())
 
 
     def forward(self, query, key, value, mask = None):
@@ -37,7 +37,7 @@ class RelativeScaledDotProductAttention(nn.Module):
         super(RelativeScaledDotProductAttention, self).__init__()
 
         # scaling factor 1 / sqrt(dimension of queries and keys)
-        self.scaling_factor = torch.sqrt(torch.tensor(emb_dim))
+        self.scaling_factor = torch.sqrt(torch.tensor(emb_dim).float())
 
 
     def forward(self, query, key, value, a_key, a_value, mask = None):
@@ -71,7 +71,7 @@ class T5ScaledDotProductAttention(nn.Module):
         super(T5ScaledDotProductAttention, self).__init__()
 
         # scaling factor 1 / sqrt(dimension of queries and keys)
-        self.scaling_factor = torch.sqrt(torch.tensor(emb_dim))
+        self.scaling_factor = torch.sqrt(torch.tensor(emb_dim).float())
 
 
     def forward(self, query, key, value, relative_bias, mask = None):

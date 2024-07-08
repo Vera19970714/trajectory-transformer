@@ -34,7 +34,7 @@ class TransformerModel(pl.LightningModule):
             NUM_DECODER_LAYERS = 2
         else:'''
         EMB_SIZE = 512
-        NHEAD = 4
+        NHEAD = 8
         FFN_HID_DIM = 512
         NUM_ENCODER_LAYERS = 4
         NUM_DECODER_LAYERS = 4

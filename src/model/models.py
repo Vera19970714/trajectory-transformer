@@ -102,7 +102,7 @@ class VisualPositionalEncoding(nn.Module):
                  dropout: float,
                  maxlen: int = 5000):
         super(VisualPositionalEncoding, self).__init__()
-        pos_embedding = nn.Parameter(torch.randn(maxlen, emb_size))
+        pos_embedding = nn.Parameter(torch.randn(maxlen, emb_size)).to(DEVICE)
         self.pos_embedding = pos_embedding.unsqueeze(-2)
         self.dropout = nn.Dropout(dropout)
         # self.register_buffer('visual_pos_embedding', pos_embedding) # NOTICE: not learned, it's deterministic
