@@ -286,20 +286,21 @@ class Seq2SeqTransformer(nn.Module):
                 memory_key_padding_mask: Tensor,
                 dataset=None,
                 patch_in_batch=True):
-        if self.functionChoice != 'original_update' and self.functionChoice != 'learned':
-            threed_pe = self.threedSin
-        elif self.functionChoice != 'learned':
-            if dataset is None:
-                #threed_pe = self.threedSin
-                shelf_len = src.size()[0]
-                if shelf_len == 23:
-                    threed_pe = self.threedSin_wine
-                elif shelf_len == 28:
+        if self.functionChoice != 'e2e':
+            if self.functionChoice != 'original_update' and self.functionChoice != 'learned':
+                threed_pe = self.threedSin
+            elif self.functionChoice != 'learned':
+                if dataset is None:
+                    #threed_pe = self.threedSin
+                    shelf_len = src.size()[0]
+                    if shelf_len == 23:
+                        threed_pe = self.threedSin_wine
+                    elif shelf_len == 28:
+                        threed_pe = self.threedSin_yogurt
+                elif dataset == 0:
                     threed_pe = self.threedSin_yogurt
-            elif dataset == 0:
-                threed_pe = self.threedSin_yogurt
-            elif dataset == 1:
-                threed_pe = self.threedSin_wine
+                elif dataset == 1:
+                    threed_pe = self.threedSin_wine
         src_cnn_emb = self.cnn_embedding(src_img, patch_in_batch).transpose(0, 1) #28, 4, 256
         if self.functionChoice == 'learned':
             src_pos_emb = calculate3DPositional_learned(self.pe, src, self.pe_embed).to(DEVICE)
@@ -315,10 +316,10 @@ class Seq2SeqTransformer(nn.Module):
         #tgt_pos_emb = self.tgt_tok_emb(trg)  # 28, 4, 256
 
         #tgt_pos_emb = self.LinearEmbedding(trg)
-        if self.functionChoice != 'learned':
-            tgt_pos_emb = calculate3DPositional(threed_pe, trg).to(DEVICE)
-        else:
+        if self.functionChoice == 'learned':
             tgt_pos_emb = calculate3DPositional_learned(self.pe, trg, self.pe_embed).to(DEVICE)
+        else:
+            tgt_pos_emb = calculate3DPositional(threed_pe, trg).to(DEVICE)
 
         tgt_emb = torch.cat((tgt_cnn_emb, tgt_pos_emb), dim=2)
         tgt_emb = self.onedpositional_encoding(tgt_emb)
