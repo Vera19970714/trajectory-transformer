@@ -38,7 +38,7 @@ class TransformerModel(pl.LightningModule):
             NUM_ENCODER_LAYERS = 2
             NUM_DECODER_LAYERS = 2
         else:'''
-        EMB_SIZE = 512
+        EMB_SIZE = 1024
         NHEAD = 4
         FFN_HID_DIM = 512
         NUM_ENCODER_LAYERS = 4
@@ -281,7 +281,8 @@ class TransformerModel(pl.LightningModule):
                 i_col, i_row = i%num_of_col, i//num_of_col
                 j_col, j_row = j%num_of_col, j//num_of_col
                 X[i][j] = max(i_col-j_col, i_row-j_row) #((i_col-j_col)**2+(j_row-i_row)**2)**0.5
-        for n in range(iter):
+        all_results = []
+        for n in range(2): # todo: change back,  iter
             _, _, GAZE, logits = self.generate_one_scanpath(tgt_pos, tgt_img, src_pos, src_img, new_src_img, getMaxProb=False)
             second_token_o = GAZE[1].int().numpy()
             if second_token_o == self.EOS_IDX:
@@ -299,11 +300,13 @@ class TransformerModel(pl.LightningModule):
             length = min(logits.size()[0], logits2.size()[0])
             if length <= 2:
                 continue
+            res = (logits2[2:length] - logits[2:length]) / logits[2:length]
             diff = ((logits2[2:3] - logits[2:3]) / logits[2:3]).mean() # from 3, or the next 3 in total
             all_diff.append(diff.cpu().numpy())
+            all_results.append(res.cpu().numpy())
         print('KNN=',KNN, ', DIFF=', np.mean(all_diff), ', len=', len(all_diff))
         #print(all_diff)
-        return np.mean(all_diff)
+        return np.mean(all_diff), all_results
 
 
     def test_gt(self,src_pos, src_img, tgt_pos, tgt_img):
@@ -333,15 +336,16 @@ class TransformerModel(pl.LightningModule):
         tgt_img = tgt_img.to(DEVICE)
         x = []
         #x2 = np.arange(14)
-        for KNN in range(14):
-            df = self.test_expect(src_pos, src_img, tgt_pos, tgt_img, KNN)
-            x.append(df)
-        #plt.plot(x2, x)
-        #plt.show()
-        with open('result_percentage.csv', 'a', newline='') as csvfile:
+        with open('result_percentage_saveall.csv', 'a', newline='') as csvfile:
             spamwriter = csv.writer(csvfile, delimiter=' ',
                                     quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            spamwriter.writerow(x)
+            for KNN in range(14):
+                df, res = self.test_expect(src_pos, src_img, tgt_pos, tgt_img, KNN)
+                x.append(df)
+                spamwriter.writerow([KNN, batch_idx, res])
+            #plt.plot(x2, x)
+            #plt.show()
+            #spamwriter.writerow(x)
         return {'plot': np.array(x)}
 
     def test_epoch_end(self, test_step_outputs):
