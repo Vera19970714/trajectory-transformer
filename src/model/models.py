@@ -106,7 +106,7 @@ class VisualPositionalEncoding(nn.Module):
                  dropout: float,
                  maxlen: int = 5000):
         super(VisualPositionalEncoding, self).__init__()
-        pos_embedding = nn.Parameter(torch.randn(maxlen, emb_size))
+        pos_embedding = nn.Parameter(torch.randn(maxlen, emb_size)).to(DEVICE)
         self.pos_embedding = pos_embedding.unsqueeze(-2)
         self.dropout = nn.Dropout(dropout)
         # self.register_buffer('visual_pos_embedding', pos_embedding) # NOTICE: not learned, it's deterministic
@@ -207,13 +207,18 @@ class Seq2SeqTransformer(nn.Module):
                  CA_d_k: int,
                  spp: int,
                  PE_path: int,
+                 rpe_choice: bool,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer, self).__init__()
         '''encoder_layer = nn.TransformerEncoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                    dropout=dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)'''
+        if rpe_choice == False:
+            rpe = 'abs'
+        else:
+            rpe = 'rel'
         self.transformer_encoder = rpeTransformerEncoder(emb_dim=emb_size, num_heads=nhead,
-                                                         num_layers=num_encoder_layers, positional_encoding='abs')
+                                                         num_layers=num_encoder_layers, positional_encoding=rpe)
         decoder_layer = nn.TransformerDecoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                    dropout=dropout)
         self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_decoder_layers)
@@ -245,6 +250,8 @@ class Seq2SeqTransformer(nn.Module):
 
             extra_token = torch.zeros((4, pe.size()[1])).to(DEVICE)
             self.pe = torch.cat((pe, extra_token), dim=0)
+        elif functionChoice == 'e2e':
+            self.e2e_abs = VisualPositionalEncoding(int(emb_size / 2), 0)
         else:
             self.threedSin = getSinPositional(3, int(emb_size / 2), functionChoice, alpha, 'all', changeX=changeX)
 
@@ -293,10 +300,12 @@ class Seq2SeqTransformer(nn.Module):
             elif dataset == 1:
                 threed_pe = self.threedSin_wine
         src_cnn_emb = self.cnn_embedding(src_img, patch_in_batch).transpose(0, 1) #28, 4, 256
-        if self.functionChoice != 'learned':
-            src_pos_emb = calculate3DPositional(threed_pe, src).to(DEVICE)
-        else:
+        if self.functionChoice == 'learned':
             src_pos_emb = calculate3DPositional_learned(self.pe, src, self.pe_embed).to(DEVICE)
+        elif self.functionChoice == 'e2e':
+            src_pos_emb = self.e2e_abs(src_cnn_emb)
+        else:
+            src_pos_emb = calculate3DPositional(threed_pe, src).to(DEVICE)
 
         src_emb = torch.cat((src_cnn_emb, src_pos_emb), dim=2) #28, 1, 384(256+128)
         #src_emb = self.positional_encoding(src_emb) #CHANGE: use positional encoding as well

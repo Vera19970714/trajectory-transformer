@@ -162,8 +162,10 @@ class Evaluation(object):
             self.ids.append(item['id'])
 
         self.target = [int(self.target[i][0])-1 for i in range(len(self.target))]
-  
-        self.gaze_gt = np.array(pd.read_csv('dataset/checkEvaluation/amazon_ratio_2/gaze_gt.csv'))
+        if ratio == 0.25: # todo: add other choices
+            self.gaze_gt = np.array(pd.read_csv('dataset/checkEvaluation/amazon_ratio_2/gaze_gt.csv'))
+        else:
+            self.gaze_gt = np.array(pd.read_csv(gaze_gt))
         self.gaze_max = np.array(pd.read_csv(gaze_max))
         if showExpected:
             self.gaze_expect = np.array(pd.read_csv(gaze_expect))
