@@ -26,7 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('-data_path', default='./dataset/processdata/dataset_amazon_ratio2', type=str)
     parser.add_argument('-object_ratio', default=2, type=float)
 
-    parser.add_argument('-rpe_choice', default=False, type=bool)
+    parser.add_argument('-rpe_choice', default=0, type=int)
 
     parser.add_argument('-index_folder', default='./dataset/processdata/', type=str)
     parser.add_argument('-index_file', default='splitlist_all_amazon.txt', type=str) # all_time_better
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     parser.add_argument('-checkpoint', default='None', type=str)
     #parser.add_argument('-posOption', default=2, type=int) # choices: 1, 2, 3, 4
     parser.add_argument('-alpha', type=float, default=0.9)
-    parser.add_argument('-functionChoice', default='learned', type=str) # choices: linear, exp1, exp2, original, original_update, learned
+    parser.add_argument('-functionChoice', default='learned', type=str) # added new: e2e, choices: linear, exp1, exp2, original, original_update, learned
     parser.add_argument('-changeX', default='None', type=str) # None, False, True
     parser.add_argument('-CA_version', default=3, type=int)  # valid values atm: 0, 3
     # 0: no cross attention, 1: add padding to input, 2: extra FC stream, 3: add pad prob in logits

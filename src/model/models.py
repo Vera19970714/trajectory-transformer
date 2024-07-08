@@ -207,16 +207,17 @@ class Seq2SeqTransformer(nn.Module):
                  CA_d_k: int,
                  spp: int,
                  PE_path: int,
-                 rpe_choice: bool,
+                 rpe_choice: int,
                  dropout: float = 0.1):
         super(Seq2SeqTransformer, self).__init__()
         '''encoder_layer = nn.TransformerEncoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                    dropout=dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)'''
-        if rpe_choice == False:
+        if rpe_choice == 0:
             rpe = 'abs'
         else:
             rpe = 'rel'
+        print('RPE choice: ', rpe)
         self.transformer_encoder = rpeTransformerEncoder(emb_dim=emb_size, num_heads=nhead,
                                                          num_layers=num_encoder_layers, positional_encoding=rpe)
         decoder_layer = nn.TransformerDecoderLayer(d_model=emb_size, nhead=nhead, dim_feedforward=dim_feedforward,
